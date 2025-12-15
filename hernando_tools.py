@@ -251,16 +251,17 @@ class HernandoTools:
         # TODO: Implementar envío real (email, webhook, etc.)
         print(f"📧 Formulario recibido: {json.dumps(formulario, indent=2)}")
         
-        return f"""✅ Formulario enviado exitosamente.
+        return f"""¡Listo! He enviado tu formulario con éxito.
 
-Hemos recibido tu solicitud de {tipo_solicitud}.
-El equipo de Fundo Moraga te contactará a {email} o al {telefono} a la brevedad.
+Tu solicitud de {tipo_solicitud} ya está en manos del equipo de Fundo Moraga. 
+Te contactaremos muy pronto a tu email {email} o a tu teléfono {telefono}.
 
-También puedes contactarnos directamente:
+Si prefieres, también puedes escribirnos directamente a:
 📧 contacto@fundomoraga.com
 📱 WhatsApp: +56 9 9939 2122
 
-¡Gracias por tu interés en Fundo Moraga!"""
+¡Gracias por tu interés en Fundo Moraga! Estamos felices de ayudarte.
+"""
     
     def buscar_informacion_historica(self, tema: str, detalle: str = None) -> str:
         """
@@ -394,8 +395,8 @@ Una de las familias fundadoras de Chile con mayor continuidad histórica.
         respuesta = info_historica.get(tema, "No se encontró información sobre ese tema específico.")
         
         if detalle:
-            respuesta += f"\n\n📌 Consulta específica: {detalle}\n"
-            respuesta += "Para más detalles, puedes contactarnos en contacto@fundomoraga.com"
+            respuesta += f"\n\n🔍 Tu pregunta específica fue: '{detalle}'.\n"
+            respuesta += "Espero que esta información te sea útil. Si quieres profundizar aún más, nuestro equipo está disponible en contacto@fundomoraga.com. ¡Nos encanta compartir nuestra historia!"
         
         return respuesta
     
@@ -527,8 +528,8 @@ Contacto:
         respuesta = actividades.get(tipo_actividad, actividades["todas"])
         
         if numero_personas:
-            respuesta += f"\n\n👥 Para un grupo de {numero_personas} personas, "
-            respuesta += "contáctanos para coordinar la mejor opción."
+            respuesta += f"\n\n👥 ¡Genial! Para un grupo de {numero_personas} personas, podemos organizar algo especial. "
+            respuesta += "Conversemos por nuestros canales de contacto para darte una experiencia a la medida."
         
         return respuesta
     
@@ -546,64 +547,67 @@ Contacto:
             "cotizacion": f"""
 **COTIZACIONES Y PRESUPUESTOS**
 
-Para solicitar una cotización, contáctanos con:
-- Tipo de evento o actividad
-- Fecha tentativa
-- Número de personas
-- Requerimientos específicos
+¡Claro que sí! Para darte una cotización a tu medida, cuéntanos un poco más sobre tu idea:
+- ¿Qué tipo de evento o actividad tienes en mente?
+- ¿En qué fecha te gustaría realizarlo?
+- ¿Cuántas personas asistirán?
+- ¿Tienes algún requerimiento especial?
+
+Con esta información, prepararemos algo increíble para ti.
 
 {contactos_base}
 
-Tiempo de respuesta: 24-48 horas hábiles
+Nuestro equipo te responderá en un plazo de 24 a 48 horas hábiles. ¡Estamos ansiosos por ayudarte a crear un momento inolvidable!
             """,
             "reserva": f"""
 **RESERVAS**
 
-Para realizar una reserva:
-1. Contáctanos con tus fechas de interés
-2. Especifica el tipo de actividad
-3. Confirma número de asistentes
+¡Estupendo! Para reservar tu experiencia en Fundo Moraga, solo necesitamos que nos contactes con los siguientes datos:
+1. Las fechas que tienes en mente.
+2. El tipo de actividad que te gustaría realizar.
+3. El número de personas que participarán.
 
 {contactos_base}
 
-Te responderemos con disponibilidad y pasos a seguir.
+Te responderemos a la brevedad con la disponibilidad y los siguientes pasos. ¡Estamos muy contentos de que nos consideres para tu próxima aventura!
             """,
             "consulta_general": f"""
 **CONSULTAS GENERALES**
 
-Estamos disponibles para responder tus preguntas sobre:
-- Historia del fundo y la familia
-- Actividades disponibles
-- Servicios
-- Acceso y ubicación
+¡Por supuesto! Estamos aquí para responder todas tus dudas sobre:
+- La fascinante historia de nuestro fundo y la familia Moraga.
+- Las entretenidas actividades que ofrecemos.
+- Nuestros servicios y cómo podemos adaptarnos a tus necesidades.
+- Cómo llegar y todo sobre nuestra ubicación.
 
 {contactos_base}
+
+¡No dudes en preguntar, nos encanta conversar sobre Fundo Moraga!
             """,
             "emergencia": f"""
 **CONTACTO DE EMERGENCIA**
 
-Para situaciones urgentes relacionadas con:
-- Eventos en curso
-- Accidentes en el fundo
-- Problemas durante actividades
+Para cualquier situación urgente durante tu visita o evento, por favor, utiliza estos canales:
 
 {contactos_base}
 
-Disponibilidad: Según coordinación previa
+Tu seguridad y bienestar son nuestra máxima prioridad.
             """,
             "prensa": f"""
 **CONTACTO DE PRENSA**
 
-Para solicitudes de medios, entrevistas o material de prensa:
+Si eres de un medio de comunicación y necesitas información, ¡estamos a tu disposición!
 
 {contactos_base}
 
-Asunto: "Prensa - [Tu medio]"
+Por favor, en el asunto de tu correo indica: "Prensa - [Nombre de tu medio]".
 
-Proporcionamos:
-- Información histórica documentada
-- Material fotográfico
-- Entrevistas (previa coordinación)
+Podemos facilitarte:
+- Información histórica detallada y documentada.
+- Material fotográfico de alta calidad.
+- Coordinar entrevistas con nuestro equipo.
+
+¡Gracias por tu interés en difundir la historia de Fundo Moraga!
             """
         }
         
@@ -616,30 +620,28 @@ Proporcionamos:
         return f"""
 🚧 **ACCESO AL FUNDO MORAGA**
 
-El Fundo Moraga es una **propiedad privada**.
+El Fundo Moraga es un tesoro privado que cuidamos con mucho cariño. Por eso, el acceso es coordinado y con autorización.
 
-✅ **Acceso permitido solo con**:
-- Autorización previa y formal
-- Coordinación con el equipo
-- Reserva confirmada
-- Evento o actividad programada
+✅ **Puedes ingresar si tienes**:
+- Una autorización previa y formal de nuestro equipo.
+- Una reserva confirmada para alguna de nuestras actividades.
+- Un evento o actividad ya programada con nosotros.
 
-❌ **NO se permite**:
-- Acceso público sin autorización
-- Visitas espontáneas
-- Ingreso sin coordinación previa
+❌ **Recuerda que no está permitido**:
+- El acceso libre al público.
+- Las visitas espontáneas sin aviso.
 
-**Tu propósito**: {proposito}
+**Tu propósito de visita**: {proposito}
 
-Para solicitar acceso:
-1. Contacta a: contacto@fundomoraga.com
-2. Especifica tu propósito de visita
-3. Proporciona fecha y detalles
-4. Espera confirmación oficial
+Para que podamos darte la bienvenida, por favor, sigue estos pasos:
+1. Escríbenos a: contacto@fundomoraga.com
+2. Cuéntanos cuál es el motivo de tu visita.
+3. Indícanos la fecha y otros detalles que consideres importantes.
+4. Espera nuestra confirmación oficial. ¡Te responderemos pronto!
 
-📱 WhatsApp: +56 9 9939 2122
+También puedes contactarnos por 📱 WhatsApp: +56 9 9939 2122
 
-La seguridad y privacidad de la propiedad es prioritaria.
+Cuidar la seguridad y privacidad del fundo nos permite conservar su magia. ¡Gracias por tu comprensión!
         """
     
     def capturar_informacion_usuario(
@@ -671,18 +673,18 @@ La seguridad y privacidad de la propiedad es prioritaria.
         }
         
         # Mensaje de confirmación para el usuario
-        mensaje = f"""✅ Perfecto, {nombre if nombre else 'estimado/a'}. 
+        mensaje = f"""¡Perfecto, {nombre if nombre else 'estimado/a'}! 
 
-He registrado tu consulta sobre {interes if interes else 'nuestros servicios'}.
+He tomado nota de tu consulta sobre {interes if interes else 'nuestros servicios'}.
 
-El equipo de Fundo Moraga recibirá esta información y te contactarán"""
+Le pasaré esta información al equipo de Fundo Moraga para que se pongan en contacto contigo"""
         
         if contacto and contacto != "No proporcionado":
             mensaje += f" a través de {contacto}"
         
-        mensaje += """ para darte una atención personalizada.
+        mensaje += """ y te ofrezcan una atención personalizada.
 
-¿Hay algo más en lo que pueda ayudarte?"""
+¿Hay algo más en lo que pueda ayudarte? ¡Estoy aquí para servirte!"""
         
         # Log para debugging
         print(f"📋 Información capturada: {json.dumps(info_capturada, indent=2)}")
