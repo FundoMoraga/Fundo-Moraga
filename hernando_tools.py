@@ -672,6 +672,8 @@ Podemos facilitarte:
 También puedes contactarnos por 📱 WhatsApp al +5694 1242609.
 
 Cuidar la seguridad y privacidad del fundo nos permite conservar su historia y belleza natural para todos nuestros visitantes. ¡Agradecemos mucho tu comprensión!
+
+Si te tinca coordinar una visita, dime para qué día te gustaría venir y a qué hora (idealmente entre 09:00 y 17:00). ¿Vienes en auto o moto?
         """
     
     def capturar_informacion_usuario(

@@ -192,22 +192,15 @@ class InstagramBot:
         if not (looks_like_price and looks_like_offroad):
             return None
 
-        lines = []
-        lines.append("En las actividades off-road (Batuco Off Road) las tarifas públicas son:")
-        lines.append("- Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.")
-        lines.append("- Sábado (solo grupos): $200.000 el día.")
-        lines.append("- Domingo: no se agenda.")
-        lines.append("")
-        lines.append("¿Te gustaría que lo agendemos? Si sí, dime en un solo mensaje:")
-        lines.append("- Fecha (ideal YYYY-MM-DD) y hora de llegada (HH:MM, entre 09:00 y 17:00)")
-        lines.append("- Nombres y apellidos")
-        lines.append("- Teléfono y correo")
-        lines.append("- Cantidad de autos y motos")
-        lines.append("")
-        lines.append("Si prefieres que el equipo te contacte para coordinar, déjame tu nombre y un correo o WhatsApp y lo derivamos.")
-        lines.append("")
-        lines.append("Para eventos privados/corporativos o valores personalizados, lo coordinamos con el equipo: contacto@fundomoraga.com / +5694 1242609.")
-        return "\n".join(lines)
+        return (
+            "¡Claro! Para las actividades off-road (Batuco Off Road) las tarifas públicas son:\n"
+            "• Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.\n"
+            "• Sábado (solo grupos): $200.000 el día.\n"
+            "• Domingo: no se agenda.\n\n"
+            "Si quieres, lo dejamos coordinado al tiro: ¿qué fecha y a qué hora te gustaría llegar (entre 09:00 y 17:00)? "
+            "¿Vienes en auto o moto, y cuántos?\n\n"
+            "Y si prefieres que el equipo te contacte para coordinar, déjame tu nombre y un correo o WhatsApp y lo derivo."
+        )
 
     def _handle_post_ai_events(
         self,
@@ -468,7 +461,17 @@ class InstagramBot:
         if stage == "awaiting_day":
             visit_date = self._parse_visit_date(message_text)
             if not visit_date:
-                return "¡Perfecto! ¿Qué fecha te gustaría venir? (ideal: YYYY-MM-DD, por ejemplo 2026-01-15)."
+                # Si el usuario dijo un día de la semana (ej: "viernes"), proponemos la próxima fecha.
+                visit_day_hint = self._parse_weekday_name_es(message_text)
+                if visit_day_hint:
+                    suggested = self._next_weekday_date(visit_day_hint)
+                    suggested_txt = suggested.isoformat() if suggested else "YYYY-MM-DD"
+                    return (
+                        f"¡Buenísimo! ¿Te refieres a este **{visit_day_hint}** ({suggested_txt}) u otra fecha? "
+                        "Y para coordinar, ¿a qué hora te gustaría llegar? (entre 09:00 y 17:00)"
+                    )
+
+                return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar? (09:00–17:00)"
 
             visit_day = self._day_name_es(visit_date)
             if visit_day == "domingo":
@@ -506,7 +509,7 @@ class InstagramBot:
             state["stage"] = "confirm_transfer"
             self._save_booking_state(user_id, conversation_id, state)
 
-            return self._transfer_prompt(visit_day, visit_date, price_clp)
+            return self._transfer_prompt(visit_day, visit_date, price_clp, details)
 
         if stage == "confirm_transfer":
             t = (message_text or "").strip().lower()
@@ -622,9 +625,21 @@ class InstagramBot:
                 self._save_booking_state(user_id, conversation_id, state)
                 return self._booking_details_prompt(visit_day, visit_date)
 
+            # Si el usuario dijo un día de la semana, proponemos la próxima fecha.
+            visit_day_hint = self._parse_weekday_name_es(message_text)
+            if visit_day_hint:
+                suggested = self._next_weekday_date(visit_day_hint)
+                state = {"stage": "awaiting_day"}
+                self._save_booking_state(user_id, conversation_id, state)
+                suggested_txt = suggested.isoformat() if suggested else "YYYY-MM-DD"
+                return (
+                    f"¡Buenísimo! ¿Te acomoda este **{visit_day_hint}** ({suggested_txt}) u otra fecha? "
+                    "Y para coordinar, ¿a qué hora te gustaría llegar? (09:00–17:00)"
+                )
+
             state = {"stage": "awaiting_day"}
             self._save_booking_state(user_id, conversation_id, state)
-            return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD)"
+            return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar? (09:00–17:00)"
 
         return None
 
@@ -707,6 +722,17 @@ class InstagramBot:
         if not t:
             return None
 
+        tl = t.lower()
+        tz = ZoneInfo(config.GOOGLE_CALENDAR_TIMEZONE)
+        today = datetime.now(tz).date()
+
+        if "pasado mañana" in tl or "pasado manana" in tl:
+            return today + timedelta(days=2)
+        if "mañana" in tl or "manana" in tl:
+            return today + timedelta(days=1)
+        if "hoy" in tl:
+            return today
+
         iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", t)
         if iso_match:
             try:
@@ -727,6 +753,36 @@ class InstagramBot:
                 return None
 
         return None
+
+    def _parse_weekday_name_es(self, text: str) -> Optional[str]:
+        t = (text or "").lower()
+        if "lunes" in t:
+            return "lunes"
+        if "martes" in t:
+            return "martes"
+        if "miércoles" in t or "miercoles" in t:
+            return "miércoles"
+        if "jueves" in t:
+            return "jueves"
+        if "viernes" in t:
+            return "viernes"
+        if "sábado" in t or "sabado" in t:
+            return "sábado"
+        if "domingo" in t:
+            return "domingo"
+        return None
+
+    def _next_weekday_date(self, weekday_es: str) -> Optional[date]:
+        names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+        if weekday_es not in names:
+            return None
+        target = names.index(weekday_es)
+        tz = ZoneInfo(config.GOOGLE_CALENDAR_TIMEZONE)
+        today = datetime.now(tz).date()
+        days_ahead = (target - today.weekday()) % 7
+        if days_ahead == 0:
+            days_ahead = 7
+        return today + timedelta(days=days_ahead)
 
     def _day_name_es(self, d: date) -> str:
         names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
@@ -825,22 +881,9 @@ class InstagramBot:
 
     def _booking_details_prompt(self, visit_day: str, visit_date: date) -> str:
         return (
-            f"¡Perfecto! Para agendar **{visit_day} {visit_date.isoformat()}** (09:00 a 17:00), ¿me compartes estos datos en un solo mensaje?\n"
-            "• Hora de llegada (HH:MM, entre 09:00 y 17:00)\n"
-            "• Nombres y apellidos\n"
-            "• Teléfono\n"
-            "• Email\n"
-            "• Cantidad de automóviles\n"
-            "• Cantidad de motos\n"
-            "• Cantidad de personas\n\n"
-            "Si quieres, responde en este formato:\n"
-            "Hora de llegada: 10:00\n"
-            "Nombre y apellidos: ...\n"
-            "Teléfono: ...\n"
-            "Email: ...\n"
-            "Autos: ...\n"
-            "Motos: ...\n"
-            "Personas: ..."
+            f"¡Buenísimo! Entonces sería **{visit_day} {visit_date.isoformat()}** (recuerda: horario 09:00 a 17:00). "
+            "Para dejarlo coordinado, ¿a qué hora te gustaría llegar y vienes en auto o moto (¿cuántos)? "
+            "Si te acomoda, también déjame tu nombre completo y un teléfono/correo para confirmación."
         )
 
     def _booking_missing_prompt(self, visit_day: str, missing: list) -> str:
@@ -854,19 +897,17 @@ class InstagramBot:
             "people_count": "cantidad de personas",
         }
         missing_text = ", ".join(labels[m] for m in missing if m in labels)
-        return (
-            f"¡Gracias! Para dejarlo agendado para **{visit_day}** me falta: {missing_text}.\n"
-            "¿Me lo compartes, por favor?"
-        )
+        return f"¡Gracias! Para dejarlo listo para **{visit_day}**, me falta: {missing_text}. ¿Me lo compartes?"
 
-    def _transfer_prompt(self, visit_day: str, visit_date: Optional[date], price_clp: int) -> str:
+    def _transfer_prompt(self, visit_day: str, visit_date: Optional[date], price_clp: int, details: Dict) -> str:
         date_txt = visit_date.isoformat() if visit_date else "por confirmar"
         price_txt = f"${price_clp:,}".replace(",", ".")
         extra = " (sábado es tarifa por grupo)" if visit_day == "sábado" else ""
+        arrival_time = (details or {}).get("arrival_time") or "por confirmar"
 
         return (
-            f"Perfecto. Para **{visit_day} {date_txt}** (09:00–17:00), la tarifa es **{price_txt} CLP**{extra}.\n\n"
-            "La reserva **solo es válida una vez realizada la transferencia**.\n"
+            f"Perfecto 😊 Para **{visit_day} {date_txt}**, llegada **{arrival_time}** (dentro de 09:00–17:00), la tarifa es **{price_txt} CLP**{extra}.\n\n"
+            "Para dejarlo reservado, la visita queda válida una vez realizada la transferencia. "
             "¿Harás la transferencia ahora?\n\n"
             "Datos para transferir:\n"
             "SOCIEDAD FUNDO MORAGA SpA\n"
