@@ -26,22 +26,35 @@ To embed the chat widget on your Canva website using CodePen, follow these steps
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
 
+:root {
+    --background-color: #FFFFFF;
+    --ivory-light: #f5f5f0;
+    --header-color: #2c3e50;
+    --user-message-color: #3498db;
+    --bot-message-color: #ecf0f1;
+    --text-color-dark: #2c3e50;
+    --text-color-light: #ffffff;
+    --font-family: 'Nunito', sans-serif;
+}
+
 body {
     margin: 0;
-    font-family: 'Nunito', sans-serif;
-    background-color: #f7f9fc;
+    font-family: var(--font-family);
+    background-color: var(--ivory-light);
 }
+
 #chatbox {
     width: 100vw;
     height: 100vh;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    background-color: #ffffff;
+    background-color: var(--background-color);
 }
+
 #chat-header {
-    background: #007bff;
-    color: white;
+    background: var(--header-color);
+    color: var(--text-color-light);
     padding: 1rem;
     text-align: center;
     font-weight: 700;
@@ -49,6 +62,7 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     z-index: 10;
 }
+
 #messages {
     flex: 1;
     overflow-y: auto;
@@ -57,6 +71,7 @@ body {
     flex-direction: column;
     gap: 0.75rem;
 }
+
 .message {
     padding: 0.75rem 1.25rem;
     border-radius: 22px;
@@ -64,43 +79,49 @@ body {
     line-height: 1.5;
     word-wrap: break-word;
 }
+
 .user-message {
-    background-image: linear-gradient(to right, #007bff, #0056b3);
-    color: white;
+    background-color: var(--user-message-color);
+    color: var(--text-color-light);
     align-self: flex-end;
     border-bottom-right-radius: 6px;
 }
+
 .bot-message {
-    background: #e9e9eb;
-    color: #2c2c2c;
+    background: var(--bot-message-color);
+    color: var(--text-color-dark);
     align-self: flex-start;
     border-bottom-left-radius: 6px;
 }
+
 #input-area {
     display: flex;
     align-items: center;
     padding: 1rem;
     border-top: 1px solid #e0e0e0;
-    background: #ffffff;
+    background: var(--background-color);
     box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
 }
+
 #message-input {
     flex: 1;
     padding: 0.75rem 1.25rem;
     border: 1px solid #ccc;
     border-radius: 25px;
-    font-family: 'Nunito', sans-serif;
+    font-family: var(--font-family);
     font-size: 1rem;
     transition: border-color 0.2s;
 }
+
 #message-input:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: var(--user-message-color);
 }
+
 #send-btn {
     margin-left: 0.75rem;
-    background: #007bff;
-    color: white;
+    background: var(--user-message-color);
+    color: var(--text-color-light);
     border: none;
     border-radius: 50%;
     width: 50px;
@@ -112,9 +133,11 @@ body {
     justify-content: center;
     transition: background-color 0.2s;
 }
+
 #send-btn:hover {
-    background: #0056b3;
+    background: #2980b9;
 }
+
 #send-btn:disabled {
     background: #a0a0a0;
     cursor: not-allowed;
