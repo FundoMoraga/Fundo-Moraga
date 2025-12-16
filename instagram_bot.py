@@ -65,13 +65,15 @@ class InstagramBot:
                 limit=config.MAX_CONVERSATION_HISTORY
             )
 
+            platform = "Web"
+
             # 4. Flujo determinístico de agendamiento (no depende del modelo)
             booking_response = self._handle_booking_flow(
                 user_id=user_id,
                 conversation_id=conversation_id,
                 message_text=message_text,
                 conversation_history=conversation_history,
-                platform="Web",
+                platform=platform,
             )
             if booking_response:
                 self.conversation_store.save_message(
@@ -84,10 +86,27 @@ class InstagramBot:
                 return booking_response
             
             # 5. Generar respuesta con OpenAI usando el contexto
-            response_text = self.chatbot_ai.generate_response(
-                user_message=message_text,
-                conversation_history=conversation_history
+            already_welcomed = any(
+                (msg.get("metadata") or {}).get("type") == "welcome"
+                or (msg.get("role") == "assistant" and (msg.get("message") or "").strip())
+                for msg in (conversation_history or [])
             )
+            lead_capture_already_sent = any(
+                (msg.get("metadata") or {}).get("type") == "lead_capture" for msg in (conversation_history or [])
+            )
+
+            ai_result = self.chatbot_ai.generate_response(
+                user_message=message_text,
+                conversation_history=conversation_history,
+                conversation_id=conversation_id,
+                platform=platform,
+                already_welcomed=already_welcomed,
+                lead_capture_already_sent=lead_capture_already_sent,
+                return_events=True,
+            )
+
+            response_text = ai_result.get("text") if isinstance(ai_result, dict) else ai_result
+            events = ai_result.get("events", []) if isinstance(ai_result, dict) else []
             
             # 6. Guardar respuesta del asistente en Cosmos DB
             self.conversation_store.save_message(
@@ -97,15 +116,16 @@ class InstagramBot:
                 conversation_id=conversation_id,
                 metadata={"platform": "web", "model": config.OPENAI_MODEL}
             )
-            
-            # 7. Detectar si se capturó información del usuario y enviar email
-            if "he registrado tu consulta" in response_text.lower() or "información capturada" in response_text.lower():
-                self._send_lead_email(
+
+            # 7. Si el modelo ejecutó herramientas de captura/formulario, enviar email y marcar conversación
+            if events:
+                self._handle_post_ai_events(
                     user_id=user_id,
                     conversation_id=conversation_id,
                     conversation_history=conversation_history,
                     latest_message=message_text,
-                    platform="Web"
+                    platform=platform,
+                    events=events,
                 )
             
             print(f"📤 Respuesta: {response_text}")
@@ -115,6 +135,76 @@ class InstagramBot:
         except Exception as e:
             print(f"❌ Error procesando mensaje: {e}")
             return "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente."
+
+    def _handle_post_ai_events(
+        self,
+        user_id: str,
+        conversation_id: str,
+        conversation_history: list,
+        latest_message: str,
+        platform: str,
+        events: list,
+    ) -> None:
+        lead_capture_already_sent = any(
+            (msg.get("metadata") or {}).get("type") == "lead_capture" for msg in (conversation_history or [])
+        )
+
+        if lead_capture_already_sent:
+            return
+
+        for event in events:
+            tool = (event or {}).get("tool")
+            args = (event or {}).get("args") or {}
+            if tool == "capturar_informacion_usuario":
+                self._send_lead_email(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    latest_message=latest_message,
+                    platform=platform,
+                    nombre=args.get("nombre"),
+                    interes=args.get("interes"),
+                    contacto=args.get("contacto"),
+                )
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message="",
+                    conversation_id=conversation_id,
+                    metadata={"platform": "web", "type": "lead_capture", "source": "tool", "args": args},
+                )
+                return
+
+            if tool == "enviar_formulario_contacto":
+                nombre = args.get("nombre")
+                email = args.get("email")
+                telefono = args.get("telefono")
+                tipo = args.get("tipo_solicitud")
+                mensaje = args.get("mensaje")
+                fecha = args.get("fecha_tentativa")
+                interes = f"Formulario contacto ({tipo}): {mensaje}".strip()
+                if fecha:
+                    interes += f" | Fecha tentativa: {fecha}"
+                contacto = " / ".join([x for x in [email, telefono] if x]) or None
+
+                self._send_lead_email(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    latest_message=latest_message,
+                    platform=platform,
+                    nombre=nombre,
+                    interes=interes,
+                    contacto=contacto,
+                )
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message="",
+                    conversation_id=conversation_id,
+                    metadata={"platform": "web", "type": "lead_capture", "source": "tool_form", "args": args},
+                )
+                return
 
     def start_web_conversation(self, user_id: str) -> str:
         """
@@ -589,7 +679,10 @@ class InstagramBot:
         conversation_id: str,
         conversation_history: list,
         latest_message: str,
-        platform: str
+        platform: str,
+        nombre: Optional[str] = None,
+        interes: Optional[str] = None,
+        contacto: Optional[str] = None,
     ):
         """
         Envía email con resumen de lead cuando se captura información del usuario
@@ -602,10 +695,15 @@ class InstagramBot:
             platform: Plataforma de origen (Instagram/Web)
         """
         try:
-            # Extraer información del historial
-            nombre = "No proporcionado"
-            interes = ""
-            contacto = "No proporcionado"
+            # Extraer información del historial (si no viene desde el tool)
+            nombre = (nombre or "").strip() if isinstance(nombre, str) else ""
+            interes = (interes or "").strip() if isinstance(interes, str) else ""
+            contacto = (contacto or "").strip() if isinstance(contacto, str) else ""
+
+            if not nombre:
+                nombre = "No proporcionado"
+            if not contacto:
+                contacto = "No proporcionado"
             
             # Construir el interés a partir de los mensajes del usuario
             mensajes_usuario = []
@@ -616,44 +714,45 @@ class InstagramBot:
             # Agregar el mensaje actual
             mensajes_usuario.append(latest_message)
             
-            # El interés es un resumen de lo que el usuario ha consultado
-            interes = " | ".join(mensajes_usuario[-5:])  # Últimos 5 mensajes del usuario
+            # El interés es un resumen de lo que el usuario ha consultado (si no viene desde el tool)
+            if not interes:
+                interes = " | ".join(mensajes_usuario[-5:])  # Últimos 5 mensajes del usuario
             
-            # Intentar extraer nombre y contacto de los mensajes
-            for msg_content in mensajes_usuario:
-                msg_lower = msg_content.lower()
-                
-                # Detectar nombre si menciona "soy", "me llamo", etc.
-                if any(phrase in msg_lower for phrase in ["soy ", "me llamo ", "mi nombre es "]):
-                    # Extraer lo que viene después
-                    for phrase in ["soy ", "me llamo ", "mi nombre es "]:
-                        if phrase in msg_lower:
-                            idx = msg_lower.find(phrase)
-                            potential_name = msg_content[idx + len(phrase):].split()[0:3]
-                            if potential_name:
-                                nombre = " ".join(potential_name).strip(".,!?")
-                                break
-                
-                # Detectar email
-                if "@" in msg_content and "." in msg_content:
-                    words = msg_content.split()
-                    for word in words:
-                        if "@" in word and "." in word:
+            # Intentar extraer nombre y contacto de los mensajes (solo si faltan)
+            if nombre == "No proporcionado" or contacto == "No proporcionado":
+                for msg_content in mensajes_usuario:
+                    msg_lower = msg_content.lower()
+
+                    if nombre == "No proporcionado":
+                        # Detectar nombre si menciona "soy", "me llamo", etc.
+                        if any(phrase in msg_lower for phrase in ["soy ", "me llamo ", "mi nombre es "]):
+                            for phrase in ["soy ", "me llamo ", "mi nombre es "]:
+                                if phrase in msg_lower:
+                                    idx = msg_lower.find(phrase)
+                                    potential_name = msg_content[idx + len(phrase):].split()[0:3]
+                                    if potential_name:
+                                        nombre = " ".join(potential_name).strip(".,!?")
+                                        break
+
+                    # Detectar email
+                    if "@" in msg_content and "." in msg_content:
+                        words = msg_content.split()
+                        for word in words:
+                            if "@" in word and "." in word:
+                                if contacto == "No proporcionado":
+                                    contacto = word.strip(".,!?")
+                                else:
+                                    contacto += f" / {word.strip('.,!?')}"
+
+                    # Detectar teléfono (patrones simples)
+                    if any(digit in msg_content for digit in "0123456789"):
+                        import re
+                        phones = re.findall(r"[\+\d][\d\s\-\(\)]{7,}", msg_content)
+                        for phone in phones:
                             if contacto == "No proporcionado":
-                                contacto = word.strip(".,!?")
+                                contacto = phone.strip()
                             else:
-                                contacto += f" / {word.strip('.,!?')}"
-                
-                # Detectar teléfono (patrones simples)
-                if any(digit in msg_content for digit in "0123456789"):
-                    # Buscar secuencias de números (simplificado)
-                    import re
-                    phones = re.findall(r'[\+\d][\d\s\-\(\)]{7,}', msg_content)
-                    for phone in phones:
-                        if contacto == "No proporcionado":
-                            contacto = phone.strip()
-                        else:
-                            contacto += f" / {phone.strip()}"
+                                contacto += f" / {phone.strip()}"
             
             # Enviar email con Resend
             result = self.resend_client.send_conversation_summary(

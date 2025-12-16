@@ -3,7 +3,7 @@ Cliente de OpenAI para generar respuestas del chatbot
 Con soporte para Function Calling (herramientas)
 """
 from openai import OpenAI
-from typing import List, Dict
+from typing import Any, Dict, List, Optional
 import config
 import json
 
@@ -205,12 +205,71 @@ Cuando corresponda, puedes cerrar con:
 Si deseas más información o coordinar una actividad, estaremos encantados de atenderte por 
 nuestros canales oficiales."
 """
+
+        # Reglas operativas (cortas) para mejorar cumplimiento del prompt largo.
+        self.operational_prompt = """REGLAS OPERATIVAS (CUMPLIMIENTO ESTRICTO)
+1) Si `already_welcomed=true`, NO vuelvas a saludar (responde directo).
+2) Si el usuario pide cotizar/reservar/evento/producción/actividad especial o coordinación formal: entrega los contactos oficiales (email + WhatsApp) y ofrece derivar.
+3) Captura de datos (NATURAL, no interrogatorio): cuando el usuario ya haya dado (a) nombre y (b) interés y (c) algún contacto (email/teléfono), llama a `capturar_informacion_usuario` UNA sola vez por conversación.
+4) Si solo falta el contacto, pide correo/teléfono de forma suave (“Si quieres que el equipo te contacte con más detalles, déjame tu correo o WhatsApp”).
+"""
+
+    def _build_messages(
+        self,
+        user_message: str,
+        conversation_history: Optional[List[Dict]] = None,
+        conversation_id: Optional[str] = None,
+        platform: Optional[str] = None,
+        already_welcomed: Optional[bool] = None,
+        lead_capture_already_sent: Optional[bool] = None,
+    ) -> List[Dict[str, str]]:
+        messages: List[Dict[str, str]] = [{"role": "system", "content": self.system_prompt}]
+
+        context_lines = []
+        if conversation_id:
+            context_lines.append(f"conversation_id={conversation_id}")
+        if platform:
+            context_lines.append(f"platform={platform}")
+        if already_welcomed is not None:
+            context_lines.append(f"already_welcomed={'true' if already_welcomed else 'false'}")
+        if lead_capture_already_sent is not None:
+            context_lines.append(f"lead_capture_already_sent={'true' if lead_capture_already_sent else 'false'}")
+
+        if context_lines:
+            messages.append({"role": "system", "content": "CONTEXTO\n" + "\n".join(context_lines)})
+
+        messages.append({"role": "system", "content": self.operational_prompt})
+
+        if conversation_history:
+            for msg in conversation_history[-config.MAX_CONVERSATION_HISTORY :]:
+                metadata = msg.get("metadata") or {}
+                if metadata.get("type") in ("booking_state", "lead_capture"):
+                    continue
+
+                role = msg.get("role", "user")
+                content = (msg.get("message") or "").strip()
+                if not content:
+                    continue
+
+                if role not in ("system", "user", "assistant", "tool"):
+                    role = "user"
+
+                messages.append({"role": role, "content": content})
+
+        messages.append({"role": "user", "content": user_message})
+        return messages
     
     def generate_response(
         self, 
         user_message: str, 
-        conversation_history: List[Dict] = None
-    ) -> str:
+        conversation_history: List[Dict] = None,
+        *,
+        conversation_id: Optional[str] = None,
+        platform: Optional[str] = None,
+        already_welcomed: Optional[bool] = None,
+        lead_capture_already_sent: Optional[bool] = None,
+        return_events: bool = False,
+    ) -> Any:
         """
         Genera una respuesta del chatbot con soporte para Function Calling
         
@@ -222,79 +281,68 @@ nuestros canales oficiales."
             Respuesta generada por el modelo
         """
         try:
-            # Construir mensajes para OpenAI
-            messages = [{"role": "system", "content": self.system_prompt}]
-            
-            # Agregar historial si existe (limitado por MAX_CONVERSATION_HISTORY)
-            if conversation_history:
-                for msg in conversation_history[-config.MAX_CONVERSATION_HISTORY:]:
-                    messages.append({
-                        "role": msg.get("role", "user"),
-                        "content": msg.get("message", "")
-                    })
-            
-            # Agregar mensaje actual del usuario
-            messages.append({"role": "user", "content": user_message})
-            
-            # Primera llamada a OpenAI con herramientas disponibles
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=self.tools_manager.tools,
-                tool_choice="auto",  # El modelo decide si usar herramientas
-                temperature=0.7,
-                max_tokens=800
+            messages = self._build_messages(
+                user_message=user_message,
+                conversation_history=conversation_history,
+                conversation_id=conversation_id,
+                platform=platform,
+                already_welcomed=already_welcomed,
+                lead_capture_already_sent=lead_capture_already_sent,
             )
-            
-            response_message = response.choices[0].message
-            tool_calls = response_message.tool_calls
-            
-            # Si el modelo quiere usar herramientas
-            if tool_calls:
-                # Agregar respuesta del asistente a los mensajes
-                messages.append(response_message)
-                
-                # Ejecutar cada herramienta solicitada
-                for tool_call in tool_calls:
-                    function_name = tool_call.function.name
-                    function_args = json.loads(tool_call.function.arguments)
-                    
-                    print(f"🔧 Ejecutando herramienta: {function_name}")
-                    print(f"   Argumentos: {function_args}")
-                    
-                    # Ejecutar la herramienta
-                    function_result = self.tools_manager.execute_tool(
-                        function_name,
-                        function_args
-                    )
-                    
-                    # Agregar el resultado a los mensajes
-                    messages.append({
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": function_name,
-                        "content": json.dumps(function_result)
-                    })
-                
-                # Segunda llamada a OpenAI con los resultados de las herramientas
-                second_response = self.client.chat.completions.create(
+
+            events: List[Dict[str, Any]] = []
+
+            max_tool_rounds = 3
+            for _ in range(max_tool_rounds):
+                response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
+                    tools=self.tools_manager.tools,
+                    tool_choice="auto",
                     temperature=0.7,
-                    max_tokens=800
+                    max_tokens=800,
                 )
-                
-                final_message = second_response.choices[0].message.content
-                return final_message
-            
-            # Si no usó herramientas, retornar respuesta directa
-            return response_message.content
+
+                response_message = response.choices[0].message
+                tool_calls = response_message.tool_calls
+
+                if not tool_calls:
+                    final_text = response_message.content or ""
+                    return {"text": final_text, "events": events} if return_events else final_text
+
+                messages.append(response_message)
+
+                for tool_call in tool_calls:
+                    function_name = tool_call.function.name
+                    function_args = json.loads(tool_call.function.arguments or "{}")
+
+                    print(f"🔧 Ejecutando herramienta: {function_name}")
+                    print(f"   Argumentos: {function_args}")
+
+                    function_result = self.tools_manager.execute_tool(function_name, function_args)
+                    events.append({"tool": function_name, "args": function_args, "result": function_result})
+
+                    messages.append(
+                        {
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": function_name,
+                            "content": json.dumps(function_result),
+                        }
+                    )
+
+            fallback_text = "Listo. ¿En qué más te puedo ayudar?"
+            return {"text": fallback_text, "events": events} if return_events else fallback_text
             
         except Exception as e:
             print(f"❌ Error generando respuesta con OpenAI: {e}")
             import traceback
             traceback.print_exc()
-            return "Lo siento, hubo un problema al procesar tu mensaje. Por favor, intenta nuevamente o contáctanos directamente en contacto@fundomoraga.com"
+            error_text = (
+                "Lo siento, hubo un problema al procesar tu mensaje. "
+                "Por favor, intenta nuevamente o contáctanos directamente en contacto@fundomoraga.com"
+            )
+            return {"text": error_text, "events": []} if return_events else error_text
     
     def generate_response_with_context(
         self, 
