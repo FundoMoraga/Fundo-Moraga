@@ -20,8 +20,8 @@ class InstagramBot:
         self.conversation_store = get_conversation_store()
         self.chatbot_ai = get_chatbot_ai()
         self.resend_client = get_resend_client()
-        self.access_token = config.INSTAGRAM_ACCESS_TOKEN
-        self.page_id = config.INSTAGRAM_PAGE_ID
+        # self.access_token = config.INSTAGRAM_ACCESS_TOKEN
+        # self.page_id = config.INSTAGRAM_PAGE_ID
     
     def process_message(self, user_id: str, message_text: str) -> str:
         """
@@ -48,7 +48,7 @@ class InstagramBot:
                 role="user",
                 message=message_text,
                 conversation_id=conversation_id,
-                metadata={"platform": "instagram", "source": "direct_message"}
+                metadata={"platform": "web", "source": "widget"}
             )
             
             # 3. Recuperar historial de conversación
@@ -70,7 +70,7 @@ class InstagramBot:
                 role="assistant",
                 message=response_text,
                 conversation_id=conversation_id,
-                metadata={"platform": "instagram", "model": config.OPENAI_MODEL}
+                metadata={"platform": "web", "model": config.OPENAI_MODEL}
             )
             
             # 6. Detectar si se capturó información del usuario y enviar email
@@ -80,7 +80,7 @@ class InstagramBot:
                     conversation_id=conversation_id,
                     conversation_history=conversation_history,
                     latest_message=message_text,
-                    platform="Instagram" if self.access_token else "Web"
+                    platform="Web"
                 )
             
             print(f"📤 Respuesta: {response_text}")

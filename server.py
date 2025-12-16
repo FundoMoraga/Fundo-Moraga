@@ -37,39 +37,39 @@ def health():
 
 # ============= INSTAGRAM WEBHOOK =============
 
-@app.route('/webhook/instagram', methods=['GET', 'POST'])
-def instagram_webhook():
-    """
-    Webhook para Instagram/Facebook Messenger
-    GET: Verificación inicial del webhook
-    POST: Recepción de mensajes
-    """
+# @app.route('/webhook/instagram', methods=['GET', 'POST'])
+# def instagram_webhook():
+#     """
+#     Webhook para Instagram/Facebook Messenger
+#     GET: Verificación inicial del webhook
+#     POST: Recepción de mensajes
+#     """
     
-    if request.method == 'GET':
-        # Verificación del webhook por parte de Meta
-        mode = request.args.get('hub.mode')
-        token = request.args.get('hub.verify_token')
-        challenge = request.args.get('hub.challenge')
+#     if request.method == 'GET':
+#         # Verificación del webhook por parte de Meta
+#         mode = request.args.get('hub.mode')
+#         token = request.args.get('hub.verify_token')
+#         challenge = request.args.get('hub.challenge')
         
-        if mode == 'subscribe' and token == VERIFY_TOKEN:
-            print(f"✅ Webhook de Instagram verificado")
-            return challenge, 200
-        else:
-            print(f"❌ Webhook de Instagram falló verificación")
-            return 'Forbidden', 403
+#         if mode == 'subscribe' and token == VERIFY_TOKEN:
+#             print(f"✅ Webhook de Instagram verificado")
+#             return challenge, 200
+#         else:
+#             print(f"❌ Webhook de Instagram falló verificación")
+#             return 'Forbidden', 403
     
-    elif request.method == 'POST':
-        # Procesar mensajes entrantes de Instagram
-        data = request.get_json()
+#     elif request.method == 'POST':
+#         # Procesar mensajes entrantes de Instagram
+#         data = request.get_json()
         
-        print(f"📥 Webhook recibido de Instagram: {data}")
+#         print(f"📥 Webhook recibido de Instagram: {data}")
         
-        try:
-            bot.handle_webhook_message(data)
-            return jsonify({"status": "ok"}), 200
-        except Exception as e:
-            print(f"❌ Error procesando webhook: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+#         try:
+#             bot.handle_webhook_message(data)
+#             return jsonify({"status": "ok"}), 200
+#         except Exception as e:
+#             print(f"❌ Error procesando webhook: {e}")
+#             return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # ============= WEB CHAT API =============
