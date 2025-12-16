@@ -460,12 +460,40 @@ class InstagramBot:
 
         if stage == "awaiting_day":
             visit_date = self._parse_visit_date(message_text)
+            # Confirmación simple (ej: "sí") cuando ya propusimos una fecha
+            t_lower = (message_text or "").strip().lower()
+            if not visit_date and any(x in t_lower for x in ("sí", "si", "dale", "ok", "de acuerdo", "confirmo")):
+                suggested_iso = state.get("suggested_date")
+                if suggested_iso:
+                    visit_date = self._safe_date_from_iso(suggested_iso)
+
             if not visit_date:
                 # Si el usuario dijo un día de la semana (ej: "viernes"), proponemos la próxima fecha.
                 visit_day_hint = self._parse_weekday_name_es(message_text)
                 if visit_day_hint:
                     suggested = self._next_weekday_date(visit_day_hint)
                     suggested_txt = suggested.isoformat() if suggested else "YYYY-MM-DD"
+                    # Guardar sugerencia para que un "sí" posterior la confirme
+                    state["suggested_date"] = suggested.isoformat() if suggested else None
+                    state["suggested_day"] = visit_day_hint
+                    self._save_booking_state(user_id, conversation_id, state)
+
+                    # Si el usuario ya dio hora en el mismo mensaje, avanzamos al siguiente paso.
+                    arrival_time = self._parse_arrival_time(message_text)
+                    if arrival_time and suggested:
+                        state = {
+                            "stage": "collecting_details",
+                            "visit_date": suggested.isoformat(),
+                            "visit_day": visit_day_hint,
+                            "details": {"arrival_time": arrival_time},
+                        }
+                        self._save_booking_state(user_id, conversation_id, state)
+                        return (
+                            f"¡Perfecto! Entonces **{visit_day_hint} {suggested.isoformat()}** a las **{arrival_time}**. "
+                            "Para dejarlo coordinado, ¿vienes en auto o moto (¿cuántos)? "
+                            "Y si te acomoda, déjame tu nombre completo y un teléfono/correo para confirmación."
+                        )
+
                     return (
                         f"¡Buenísimo! ¿Te refieres a este **{visit_day_hint}** ({suggested_txt}) u otra fecha? "
                         "Y para coordinar, ¿a qué hora te gustaría llegar? (entre 09:00 y 17:00)"
@@ -733,6 +761,11 @@ class InstagramBot:
         if "hoy" in tl:
             return today
 
+        # "este viernes", "el viernes", etc.
+        weekday_hint = self._parse_weekday_name_es(tl)
+        if weekday_hint:
+            return self._next_weekday_date(weekday_hint)
+
         iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", t)
         if iso_match:
             try:
@@ -752,6 +785,35 @@ class InstagramBot:
             except Exception:
                 return None
 
+        return None
+
+    def _parse_arrival_time(self, text: str) -> Optional[str]:
+        """
+        Extrae hora de llegada en formato HH:MM desde frases como:
+        - "10:30"
+        - "a las 9"
+        - "9am" / "9 am"
+        """
+        raw = (text or "").lower()
+        if not raw:
+            return None
+
+        m = re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", raw)
+        if m:
+            return f"{int(m.group(1)):02d}:{m.group(2)}"
+
+        m = re.search(r"\b(?:a\s+las\s+)?([01]?\d|2[0-3])\s*(am|pm)?\b", raw)
+        if not m:
+            return None
+
+        hour = int(m.group(1))
+        mer = m.group(2)
+        if mer == "pm" and hour < 12:
+            hour += 12
+        if mer == "am" and hour == 12:
+            hour = 0
+        if 0 <= hour <= 23:
+            return f"{hour:02d}:00"
         return None
 
     def _parse_weekday_name_es(self, text: str) -> Optional[str]:
@@ -866,9 +928,9 @@ class InstagramBot:
                 details["people_count"] = int(m.group(1))
 
         if "arrival_time" not in details:
-            time_match = re.search(r"\b([01]?\d|2[0-3]):[0-5]\d\b", raw)
-            if time_match:
-                details["arrival_time"] = time_match.group(0)
+            parsed = self._parse_arrival_time(raw)
+            if parsed:
+                details["arrival_time"] = parsed
 
         return details
 
