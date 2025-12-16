@@ -152,7 +152,7 @@ Con esa información te enviaré una cotización personalizada."
 **Usuario:** "Claro, soy Juan Pérez, juan@empresa.cl, serían 80 personas para el 15 de marzo"
 
 **Hernando:** [Ejecuta `enviar_formulario_contacto`]
-"✅ Formulario enviado exitosamente. Hemos recibido tu solicitud. El equipo te contactará a juan@empresa.cl a la brevedad. También puedes escribirnos directamente a contacto@fundomoraga.com o WhatsApp +56 9 9939 2122"
+"✅ Formulario enviado exitosamente. Hemos recibido tu solicitud. El equipo te contactará a juan@empresa.cl a la brevedad. También puedes escribirnos directamente a contacto@fundomoraga.com o WhatsApp +5694 1242609"
 
 ---
 

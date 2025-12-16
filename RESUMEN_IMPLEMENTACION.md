@@ -21,8 +21,8 @@ Cuando Hernando detecta que el usuario compartió su información, automáticame
 
 ### 3. **Información Actualizada de Actividades Off-Road**
 Se agregaron los horarios y precios:
-- **Lunes a Viernes**: 9:00 AM - 5:00 PM → $15.000 por vehículo, $15.000 por moto
-- **Fin de Semana (Grupos)**: $200.000
+- **Lunes a Viernes**: 9:00 AM - 5:00 PM → $15.000 automóviles, $10.000 motos
+- **Fin de Semana (Grupos)**: $200.000 el día
 - **Eventos Privados/Corporativos**: Valores personalizados (contactar ventas)
 
 ## 📝 Resultados de Pruebas
@@ -48,7 +48,7 @@ Bot: ✅ "He registrado tu consulta... El equipo te contactará..."
 Usuario: "¿Cuáles son los horarios y precios de las actividades off-road?"
 Bot: Proporciona información completa con:
   ✅ Horarios (Lunes a Viernes 9:00 AM - 5:00 PM)
-  ✅ Precios ($15.000 vehículo/moto, $200.000 grupos)
+  ✅ Precios ($15.000 automóviles, $10.000 motos, $200.000 el día grupos fin de semana)
   ✅ Información de eventos corporativos
   ✅ Contactos oficiales
 ```

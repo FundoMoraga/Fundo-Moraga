@@ -131,6 +131,90 @@ class ResendClient:
                 "success": False,
                 "error": str(e)
             }
+
+    def send_booking_request(
+        self,
+        visit_day: str,
+        full_name: str,
+        phone: str,
+        email: str,
+        vehicles: str,
+        conversation_id: str,
+        platform: str = "Web",
+        additional_notes: Optional[str] = None,
+    ) -> Dict:
+        """
+        Envía una solicitud de agendamiento/reserva al equipo de Fundo Moraga.
+        """
+        try:
+            subject = f"Solicitud de agendamiento ({visit_day}) - {full_name}"
+
+            notes_html = ""
+            if additional_notes:
+                notes_html = f"""
+                <div class="section">
+                    <p><span class="label">🗒️ Notas:</span></p>
+                    <p>{additional_notes}</p>
+                </div>
+                """
+
+            html_content = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
+                    .content {{ padding: 20px; }}
+                    .section {{ margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #2c5530; }}
+                    .label {{ font-weight: bold; color: #2c5530; }}
+                    .footer {{ margin-top: 30px; padding: 15px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>📅 Solicitud de Agendamiento - Fundo Moraga</h1>
+                </div>
+                <div class="content">
+                    <div class="section">
+                        <p><span class="label">🗓️ Día solicitado:</span> {visit_day}</p>
+                        <p><span class="label">👤 Nombres y apellidos:</span> {full_name}</p>
+                        <p><span class="label">📞 Teléfono:</span> {phone}</p>
+                        <p><span class="label">✉️ Email:</span> {email}</p>
+                        <p><span class="label">🚗 Vehículos (número y tipo):</span> {vehicles}</p>
+                    </div>
+
+                    {notes_html}
+
+                    <div class="section">
+                        <p><span class="label">🔗 Plataforma:</span> {platform}</p>
+                        <p><span class="label">🆔 ID Conversación:</span> {conversation_id}</p>
+                        <p><span class="label">📅 Fecha:</span> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>Este mensaje fue generado automáticamente por Hernando.</p>
+                </div>
+            </body>
+            </html>
+            """
+
+            params = {
+                "from": self.from_email,
+                "to": [self.to_email],
+                "subject": subject,
+                "html": html_content,
+            }
+
+            response = resend.Emails.send(params)
+
+            return {
+                "success": True,
+                "message_id": response.get("id"),
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            print(f"Error enviando solicitud de agendamiento con Resend: {str(e)}")
+            return {"success": False, "error": str(e)}
     
     def send_error_notification(self, error_message: str, conversation_id: str):
         """

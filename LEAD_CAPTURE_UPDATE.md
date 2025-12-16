@@ -30,15 +30,15 @@ Se agregó la información de horarios y precios:
 ```
 HORARIOS Y PRECIOS OFF-ROAD:
 - Lunes a Viernes: 9:00 AM - 5:00 PM
-  * $15.000 por vehículo
-  * $15.000 por moto
+  * $15.000 automóviles
+  * $10.000 motos
 
 - Fin de Semana (Grupos):
-  * $200.000 por grupo
+  * $200.000 el día (por grupo, fin de semana)
 
 - Eventos Privados/Corporativos:
   * Valores y condiciones personalizadas
-  * Contactar: contacto@fundomoraga.com / +56 9 9939 2122
+  * Contactar: contacto@fundomoraga.com / +5694 1242609
 ```
 
 ## Archivos Modificados

@@ -161,8 +161,8 @@
         <span>&#128172;</span> <!-- Speech bubble emoji -->
     </div>
 
-    <!-- Chat Window (initially hidden) -->
-    <div id="chat-window" class="hidden">
+    <!-- Chat Window (auto-open) -->
+    <div id="chat-window">
         <div id="chatbox">
             <div id="chat-header">Chat con Hernando</div>
             <div id="messages"></div>
@@ -195,9 +195,7 @@
         // --- Toggle Chat Window ---
         chatBubble.addEventListener('click', () => {
             chatWindow.classList.toggle('hidden');
-            if (!chatWindow.classList.contains('hidden')) {
-                messageInput.focus();
-            }
+            if (!chatWindow.classList.contains('hidden')) messageInput.focus();
         });
 
         // --- Message Handling Logic (from before) ---
@@ -247,6 +245,10 @@
                 sendMessage();
             }
         });
+
+        // Auto-abrir el chat al cargar la página
+        chatWindow.classList.remove('hidden');
+        setTimeout(() => messageInput.focus(), 0);
 
         // Simular un mensaje de bienvenida del bot
         setTimeout(() => {

@@ -10,6 +10,7 @@ from cosmos_client import get_conversation_store
 from openai_client import get_chatbot_ai
 from resend_client import get_resend_client
 import json
+import re
 
 
 class InstagramBot:
@@ -57,14 +58,32 @@ class InstagramBot:
                 conversation_id=conversation_id,
                 limit=config.MAX_CONVERSATION_HISTORY
             )
+
+            # 4. Flujo determinístico de agendamiento (no depende del modelo)
+            booking_response = self._handle_booking_flow(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                message_text=message_text,
+                conversation_history=conversation_history,
+                platform="Web",
+            )
+            if booking_response:
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=booking_response,
+                    conversation_id=conversation_id,
+                    metadata={"platform": "web", "source": "booking_flow"},
+                )
+                return booking_response
             
-            # 4. Generar respuesta con OpenAI usando el contexto
+            # 5. Generar respuesta con OpenAI usando el contexto
             response_text = self.chatbot_ai.generate_response(
                 user_message=message_text,
                 conversation_history=conversation_history
             )
             
-            # 5. Guardar respuesta del asistente en Cosmos DB
+            # 6. Guardar respuesta del asistente en Cosmos DB
             self.conversation_store.save_message(
                 user_id=user_id,
                 role="assistant",
@@ -73,7 +92,7 @@ class InstagramBot:
                 metadata={"platform": "web", "model": config.OPENAI_MODEL}
             )
             
-            # 6. Detectar si se capturó información del usuario y enviar email
+            # 7. Detectar si se capturó información del usuario y enviar email
             if "he registrado tu consulta" in response_text.lower() or "información capturada" in response_text.lower():
                 self._send_lead_email(
                     user_id=user_id,
@@ -90,6 +109,224 @@ class InstagramBot:
         except Exception as e:
             print(f"❌ Error procesando mensaje: {e}")
             return "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente."
+
+    # ============= BOOKING FLOW (WEB) =============
+
+    def _handle_booking_flow(
+        self,
+        user_id: str,
+        conversation_id: str,
+        message_text: str,
+        conversation_history: list,
+        platform: str,
+    ) -> Optional[str]:
+        """
+        Maneja un flujo simple de agendamiento:
+        1) Pregunta día de visita
+        2) Si el usuario dice viernes (o un día), solicita datos
+        3) Compila y envía por Resend a contacto@fundomoraga.com
+        """
+        state = self._get_booking_state(conversation_history, conversation_id) or {}
+        stage = state.get("stage")
+
+        if stage == "awaiting_day":
+            visit_day = self._parse_visit_day(message_text)
+            if not visit_day:
+                return "¡Perfecto! ¿Qué día te gustaría venir para agendarlo? (por ejemplo: viernes, sábado, domingo o una fecha)."
+
+            state = {"stage": "collecting_details", "visit_day": visit_day, "details": {}}
+            self._save_booking_state(user_id, conversation_id, state)
+            return self._booking_details_prompt(visit_day)
+
+        if stage == "collecting_details":
+            visit_day = state.get("visit_day") or "por confirmar"
+            details = state.get("details") or {}
+            details.update(self._parse_booking_details(message_text))
+            state["details"] = details
+
+            missing = [k for k in ("full_name", "phone", "email", "vehicles") if not details.get(k)]
+            if missing:
+                self._save_booking_state(user_id, conversation_id, state)
+                return self._booking_missing_prompt(visit_day, missing)
+
+            send_result = self.resend_client.send_booking_request(
+                visit_day=visit_day,
+                full_name=details["full_name"],
+                phone=details["phone"],
+                email=details["email"],
+                vehicles=details["vehicles"],
+                conversation_id=conversation_id,
+                platform=platform,
+            )
+
+            state["stage"] = "sent" if send_result.get("success") else "error"
+            state["sent_at"] = datetime.now().isoformat()
+            self._save_booking_state(user_id, conversation_id, state)
+
+            if send_result.get("success"):
+                return (
+                    f"¡Listo! Ya dejé tu solicitud para **{visit_day}** y la envié a nuestro equipo en "
+                    f"`contacto@fundomoraga.com`. En breve te contactarán para confirmar."
+                )
+
+            return (
+                "Pude registrar tus datos, pero tuve un problema al enviar el correo. "
+                "¿Me confirmas tu email y teléfono nuevamente, por favor?"
+            )
+
+        if stage in ("sent", "error"):
+            return None
+
+        # Iniciar flujo si detectamos intención de agendar/reservar
+        if self._is_booking_intent(message_text):
+            visit_day = self._parse_visit_day(message_text)
+            if visit_day:
+                state = {"stage": "collecting_details", "visit_day": visit_day, "details": {}}
+                self._save_booking_state(user_id, conversation_id, state)
+                return self._booking_details_prompt(visit_day)
+
+            state = {"stage": "awaiting_day"}
+            self._save_booking_state(user_id, conversation_id, state)
+            return "¡Buenísimo! ¿Qué día te gustaría venir para agendarlo? (por ejemplo: viernes, sábado, domingo o una fecha)."
+
+        return None
+
+    def _get_booking_state(self, conversation_history: list, conversation_id: str) -> Optional[Dict]:
+        for msg in reversed(conversation_history or []):
+            metadata = msg.get("metadata") or {}
+            if msg.get("conversationId") != conversation_id:
+                continue
+            if metadata.get("type") == "booking_state" and isinstance(metadata.get("state"), dict):
+                return metadata["state"]
+        return None
+
+    def _save_booking_state(self, user_id: str, conversation_id: str, state: Dict) -> None:
+        self.conversation_store.save_message(
+            user_id=user_id,
+            role="assistant",
+            message="",
+            conversation_id=conversation_id,
+            metadata={"platform": "web", "type": "booking_state", "state": state},
+        )
+
+    def _is_booking_intent(self, text: str) -> bool:
+        t = (text or "").lower()
+        keywords = [
+            "agendar",
+            "agenda",
+            "reservar",
+            "reserva",
+            "agend",
+            "quiero ir",
+            "quiero venir",
+            "ir el ",
+            "venir el ",
+            "viernes",
+            "sábado",
+            "sabado",
+            "domingo",
+            "fin de semana",
+        ]
+        return any(k in t for k in keywords)
+
+    def _parse_visit_day(self, text: str) -> Optional[str]:
+        t = (text or "").lower()
+        if "viernes" in t:
+            return "viernes"
+        if "sábado" in t or "sabado" in t:
+            return "sábado"
+        if "domingo" in t:
+            return "domingo"
+        if "lunes" in t:
+            return "lunes"
+        if "martes" in t:
+            return "martes"
+        if "miércoles" in t or "miercoles" in t:
+            return "miércoles"
+        if "jueves" in t:
+            return "jueves"
+
+        date_match = re.search(r"\b(\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?)\b", t)
+        if date_match:
+            return date_match.group(1)
+
+        iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", t)
+        if iso_match:
+            return iso_match.group(1)
+
+        return None
+
+    def _parse_booking_details(self, text: str) -> Dict[str, str]:
+        raw = (text or "").strip()
+        if not raw:
+            return {}
+
+        details: Dict[str, str] = {}
+
+        # Parse key:value lines (recommended format)
+        for line in raw.splitlines():
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            k = key.strip().lower()
+            v = value.strip()
+            if not v:
+                continue
+            if k in ("nombre", "nombres", "nombre y apellido", "nombre y apellidos", "nombres y apellidos"):
+                details["full_name"] = v
+            elif k in ("apellido", "apellidos"):
+                details["full_name"] = (details.get("full_name", "") + " " + v).strip()
+            elif k in ("teléfono", "telefono", "celular", "móvil", "movil"):
+                details["phone"] = v
+            elif k in ("email", "correo", "correo electrónico", "correo electronico"):
+                details["email"] = v
+            elif k in ("vehículos", "vehiculos", "vehiculo", "vehículo", "autos", "motos"):
+                details["vehicles"] = v
+
+        # Fallback extractions
+        if "email" not in details:
+            email_match = re.search(r"([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", raw, re.IGNORECASE)
+            if email_match:
+                details["email"] = email_match.group(1)
+
+        if "phone" not in details:
+            phone_match = re.search(r"(\+?\d[\d\s\-()]{7,}\d)", raw)
+            if phone_match:
+                details["phone"] = phone_match.group(1).strip()
+
+        if "full_name" not in details:
+            name_match = re.search(r"\b(me llamo|soy)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+){1,4})\b", raw, re.IGNORECASE)
+            if name_match:
+                details["full_name"] = name_match.group(2).strip(" .,!¿?;:")
+
+        return details
+
+    def _booking_details_prompt(self, visit_day: str) -> str:
+        return (
+            f"¡Perfecto! Para agendar **{visit_day}**, ¿me compartes estos datos en un solo mensaje?\n"
+            "• Nombres y apellidos\n"
+            "• Teléfono\n"
+            "• Email\n"
+            "• Número y tipo de vehículos (ej: 2 autos 4x4 + 1 moto)\n\n"
+            "Si quieres, responde en este formato:\n"
+            "Nombre y apellidos: ...\n"
+            "Teléfono: ...\n"
+            "Email: ...\n"
+            "Vehículos: ..."
+        )
+
+    def _booking_missing_prompt(self, visit_day: str, missing: list) -> str:
+        labels = {
+            "full_name": "nombres y apellidos",
+            "phone": "teléfono",
+            "email": "email",
+            "vehicles": "número y tipo de vehículos",
+        }
+        missing_text = ", ".join(labels[m] for m in missing if m in labels)
+        return (
+            f"¡Gracias! Para dejarlo agendado para **{visit_day}** me falta: {missing_text}.\n"
+            "¿Me lo compartes, por favor?"
+        )
     
     def _send_lead_email(
         self,

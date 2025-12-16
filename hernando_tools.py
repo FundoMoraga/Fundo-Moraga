@@ -258,7 +258,7 @@ Pronto recibirás noticias en tu email ({email}) o por teléfono ({telefono}).
 
 Recuerda que también puedes contactarnos cuando quieras en:
 📧 contacto@fundomoraga.com
-📱 WhatsApp: +56 9 9939 2122
+📱 WhatsApp: +5694 1242609
 
 ¡Gracias por pensar en nosotros para tu proyecto! Nos ilusiona mucho la idea.
 """
@@ -426,18 +426,18 @@ Espacios: Áreas abiertas, zonas naturales, sectores específicos
 
 Para cotizar tu evento:
 📧 contacto@fundomoraga.com
-📱 WhatsApp: +56 9 9939 2122
+📱 WhatsApp: +5694 1242609
             """,
             "offroad": """
 🚙 **ACTIVIDADES OFF-ROAD**
 
 HORARIOS Y PRECIOS:
 📅 **Lunes a Viernes**: 9:00 AM - 5:00 PM
-   💵 $15.000 por vehículo (4x4, SUVs, camionetas)
-   💵 $15.000 por moto
+   💵 $15.000 automóviles (4x4, SUVs, camionetas)
+   💵 $10.000 motos
 
 📅 **Fin de Semana (Grupos)**: 
-   💵 $200.000 por grupo
+   💵 $200.000 el día (por grupo)
 
 📅 **Eventos Privados/Corporativos**:
    💵 Valores y condiciones personalizadas
@@ -459,7 +459,9 @@ REQUISITOS:
 
 RESERVAS Y CONSULTAS:
 📧 contacto@fundomoraga.com
-📱 +56 9 9939 2122
+📱 +5694 1242609
+
+¿Qué día te gustaría venir? Si me dices el día, te ayudo a dejarlo agendado.
             """,
             "turismo_rural": """
 🏞️ **TURISMO RURAL Y EXPERIENCIAS DE NATURALEZA**
@@ -521,7 +523,7 @@ Ver ejemplos: @fundomoraga y @batuco_offroad
 
 Contacto:
 📧 contacto@fundomoraga.com
-📱 +56 9 9939 2122
+📱 +5694 1242609
             """
         }
         
@@ -539,7 +541,7 @@ Contacto:
         """
         contactos_base = """
 📧 **Email**: contacto@fundomoraga.com
-📱 **WhatsApp**: +56 9 9939 2122
+📱 **WhatsApp**: +5694 1242609
 📍 **Ubicación**: Batuco, Lampa, Región Metropolitana
         """
         
@@ -639,7 +641,7 @@ Podemos facilitarte:
 3. Indícanos la fecha que tienes en mente y cualquier otro detalle.
 4. Espera nuestra confirmación oficial. ¡Te responderemos muy pronto!
 
-También puedes contactarnos por 📱 WhatsApp al +56 9 9939 2122.
+También puedes contactarnos por 📱 WhatsApp al +5694 1242609.
 
 Cuidar la seguridad y privacidad del fundo nos permite conservar su historia y belleza natural para todos nuestros visitantes. ¡Agradecemos mucho tu comprensión!
         """
