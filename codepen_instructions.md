@@ -146,7 +146,7 @@ body {
 
 **JavaScript Code:**
 ```javascript
-const API_URL = 'https://fm-ia.up.railway.app/api/chat';
+const API_URL = 'https://hernando.fundomoraga.com/api/chat';
 const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
@@ -208,9 +208,9 @@ messageInput.addEventListener('keypress', (e) => {
 
 // Simular un mensaje de bienvenida del bot
 setTimeout(() => {
-    addMessage('¡Hola! Soy Hernando, tu asistente virtual del Fundo Moraga. ¿En qué puedo ayudarte hoy?', false);
+    addMessage('¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¡Qué bueno tenerte aquí! ¿En qué puedo ayudarte a descubrir hoy?', false);
 }, 500);
 
 messageInput.focus();
 ```
-In the Javascript code, I have replaced the `API_URL` with the Railway production URL. You can find this URL in your Railway project dashboard. Make sure to replace `'https://fm-ia.up.railway.app/api/chat'` with your actual production URL.
+In the Javascript code, I have replaced the `API_URL` with the Railway production URL. You can find this URL in your Railway project dashboard. Make sure to replace `'https://hernando.fundomoraga.com/api/chat'` with your actual production URL.

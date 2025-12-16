@@ -251,16 +251,16 @@ class HernandoTools:
         # TODO: Implementar envío real (email, webhook, etc.)
         print(f"📧 Formulario recibido: {json.dumps(formulario, indent=2)}")
         
-        return f"""¡Listo! He enviado tu formulario con éxito.
+        return f"""¡Perfecto! He enviado tu solicitud con éxito.
 
-Tu solicitud de {tipo_solicitud} ya está en manos del equipo de Fundo Moraga. 
-Te contactaremos muy pronto a tu email {email} o a tu teléfono {telefono}.
+Tu consulta sobre {tipo_solicitud} ya está en las mejores manos: las del equipo del Fundo Moraga. 
+Pronto recibirás noticias en tu email ({email}) o por teléfono ({telefono}).
 
-Si prefieres, también puedes escribirnos directamente a:
+Recuerda que también puedes contactarnos cuando quieras en:
 📧 contacto@fundomoraga.com
 📱 WhatsApp: +56 9 9939 2122
 
-¡Gracias por tu interés en Fundo Moraga! Estamos felices de ayudarte.
+¡Gracias por pensar en nosotros para tu proyecto! Nos ilusiona mucho la idea.
 """
     
     def buscar_informacion_historica(self, tema: str, detalle: str = None) -> str:
@@ -395,8 +395,8 @@ Una de las familias fundadoras de Chile con mayor continuidad histórica.
         respuesta = info_historica.get(tema, "No se encontró información sobre ese tema específico.")
         
         if detalle:
-            respuesta += f"\n\n🔍 Tu pregunta específica fue: '{detalle}'.\n"
-            respuesta += "Espero que esta información te sea útil. Si quieres profundizar aún más, nuestro equipo está disponible en contacto@fundomoraga.com. ¡Nos encanta compartir nuestra historia!"
+            respuesta += f"\n\n🔍 Buscaste específicamente sobre: '{detalle}'.\n"
+            respuesta += "¡Espero que esta información te sea de gran utilidad! Si te pica el bichito de la curiosidad y quieres saber más, no dudes en escribirle a nuestro equipo a contacto@fundomoraga.com. ¡Nos fascina compartir las historias y secretos de este lugar!"
         
         return respuesta
     
@@ -528,8 +528,8 @@ Contacto:
         respuesta = actividades.get(tipo_actividad, actividades["todas"])
         
         if numero_personas:
-            respuesta += f"\n\n👥 ¡Genial! Para un grupo de {numero_personas} personas, podemos organizar algo especial. "
-            respuesta += "Conversemos por nuestros canales de contacto para darte una experiencia a la medida."
+            respuesta += f"\n\n👥 ¡Excelente! Veo que son un grupo de {numero_personas} personas. ¡Podemos preparar algo inolvidable para ustedes! "
+            respuesta += "Conversemos por nuestros canales de contacto para diseñar juntos una experiencia a la medida de lo que buscan. ¡Será un placer!"
         
         return respuesta
     
@@ -618,30 +618,30 @@ Podemos facilitarte:
         Verifica condiciones de acceso al fundo
         """
         return f"""
-🚧 **ACCESO AL FUNDO MORAGA**
+🚧 **SOBRE EL ACCESO AL FUNDO MORAGA**
 
-El Fundo Moraga es un tesoro privado que cuidamos con mucho cariño. Por eso, el acceso es coordinado y con autorización.
+¡Qué bueno que preguntas! El Fundo Moraga es un tesoro privado que cuidamos con enorme cariño, y por eso, el acceso siempre se coordina con antelación.
 
-✅ **Puedes ingresar si tienes**:
-- Una autorización previa y formal de nuestro equipo.
-- Una reserva confirmada para alguna de nuestras actividades.
-- Un evento o actividad ya programada con nosotros.
+✅ **Eres bienvenido a ingresar si tienes**:
+- Una autorización formal de nuestro equipo. ¡Te esperamos con los brazos abiertos!
+- Una reserva confirmada para alguna de nuestras increíbles actividades.
+- Un evento o producción ya programada con nosotros.
 
-❌ **Recuerda que no está permitido**:
-- El acceso libre al público.
-- Las visitas espontáneas sin aviso.
+❌ **Para cuidar la magia del lugar, recuerda que no está permitido**:
+- El acceso libre al público general.
+- Las visitas espontáneas sin una coordinación previa.
 
-**Tu propósito de visita**: {proposito}
+**Veo que tu interés es para**: {proposito}
 
-Para que podamos darte la bienvenida, por favor, sigue estos pasos:
+¡Genial! Para que podamos recibirte como te mereces, solo tienes que seguir estos sencillos pasos:
 1. Escríbenos a: contacto@fundomoraga.com
-2. Cuéntanos cuál es el motivo de tu visita.
-3. Indícanos la fecha y otros detalles que consideres importantes.
-4. Espera nuestra confirmación oficial. ¡Te responderemos pronto!
+2. Cuéntanos el motivo de tu visita y tus ideas.
+3. Indícanos la fecha que tienes en mente y cualquier otro detalle.
+4. Espera nuestra confirmación oficial. ¡Te responderemos muy pronto!
 
-También puedes contactarnos por 📱 WhatsApp: +56 9 9939 2122
+También puedes contactarnos por 📱 WhatsApp al +56 9 9939 2122.
 
-Cuidar la seguridad y privacidad del fundo nos permite conservar su magia. ¡Gracias por tu comprensión!
+Cuidar la seguridad y privacidad del fundo nos permite conservar su historia y belleza natural para todos nuestros visitantes. ¡Agradecemos mucho tu comprensión!
         """
     
     def capturar_informacion_usuario(
@@ -675,16 +675,16 @@ Cuidar la seguridad y privacidad del fundo nos permite conservar su magia. ¡Gra
         # Mensaje de confirmación para el usuario
         mensaje = f"""¡Perfecto, {nombre if nombre else 'estimado/a'}! 
 
-He tomado nota de tu consulta sobre {interes if interes else 'nuestros servicios'}.
+He tomado nota de tu interés en {interes if interes else 'nuestros servicios'}. ¡Suena muy interesante!
 
-Le pasaré esta información al equipo de Fundo Moraga para que se pongan en contacto contigo"""
+Ya mismo le paso esta información al equipo de Fundo Moraga para que se pongan en contacto contigo"""
         
         if contacto and contacto != "No proporcionado":
             mensaje += f" a través de {contacto}"
         
-        mensaje += """ y te ofrezcan una atención personalizada.
+        mensaje += """ y te den una atención completamente personalizada.
 
-¿Hay algo más en lo que pueda ayudarte? ¡Estoy aquí para servirte!"""
+¿Hay algo más en lo que te pueda ayudar? ¡Estoy feliz de poder servirte!"""
         
         # Log para debugging
         print(f"📋 Información capturada: {json.dumps(info_capturada, indent=2)}")
