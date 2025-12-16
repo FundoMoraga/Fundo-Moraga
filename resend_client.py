@@ -4,6 +4,7 @@ Maneja el envío de resúmenes de conversación al equipo de ventas
 """
 
 import os
+import re
 from dotenv import load_dotenv
 import resend
 from datetime import datetime
@@ -30,6 +31,7 @@ class ResendClient:
         self.api_key = os.getenv('RESEND_API_KEY')
         self.from_email = os.getenv('RESEND_FROM_EMAIL', 'hernando@fundomoraga.com')
         self.to_email = os.getenv('RESEND_TO_EMAIL', 'contacto@fundomoraga.com')
+        self.to_emails = self._parse_to_emails()
 
         # Resend es opcional en deploy: si falta la API key, el bot debe poder arrancar
         # y solo fallar al intentar enviar correos.
@@ -39,6 +41,36 @@ class ResendClient:
 
     def is_configured(self) -> bool:
         return bool(self.api_key)
+
+    def _parse_to_emails(self) -> list[str]:
+        raw = os.getenv("RESEND_TO_EMAILS", "").strip()
+        # Defaults requeridos por negocio
+        emails: list[str] = [
+            "contacto@fundomoraga.com",
+            "efrainmoraga@outlook.com",
+            "pierinabertoni@gmail.com",
+        ]
+
+        if raw:
+            for part in re.split(r"[;,]", raw):
+                addr = part.strip()
+                if addr:
+                    emails.append(addr)
+
+        # Backward compatible
+        if self.to_email:
+            emails.append(self.to_email)
+
+        # De-dup preservando orden
+        seen = set()
+        unique: list[str] = []
+        for e in emails:
+            key = e.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(e)
+        return unique
     
     def send_conversation_summary(
         self,
@@ -117,7 +149,7 @@ class ResendClient:
             # Enviar email
             params = {
                 "from": self.from_email,
-                "to": [self.to_email],
+                "to": self.to_emails,
                 "subject": subject,
                 "html": html_content,
             }
@@ -217,7 +249,7 @@ class ResendClient:
 
             params = {
                 "from": self.from_email,
-                "to": [self.to_email],
+                "to": self.to_emails,
                 "subject": subject,
                 "html": html_content,
             }
@@ -260,7 +292,7 @@ class ResendClient:
             
             params = {
                 "from": self.from_email,
-                "to": [self.to_email],
+                "to": self.to_emails,
                 "subject": subject,
                 "html": html_content,
             }
@@ -269,6 +301,66 @@ class ResendClient:
             
         except Exception as e:
             print(f"Error enviando notificación de error: {str(e)}")
+
+    def send_conversation_end_summary(
+        self,
+        *,
+        subject: str,
+        summary_text: str,
+        conversation_id: str,
+        user_id: str,
+        platform: str = "Web",
+    ) -> Dict:
+        """
+        Envía un resumen final de la conversación (para seguimiento interno).
+        """
+        try:
+            if not self.is_configured():
+                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+
+            html_content = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
+                    .content {{ padding: 20px; }}
+                    .section {{ margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #2c5530; white-space: pre-wrap; }}
+                    .label {{ font-weight: bold; color: #2c5530; }}
+                    .footer {{ margin-top: 30px; padding: 15px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>🧾 Resumen de conversación - Hernando</h1>
+                </div>
+                <div class="content">
+                    <div class="section">
+                        <p><span class="label">🔗 Plataforma:</span> {platform}</p>
+                        <p><span class="label">🆔 Conversación:</span> {conversation_id}</p>
+                        <p><span class="label">👤 User ID:</span> {user_id}</p>
+                        <p><span class="label">📅 Fecha:</span> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
+                    </div>
+                    <div class="section">{summary_text}</div>
+                </div>
+                <div class="footer">
+                    <p>Mensaje generado automáticamente por Hernando.</p>
+                </div>
+            </body>
+            </html>
+            """
+
+            params = {
+                "from": self.from_email,
+                "to": self.to_emails,
+                "subject": subject,
+                "html": html_content,
+            }
+            response = resend.Emails.send(params)
+            return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
+        except Exception as e:
+            print(f"Error enviando resumen final con Resend: {str(e)}")
+            return {"success": False, "error": str(e)}
 
 
 # Singleton instance

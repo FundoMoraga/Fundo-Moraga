@@ -9,6 +9,7 @@ import os
 import config
 from instagram_bot import InstagramBot
 from typing import Optional, Tuple
+import json
 
 app = Flask(__name__)
 CORS(app)  # Permitir peticiones desde fundomoraga.com
@@ -223,6 +224,13 @@ def web_chat():
         if isinstance(response, str) and close_token in response:
             close_chat = True
             response = response.replace(close_token, "").strip()
+
+        # Si el flujo cerró la conversación, generar resumen final interno (no bloqueante).
+        if close_chat:
+            try:
+                bot.finalize_conversation(user_id=user_id, reason="close_chat")
+            except Exception as e:
+                print(f"⚠️ Error enviando resumen final: {e}")
         
         from datetime import datetime, timezone
         
@@ -278,6 +286,35 @@ def web_chat_init():
             "error": "Error interno del servidor",
             "message": str(e)
         }), 500
+
+
+@app.route('/api/chat/end', methods=['POST'])
+def web_chat_end():
+    """
+    Finaliza una conversación web y envía un resumen interno por correo.
+    Espera JSON: { "user_id": "..." , "reason": "optional" }
+    """
+    try:
+        data = request.get_json(silent=True)
+        if data is None:
+            try:
+                raw = (request.data or b"").decode("utf-8", errors="ignore").strip()
+                data = json.loads(raw) if raw else {}
+            except Exception:
+                data = {}
+        user_id = data.get("user_id", f"web_{request.remote_addr}")
+        reason = data.get("reason") or "client_end"
+
+        try:
+            bot = get_bot()
+        except Exception as e:
+            return jsonify({"error": "Servicio no configurado", "message": str(e)}), 503
+
+        bot.finalize_conversation(user_id=user_id, reason=reason)
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        print(f"❌ Error en web chat end: {e}")
+        return jsonify({"error": "Error interno del servidor", "message": str(e)}), 500
 
 
 @app.route('/api/chat/history', methods=['POST'])

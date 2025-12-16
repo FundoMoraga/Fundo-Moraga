@@ -12,6 +12,7 @@ from resend_client import get_resend_client
 import json
 import re
 from zoneinfo import ZoneInfo
+from html import escape
 
 from google_calendar_client import CalendarEventRequest, get_google_calendar_client
 from payment_inbox_client import get_payment_inbox_client
@@ -205,6 +206,137 @@ class InstagramBot:
                     metadata={"platform": "web", "type": "lead_capture", "source": "tool_form", "args": args},
                 )
                 return
+
+    def finalize_conversation(self, user_id: str, reason: str = "end") -> None:
+        """
+        Compila información extraída de la conversación (nombre/contacto/interés/reserva)
+        y envía un resumen final por correo. Se ejecuta una sola vez por conversación.
+        """
+        try:
+            conversation_id = self.conversation_store.get_latest_conversation_id(user_id)
+            if not conversation_id:
+                return
+
+            history = self.conversation_store.get_conversation_history(
+                user_id=user_id, conversation_id=conversation_id, limit=100
+            )
+
+            # Evitar duplicados
+            if any((m.get("metadata") or {}).get("type") == "conversation_summary" for m in (history or [])):
+                return
+
+            summary = self._compile_conversation_summary(
+                user_id=user_id, conversation_id=conversation_id, history=history, reason=reason
+            )
+
+            subject = f"Resumen conversación ({reason}) - {conversation_id}"
+            send_result = self.resend_client.send_conversation_end_summary(
+                subject=subject,
+                summary_text=summary,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                platform="Web",
+            )
+
+            self.conversation_store.save_message(
+                user_id=user_id,
+                role="assistant",
+                message="",
+                conversation_id=conversation_id,
+                metadata={
+                    "platform": "web",
+                    "type": "conversation_summary",
+                    "reason": reason,
+                    "sent": bool(send_result.get("success")),
+                    "error": send_result.get("error"),
+                },
+            )
+        except Exception as e:
+            print(f"❌ Error finalizando conversación: {e}")
+
+    def _compile_conversation_summary(self, user_id: str, conversation_id: str, history: list, reason: str) -> str:
+        # Preferir info explícita capturada por tool
+        lead_args = None
+        latest_booking_state = None
+        user_messages: list[str] = []
+
+        for msg in history or []:
+            metadata = msg.get("metadata") or {}
+            if metadata.get("type") == "lead_capture" and isinstance(metadata.get("args"), dict):
+                lead_args = metadata.get("args")  # el último gana
+            if metadata.get("type") == "booking_state" and isinstance(metadata.get("state"), dict):
+                latest_booking_state = metadata.get("state")
+            if msg.get("role") == "user" and msg.get("message"):
+                user_messages.append(str(msg.get("message")))
+
+        nombre = (lead_args or {}).get("nombre") if lead_args else None
+        interes = (lead_args or {}).get("interes") if lead_args else None
+        contacto = (lead_args or {}).get("contacto") if lead_args else None
+
+        # Fallbacks desde booking state
+        booking_details = (latest_booking_state or {}).get("details") or {}
+        if not nombre:
+            nombre = booking_details.get("full_name")
+        booking_contact_parts = [booking_details.get("email"), booking_details.get("phone")]
+        booking_contact = " / ".join([p for p in booking_contact_parts if p])
+        if not contacto:
+            contacto = booking_contact or None
+
+        # Fallbacks desde texto
+        if not nombre:
+            joined = " \n".join(user_messages[-10:])
+            m = re.search(
+                r"\b(me llamo|soy)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+){0,4})\b",
+                joined,
+                re.IGNORECASE,
+            )
+            if m:
+                nombre = m.group(2).strip(" .,!¿?;:")
+
+        emails = re.findall(r"([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", " \n".join(user_messages), re.IGNORECASE)
+        phones = re.findall(r"(\+?\d[\d\s\-()]{7,}\d)", " \n".join(user_messages))
+        extra_contact = " / ".join([*emails, *phones]).strip() or None
+        if not contacto and extra_contact:
+            contacto = extra_contact
+
+        if not interes:
+            interes = " | ".join([m.strip() for m in user_messages[-5:] if m.strip()]) or None
+
+        lines = []
+        lines.append(f"Motivo cierre: {reason}")
+        lines.append(f"Nombre: {nombre or 'No identificado'}")
+        lines.append(f"Contacto: {contacto or 'No identificado'}")
+        lines.append(f"Interés/objetivo: {interes or 'No identificado'}")
+
+        # Reserva (si aplica)
+        if latest_booking_state:
+            visit_date = latest_booking_state.get("visit_date")
+            visit_day = latest_booking_state.get("visit_day")
+            stage = latest_booking_state.get("stage")
+            arrival_time = booking_details.get("arrival_time")
+            cars = booking_details.get("cars_count")
+            motos = booking_details.get("motos_count")
+            people = booking_details.get("people_count")
+            price_clp = latest_booking_state.get("price_clp")
+            lines.append("")
+            lines.append("Reserva:")
+            lines.append(f"- Estado: {stage}")
+            lines.append(f"- Día/fecha: {visit_day or 'N/A'} {visit_date or ''}".strip())
+            lines.append(f"- Hora llegada: {arrival_time or 'N/A'}")
+            lines.append(f"- Autos: {cars if cars is not None else 'N/A'} | Motos: {motos if motos is not None else 'N/A'} | Personas: {people if people is not None else 'N/A'}")
+            if price_clp is not None:
+                try:
+                    lines.append(f"- Tarifa: ${int(price_clp):,} CLP".replace(",", "."))
+                except Exception:
+                    lines.append(f"- Tarifa: {price_clp}")
+
+        lines.append("")
+        lines.append("Mensajes usuario (últimos 8):")
+        for m in user_messages[-8:]:
+            lines.append(f"- {m.strip()}")
+
+        # Evitar HTML injection en mail (la plantilla usa white-space: pre-wrap)
+        return escape("\n".join(lines))
 
     def start_web_conversation(self, user_id: str) -> str:
         """

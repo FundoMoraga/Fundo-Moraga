@@ -136,6 +136,16 @@
 
         const userId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
+        function endConversation(reason) {
+            try {
+                const payload = JSON.stringify({ user_id: userId, reason: reason || 'client_end' });
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon(`${window.location.origin}/api/chat/end`, blob);
+            } catch (e) {
+                // ignore
+            }
+        }
+
         function addMessage(text, isUser) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
@@ -166,6 +176,7 @@
                 if (data.close_chat) {
                     messageInput.disabled = true;
                     sendBtn.disabled = true;
+                    endConversation('close_chat');
                 }
             } catch (error) {
                 addMessage('Error: No se pudo conectar con Hernando. Inténtalo de nuevo.', false);
@@ -185,6 +196,8 @@
         });
 
         setTimeout(() => messageInput.focus(), 0);
+
+        window.addEventListener('beforeunload', () => endConversation('beforeunload'));
 
         // Saludo inicial al abrir (vía backend para que quede en historial y evitar doble saludo del modelo).
         (async function initChat() {
