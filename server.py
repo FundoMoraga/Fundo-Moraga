@@ -219,7 +219,7 @@ def api_docs():
 <!-- Ejemplo de integración en fundomoraga.com -->
 <script>
 async function enviarMensaje(mensaje) {
-    const response = await fetch('https://tu-app.railway.app/api/chat', {
+    const response = await fetch('https://hernando.fundomoraga.com/api/chat', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

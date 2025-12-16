@@ -54,7 +54,7 @@
 4. **Desplegar**:
    - Railway desplegará automáticamente
    - Espera a que termine el build
-   - Obtén tu URL: `https://tu-app.up.railway.app`
+   - URL final (dominio): `https://hernando.fundomoraga.com`
 
 ### Opción 2: Despliegue desde CLI
 
@@ -94,7 +94,7 @@ Una vez desplegado, configura el webhook de Instagram:
 1. Ve a [Meta for Developers](https://developers.facebook.com/)
 2. Selecciona tu app de Instagram
 3. En "Webhooks" → "Instagram" → "Edit"
-4. **Callback URL**: `https://tu-app.up.railway.app/webhook/instagram`
+4. **Callback URL**: `https://hernando.fundomoraga.com/webhook/instagram`
 5. **Verify Token**: `fundomoraga_2025` (el que configuraste en variables)
 6. Suscríbete a: `messages`, `messaging_postbacks`
 
@@ -174,7 +174,7 @@ Agrega esto en tu página web:
     </div>
 
     <script>
-        const API_URL = 'https://tu-app.up.railway.app/api/chat';
+        const API_URL = 'https://hernando.fundomoraga.com/api/chat';
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
@@ -292,7 +292,7 @@ class HernandoChat {
 }
 
 // Uso
-const chat = new HernandoChat('https://tu-app.up.railway.app');
+const chat = new HernandoChat('https://hernando.fundomoraga.com');
 
 // Enviar mensaje
 const respuesta = await chat.sendMessage('¿Qué eventos puedo realizar en el fundo?');
@@ -309,14 +309,14 @@ console.log(historial);
 
 ### 1. Verificar que el servidor esté corriendo:
 ```bash
-curl https://tu-app.up.railway.app/health
+curl https://hernando.fundomoraga.com/health
 ```
 
 Deberías recibir: `{"status": "healthy"}`
 
 ### 2. Probar el chat:
 ```bash
-curl -X POST https://tu-app.up.railway.app/api/chat \
+curl -X POST https://hernando.fundomoraga.com/api/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Hola Hernando, ¿cuál es la historia del fundo?"}'
 ```
@@ -324,7 +324,7 @@ curl -X POST https://tu-app.up.railway.app/api/chat \
 ### 3. Ver documentación de la API:
 Abre en tu navegador:
 ```
-https://tu-app.up.railway.app/api/docs
+https://hernando.fundomoraga.com/api/docs
 ```
 
 ---

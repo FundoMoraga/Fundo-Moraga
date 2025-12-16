@@ -68,7 +68,7 @@ MAX_CONVERSATION_HISTORY=10
 
 1. Railway mostrará los logs del deploy en tiempo real
 2. Espera a ver: `✅ Build successful`
-3. Railway te asignará una URL automáticamente (algo como: `https://tu-proyecto.up.railway.app`)
+3. URL final (dominio): `https://hernando.fundomoraga.com`
 
 ### 6. Probar el Deploy
 
@@ -76,17 +76,17 @@ Una vez desplegado, prueba los endpoints:
 
 **Health Check:**
 ```
-https://tu-proyecto.up.railway.app/health
+https://hernando.fundomoraga.com/health
 ```
 
 **API Docs:**
 ```
-https://tu-proyecto.up.railway.app/api/docs
+https://hernando.fundomoraga.com/api/docs
 ```
 
 **Test de Chat (desde terminal o Postman):**
 ```powershell
-curl -X POST https://tu-proyecto.up.railway.app/api/chat `
+curl -X POST https://hernando.fundomoraga.com/api/chat `
   -H "Content-Type: application/json" `
   -d '{"user_id":"test_user","message":"Hola, soy Juan y quiero información sobre eventos corporativos. Mi email es juan@test.com"}'
 ```
@@ -141,10 +141,10 @@ Railway detectará el push y redesplegará automáticamente.
 
 ## 📱 Configurar Instagram (Después del Deploy)
 
-1. Obtén la URL de Railway (ej: `https://tu-proyecto.up.railway.app`)
+1. Usa el dominio: `https://hernando.fundomoraga.com`
 2. Ve a [developers.facebook.com](https://developers.facebook.com)
 3. Configura el webhook:
-   - URL: `https://tu-proyecto.up.railway.app/webhook/instagram`
+   - URL: `https://hernando.fundomoraga.com/webhook/instagram`
    - Verify Token: `fundomoraga_2025`
    - Suscripciones: `messages`
 
