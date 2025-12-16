@@ -2,6 +2,7 @@
 Servidor web para Hernando - Fundo Moraga
 Maneja webhooks de Instagram y chat de la página web
 """
+import traceback
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
@@ -242,7 +243,10 @@ enviarMensaje('¿Cuál es la historia del fundo?');
 @app.route('/widget')
 def chat_widget_page():
     """Sirve la página del widget de chat para ser embebida."""
-    return render_template('chat_widget.html')
+    try:
+        return render_template('chat_widget.html')
+    except Exception as e:
+        return f"<pre>Error rendering template:\n{traceback.format_exc()}</pre>"
 
 
 if __name__ == '__main__':
