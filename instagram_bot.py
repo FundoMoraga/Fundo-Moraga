@@ -290,7 +290,7 @@ class InstagramBot:
 
             missing = [
                 k
-                for k in ("full_name", "phone", "email", "cars_count", "motos_count", "people_count")
+                for k in ("arrival_time", "full_name", "phone", "email", "cars_count", "motos_count", "people_count")
                 if details.get(k) is None
             ]
             if missing:
@@ -352,7 +352,10 @@ class InstagramBot:
                     price_clp=price_clp,
                     conversation_id=conversation_id,
                     platform=platform,
-                    additional_notes=f"Pago verificado por inbox. From: {check.from_email} Subject: {check.subject}",
+                    additional_notes=(
+                        f"Hora llegada: {details.get('arrival_time')}. "
+                        f"Pago verificado por inbox. From: {check.from_email} Subject: {check.subject}"
+                    ),
                 )
 
                 calendar_ok = False
@@ -457,7 +460,16 @@ class InstagramBot:
             "domingo",
             "fin de semana",
         ]
-        return any(k in t for k in keywords)
+        if any(k in t for k in keywords):
+            return True
+
+        # Si el usuario responde solo con una fecha, también lo interpretamos como intención de agendar.
+        if re.search(r"\b\d{4}-\d{2}-\d{2}\b", t):
+            return True
+        if re.search(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", t):
+            return True
+
+        return False
 
     def _parse_visit_day(self, text: str) -> Optional[str]:
         t = (text or "").lower()
@@ -553,6 +565,8 @@ class InstagramBot:
                 details["phone"] = v
             elif k in ("email", "correo", "correo electrónico", "correo electronico"):
                 details["email"] = v
+            elif k in ("hora", "hora de llegada", "hora llegada", "hora visita", "hora de visita"):
+                details["arrival_time"] = v
             elif k in ("autos", "automóviles", "automoviles", "vehículos", "vehiculos"):
                 details["cars_count"] = self._parse_int(v)
             elif k in ("motos", "moto"):
@@ -591,6 +605,11 @@ class InstagramBot:
             if m:
                 details["people_count"] = int(m.group(1))
 
+        if "arrival_time" not in details:
+            time_match = re.search(r"\b([01]?\d|2[0-3]):[0-5]\d\b", raw)
+            if time_match:
+                details["arrival_time"] = time_match.group(0)
+
         return details
 
     def _parse_int(self, value: str) -> Optional[int]:
@@ -603,6 +622,7 @@ class InstagramBot:
     def _booking_details_prompt(self, visit_day: str, visit_date: date) -> str:
         return (
             f"¡Perfecto! Para agendar **{visit_day} {visit_date.isoformat()}** (09:00 a 17:00), ¿me compartes estos datos en un solo mensaje?\n"
+            "• Hora de llegada (HH:MM, entre 09:00 y 17:00)\n"
             "• Nombres y apellidos\n"
             "• Teléfono\n"
             "• Email\n"
@@ -610,6 +630,7 @@ class InstagramBot:
             "• Cantidad de motos\n"
             "• Cantidad de personas\n\n"
             "Si quieres, responde en este formato:\n"
+            "Hora de llegada: 10:00\n"
             "Nombre y apellidos: ...\n"
             "Teléfono: ...\n"
             "Email: ...\n"
@@ -620,6 +641,7 @@ class InstagramBot:
 
     def _booking_missing_prompt(self, visit_day: str, missing: list) -> str:
         labels = {
+            "arrival_time": "hora de llegada (HH:MM)",
             "full_name": "nombres y apellidos",
             "phone": "teléfono",
             "email": "email",
@@ -646,8 +668,9 @@ class InstagramBot:
             "SOCIEDAD FUNDO MORAGA SpA\n"
             "RUT: 78.178.465-6\n"
             "Banco de Chile\n"
-            "Cuenta Vista\n"
-            "00-023-87252-10"
+            "Cuenta FAN Emprende\n"
+            "00-023-87252-10\n"
+            "Correo: contacto@fundomoraga.com"
         )
 
     def _event_times(self, visit_date: date) -> tuple[str, str]:
@@ -663,6 +686,7 @@ class InstagramBot:
             f"Nombre: {details.get('full_name')}\n"
             f"Teléfono: {details.get('phone')}\n"
             f"Email: {details.get('email')}\n"
+            f"Hora llegada: {details.get('arrival_time')}\n"
             f"Autos: {details.get('cars_count')}\n"
             f"Motos: {details.get('motos_count')}\n"
             f"Personas: {details.get('people_count')}\n"
