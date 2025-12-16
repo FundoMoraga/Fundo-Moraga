@@ -255,7 +255,21 @@
         chatWindow.classList.remove('hidden');
         setTimeout(() => messageInput.focus(), 0);
 
-        // Nota: no enviamos un saludo automático para evitar "doble saludo".
+        // Saludo inicial al abrir (vía backend para que quede en historial y evitar doble saludo del modelo).
+        (async function initChat() {
+            try {
+                const response = await fetch(window.HERNANDO_API_INIT_URL || `${window.location.origin}/api/chat/init`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                addMessage(data.greeting || '¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?', false);
+            } catch (e) {
+                addMessage('¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?', false);
+            }
+        })();
     </script>
 </body>
 </html>

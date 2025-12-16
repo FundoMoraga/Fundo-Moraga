@@ -142,6 +142,37 @@ def web_chat():
         }), 500
 
 
+@app.route('/api/chat/init', methods=['POST'])
+def web_chat_init():
+    """
+    Inicializa una sesión de chat web y registra el mensaje de bienvenida en el historial
+    para evitar doble saludo en la primera respuesta del bot.
+
+    Espera JSON:
+    {
+        "user_id": "web_user_12345"
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        user_id = data.get('user_id', f"web_{request.remote_addr}")
+
+        greeting = bot.start_web_conversation(user_id=user_id)
+
+        from datetime import datetime, timezone
+        return jsonify({
+            "greeting": greeting,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "bot": "Hernando"
+        }), 200
+    except Exception as e:
+        print(f"❌ Error en web chat init: {e}")
+        return jsonify({
+            "error": "Error interno del servidor",
+            "message": str(e)
+        }), 500
+
+
 @app.route('/api/chat/history', methods=['POST'])
 def chat_history():
     """

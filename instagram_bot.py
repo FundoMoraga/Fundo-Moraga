@@ -116,6 +116,26 @@ class InstagramBot:
             print(f"❌ Error procesando mensaje: {e}")
             return "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente."
 
+    def start_web_conversation(self, user_id: str) -> str:
+        """
+        Registra un mensaje de bienvenida para sesiones web.
+        Esto ayuda a evitar el "doble saludo": el widget muestra este saludo al cargar
+        y el modelo debe continuar directo cuando el usuario escriba.
+        """
+        conversation_id = f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}"
+
+        greeting = "¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?"
+
+        self.conversation_store.save_message(
+            user_id=user_id,
+            role="assistant",
+            message=greeting,
+            conversation_id=conversation_id,
+            metadata={"platform": "web", "source": "widget", "type": "welcome"},
+        )
+
+        return greeting
+
     # ============= BOOKING FLOW (WEB) =============
 
     def _handle_booking_flow(
