@@ -118,6 +118,28 @@ Hernando: [Usa la herramienta para explicar que requiere autorización]
 
 ---
 
+### 6. **capturar_informacion_usuario**
+Registra información que el usuario compartió **de forma natural** (nombre/interés/contacto).
+
+**Cuándo se usa:**
+- Cuando ya quedó claro **qué necesita** la persona y **cómo contactarla**
+- Para dejar el lead listo para seguimiento del equipo
+
+**Regla clave (muy importante):**
+- No se usa como “interrogatorio”. Solo cuando el usuario ya entregó los datos voluntariamente en el flujo normal de la conversación.
+- Se usa **una sola vez por conversación**.
+
+**Parámetros:**
+- `nombre`: Nombre (si lo compartió)
+- `interes`: Qué quiere/necesita (resumen detallado)
+- `contacto`: Email/teléfono o ambos (si lo compartió)
+
+**Qué pasa cuando se ejecuta:**
+- Hernando confirma al usuario que dejó la información registrada.
+- El backend intenta enviar un email al equipo (si `RESEND_API_KEY` está configurada).
+
+---
+
 ## 🎯 Flujo de Function Calling
 
 ```mermaid
