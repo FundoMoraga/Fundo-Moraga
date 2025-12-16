@@ -1,3 +1,29 @@
+        /* Responsive: pantalla completa en móviles */
+        @media (max-width: 900px) {
+            #chat-window {
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                box-shadow: none;
+            }
+            #chat-header {
+                font-size: 1rem;
+                padding: 0.7rem;
+            }
+            #messages {
+                padding: 0.5rem;
+            }
+            #input-area {
+                padding: 0.5rem;
+            }
+            #message-input {
+                font-size: 1rem;
+            }
+        }
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -23,48 +49,22 @@
         }
 
         /* --- Chat Bubble --- */
-        #chat-bubble {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: var(--bubble-size);
-            height: var(--bubble-size);
-            background-color: var(--header-color);
-            border-radius: 50%;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: transform 0.2s ease-in-out;
-        }
 
-        #chat-bubble:hover {
-            transform: scale(1.1);
-        }
 
         /* --- Chat Window --- */
         #chat-window {
             position: fixed;
-            bottom: 95px; /* bubble size + margin */
-            right: 20px;
-            width: var(--window-width);
-            height: var(--window-height);
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             background: #fff;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            border-radius: 0;
+            box-shadow: none;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-        }
-        
-        #chat-window.hidden {
-            opacity: 0;
-            transform: translateY(20px);
-            pointer-events: none;
+            z-index: 9999;
         }
 
         /* --- Re-styling existing elements --- */
@@ -156,12 +156,9 @@
 </head>
 <body>
 
-    <!-- Chat Bubble -->
-    <div id="chat-bubble">
-        <span>&#128172;</span> <!-- Speech bubble emoji -->
-    </div>
 
-    <!-- Chat Window (auto-open) -->
+
+    <!-- Chat Window pantalla completa -->
     <div id="chat-window">
         <div id="chatbox">
             <div id="chat-header">Chat con Hernando</div>
@@ -175,7 +172,6 @@
 
     <script>
         // --- UI Elements ---
-        const chatBubble = document.getElementById('chat-bubble');
         const chatWindow = document.getElementById('chat-window');
         
         // --- API and Message Elements ---
@@ -192,11 +188,7 @@
         
         const userId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
-        // --- Toggle Chat Window ---
-        chatBubble.addEventListener('click', () => {
-            chatWindow.classList.toggle('hidden');
-            if (!chatWindow.classList.contains('hidden')) messageInput.focus();
-        });
+
 
         // --- Message Handling Logic (from before) ---
         function addMessage(text, isUser) {
@@ -251,8 +243,8 @@
             }
         });
 
-        // Auto-abrir el chat al cargar la página
-        chatWindow.classList.remove('hidden');
+
+        // En pantalla completa, enfoca el input al cargar
         setTimeout(() => messageInput.focus(), 0);
 
         // Saludo inicial al abrir (vía backend para que quede en historial y evitar doble saludo del modelo).
