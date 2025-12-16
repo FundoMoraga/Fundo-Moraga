@@ -305,6 +305,14 @@ def chat_widget_page():
     except Exception as e:
         return f"<pre>Error rendering template:\n{traceback.format_exc()}</pre>"
 
+@app.route('/embed')
+def chat_embed_page():
+    """Versión para embeds (Canva/iframes): sin burbuja, solo chat."""
+    try:
+        return render_template('chat_embed.html')
+    except Exception as e:
+        return f"<pre>Error rendering template:\n{traceback.format_exc()}</pre>"
+
 
 if __name__ == '__main__':
     # Validar configuración

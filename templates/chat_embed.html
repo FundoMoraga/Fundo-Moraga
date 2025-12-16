@@ -13,66 +13,22 @@
             --text-color-dark: #2c3e50;
             --text-color-light: #ffffff;
             --font-family: 'Nunito', sans-serif;
-            --bubble-size: 60px;
-            --window-width: 320px;
-            --window-height: 480px;
         }
 
-        body {
+        html, body {
+            height: 100%;
+            margin: 0;
             font-family: var(--font-family);
-        }
-
-        /* --- Chat Bubble --- */
-        #chat-bubble {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: var(--bubble-size);
-            height: var(--bubble-size);
-            background-color: var(--header-color);
-            border-radius: 50%;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: transform 0.2s ease-in-out;
-        }
-
-        #chat-bubble:hover {
-            transform: scale(1.1);
-        }
-
-        /* --- Chat Window --- */
-        #chat-window {
-            position: fixed;
-            bottom: 95px; /* bubble size + margin */
-            right: 20px;
-            width: var(--window-width);
-            height: var(--window-height);
             background: #fff;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-        }
-        
-        #chat-window.hidden {
-            opacity: 0;
-            transform: translateY(20px);
-            pointer-events: none;
         }
 
-        /* --- Re-styling existing elements --- */
         #chatbox {
-            width: 100%;
             height: 100%;
             display: flex;
             flex-direction: column;
+            border: 1px solid #e6e6e6;
+            border-radius: 12px;
+            overflow: hidden;
         }
 
         #chat-header {
@@ -97,7 +53,7 @@
         .message {
             padding: 0.65rem 1.1rem;
             border-radius: 20px;
-            max-width: 80%;
+            max-width: 85%;
             line-height: 1.4;
             word-wrap: break-word;
         }
@@ -122,6 +78,7 @@
             padding: 0.75rem;
             border-top: 1px solid #e0e0e0;
             background: #fff;
+            gap: 0.5rem;
         }
 
         #message-input {
@@ -139,7 +96,6 @@
         }
 
         #send-btn {
-            margin-left: 0.5rem;
             background: var(--user-message-color);
             color: var(--text-color-light);
             border: none;
@@ -151,54 +107,32 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex: 0 0 auto;
         }
     </style>
 </head>
 <body>
-
-    <!-- Chat Bubble -->
-    <div id="chat-bubble">
-        <span>&#128172;</span> <!-- Speech bubble emoji -->
-    </div>
-
-    <!-- Chat Window (auto-open) -->
-    <div id="chat-window">
-        <div id="chatbox">
-            <div id="chat-header">Chat con Hernando</div>
-            <div id="messages"></div>
-            <div id="input-area">
-                <input type="text" id="message-input" placeholder="Escribe tu mensaje...">
-                <button id="send-btn" aria-label="Enviar">&#10148;</button>
-            </div>
+    <div id="chatbox">
+        <div id="chat-header">Chat con Hernando</div>
+        <div id="messages"></div>
+        <div id="input-area">
+            <input type="text" id="message-input" placeholder="Escribe tu mensaje...">
+            <button id="send-btn" aria-label="Enviar">&#10148;</button>
         </div>
     </div>
 
     <script>
-        // --- UI Elements ---
-        const chatBubble = document.getElementById('chat-bubble');
-        const chatWindow = document.getElementById('chat-window');
-        
-        // --- API and Message Elements ---
-        // Por defecto usa el mismo origen donde se sirve el widget (Railway / dominio custom).
-        // Si necesitas apuntar a otro host, define `window.HERNANDO_API_URL` antes de este script.
         const API_URL =
             window.HERNANDO_API_URL ||
             (window.location.protocol.startsWith('http')
                 ? `${window.location.origin}/api/chat`
                 : 'https://hernando.fundomoraga.com/api/chat');
+
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
-        
         const userId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
-        // --- Toggle Chat Window ---
-        chatBubble.addEventListener('click', () => {
-            chatWindow.classList.toggle('hidden');
-            if (!chatWindow.classList.contains('hidden')) messageInput.focus();
-        });
-
-        // --- Message Handling Logic (from before) ---
         function addMessage(text, isUser) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
@@ -222,18 +156,14 @@
                     body: JSON.stringify({ user_id: userId, message: message })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
                 const data = await response.json();
                 addMessage(data.response, false);
                 if (data.close_chat) {
                     messageInput.disabled = true;
                     sendBtn.disabled = true;
-                    chatWindow.classList.add('hidden');
                 }
-                
             } catch (error) {
                 addMessage('Error: No se pudo conectar con Hernando. Inténtalo de nuevo.', false);
                 console.error('Error:', error);
@@ -251,11 +181,8 @@
             }
         });
 
-        // Auto-abrir el chat al cargar la página
-        chatWindow.classList.remove('hidden');
         setTimeout(() => messageInput.focus(), 0);
 
-        // Saludo inicial al abrir (vía backend para que quede en historial y evitar doble saludo del modelo).
         (async function initChat() {
             try {
                 const response = await fetch(window.HERNANDO_API_INIT_URL || `${window.location.origin}/api/chat/init`, {
@@ -273,3 +200,4 @@
     </script>
 </body>
 </html>
+

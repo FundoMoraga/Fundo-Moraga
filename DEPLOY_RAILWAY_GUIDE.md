@@ -45,14 +45,14 @@ En el dashboard de Railway:
 
 ```
 COSMOS_ENDPOINT=https://fundomoraga.documents.azure.com:443/
-COSMOS_KEY=z2KIGx54JE0zdVNTYvKns5enhJtDfDbEauvNZoVKMWMPgvMOFLwKQFniZShuJV8iJHcubpebQ0syACDbuKxG6g==
+COSMOS_KEY=tu-cosmos-key-aqui
 COSMOS_DATABASE=Fundo Moraga IA
 COSMOS_CONTAINER=Conversaciones
 
-OPENAI_API_KEY=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
+OPENAI_API_KEY=sk-proj-...
 OPENAI_MODEL=gpt-4o-mini
 
-RESEND_API_KEY=re_BrzA3z4r_QDaHQDQ988rgp3QTCnNBSBsf
+RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=hernando@fundomoraga.com
 RESEND_TO_EMAIL=contacto@fundomoraga.com
 

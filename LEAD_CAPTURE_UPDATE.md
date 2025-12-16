@@ -49,7 +49,7 @@ HORARIOS Y PRECIOS OFF-ROAD:
 ### 2. **.env y .env.example**
 - Agregadas variables de entorno:
   ```
-  RESEND_API_KEY=re_BrzA3z4r_QDaHQDQ988rgp3QTCnNBSBsf
+  RESEND_API_KEY=re_...
   RESEND_FROM_EMAIL=hernando@fundomoraga.com
   RESEND_TO_EMAIL=contacto@fundomoraga.com
   ```
@@ -145,9 +145,9 @@ pip install resend
 ```
 
 ### 2. Verificar Variables de Entorno
-Las credenciales de Resend ya están configuradas en [.env](d:\repos\Fundo Moraga\FM IA\.env):
+Configura las credenciales de Resend en `.env`:
 ```
-RESEND_API_KEY=re_BrzA3z4r_QDaHQDQ988rgp3QTCnNBSBsf
+RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=hernando@fundomoraga.com
 RESEND_TO_EMAIL=contacto@fundomoraga.com
 ```
@@ -196,7 +196,7 @@ Para que los emails no vayan a spam:
 
 ## Configuración de Resend
 
-API Key ya configurada: `re_BrzA3z4r_QDaHQDQ988rgp3QTCnNBSBsf`
+API Key ya configurada: `re_...`
 
 - **From:** hernando@fundomoraga.com
 - **To:** contacto@fundomoraga.com
