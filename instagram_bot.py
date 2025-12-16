@@ -204,6 +204,8 @@ class InstagramBot:
         lines.append("- Teléfono y correo")
         lines.append("- Cantidad de autos y motos")
         lines.append("")
+        lines.append("Si prefieres que el equipo te contacte para coordinar, déjame tu nombre y un correo o WhatsApp y lo derivamos.")
+        lines.append("")
         lines.append("Para eventos privados/corporativos o valores personalizados, lo coordinamos con el equipo: contacto@fundomoraga.com / +5694 1242609.")
         return "\n".join(lines)
 
