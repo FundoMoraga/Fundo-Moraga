@@ -6,6 +6,7 @@ from typing import Dict, Any, List
 import json
 from datetime import datetime
 import requests
+import inspect
 
 
 class HernandoTools:
@@ -206,7 +207,30 @@ class HernandoTools:
             }
         
         try:
-            result = tool_methods[tool_name](**arguments)
+            # OpenAI a veces envía `null` o tipos inesperados en `arguments`.
+            if arguments is None:
+                arguments = {}
+            if not isinstance(arguments, dict):
+                return {"success": False, "error": "Argumentos inválidos: se esperaba un objeto JSON (dict)"}
+
+            # Tolerancia a claves extra: ejecutamos solo con los parámetros que acepta el método.
+            method = tool_methods[tool_name]
+            sig = inspect.signature(method)
+            accepted = {
+                name
+                for name, param in sig.parameters.items()
+                if param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+            }
+            filtered_args = {k: v for k, v in arguments.items() if k in accepted}
+
+            # Normalizaciones puntuales (evita TypeError por strings numéricos, etc.)
+            if tool_name == "informar_actividades_disponibles" and "numero_personas" in filtered_args:
+                v = filtered_args.get("numero_personas")
+                if isinstance(v, str):
+                    digits = "".join(ch for ch in v if ch.isdigit())
+                    filtered_args["numero_personas"] = int(digits) if digits else None
+
+            result = method(**filtered_args)
             return {
                 "success": True,
                 "result": result
