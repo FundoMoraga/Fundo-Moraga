@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>Chat con Hernando</title>
+    <title>Hernando - Embed</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
@@ -13,49 +13,32 @@
             --text-color-dark: #2c3e50;
             --text-color-light: #ffffff;
             --font-family: 'Nunito', sans-serif;
-            --bubble-size: 60px;
-            --window-width: 720px;
-            --window-height: 1200px;
         }
 
-        body {
+        html, body {
+            height: 100%;
+            margin: 0;
             font-family: var(--font-family);
+            background: transparent;
         }
 
-        /* --- Chat Bubble --- */
-
-
-        /* --- Chat Window --- */
-        #chat-window {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: #fff;
-            border-radius: 0;
-            box-shadow: none;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            z-index: 9999;
-        }
-
-        /* --- Re-styling existing elements --- */
         #chatbox {
-            width: 100%;
             height: 100%;
             display: flex;
             flex-direction: column;
+            background: #fff;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
         }
 
         #chat-header {
             background: var(--header-color);
             color: var(--text-color-light);
-            padding: 1rem;
+            padding: 0.9rem 1rem;
             text-align: center;
             font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
 
         #messages {
@@ -71,7 +54,7 @@
         .message {
             padding: 0.65rem 1.1rem;
             border-radius: 20px;
-            max-width: 80%;
+            max-width: 85%;
             line-height: 1.4;
             word-wrap: break-word;
         }
@@ -118,80 +101,39 @@
             color: var(--text-color-light);
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             cursor: pointer;
             font-size: 1.2rem;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-
-        /* Responsive: pantalla completa en móviles */
-        @media (max-width: 900px) {
-            #chat-window {
-                width: 100vw;
-                height: 100vh;
-                border-radius: 0;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                box-shadow: none;
-            }
-            #chat-header {
-                font-size: 1rem;
-                padding: 0.7rem;
-            }
-            #messages {
-                padding: 0.5rem;
-            }
-            #input-area {
-                padding: 0.5rem;
-            }
-            #message-input {
-                font-size: 1rem;
-            }
-        }
     </style>
 </head>
 <body>
-
-
-
-    <!-- Chat Window pantalla completa -->
-    <div id="chat-window">
-        <div id="chatbox">
-            <div id="chat-header">Chat con Hernando</div>
-            <div id="messages"></div>
-            <div id="input-area">
-                <input type="text" id="message-input" placeholder="Escribe tu mensaje...">
-                <button id="send-btn" aria-label="Enviar">&#10148;</button>
-            </div>
+    <div id="chatbox">
+        <div id="chat-header">Chat con Hernando</div>
+        <div id="messages"></div>
+        <div id="input-area">
+            <input type="text" id="message-input" placeholder="Escribe tu mensaje...">
+            <button id="send-btn" aria-label="Enviar">&#10148;</button>
         </div>
     </div>
 
     <script>
-        // --- UI Elements ---
-        const chatWindow = document.getElementById('chat-window');
-        
-        // --- API and Message Elements ---
-        // Por defecto usa el mismo origen donde se sirve el widget (Railway / dominio custom).
-        // Si necesitas apuntar a otro host, define `window.HERNANDO_API_URL` antes de este script.
         const API_URL =
             window.HERNANDO_API_URL ||
             (window.location.protocol.startsWith('http')
                 ? `${window.location.origin}/api/chat`
                 : 'https://hernando.fundomoraga.com/api/chat');
+
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
-        
+
         const userId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
-
-
-        // --- Message Handling Logic (from before) ---
         function addMessage(text, isUser) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
@@ -215,18 +157,14 @@
                     body: JSON.stringify({ user_id: userId, message: message })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
                 const data = await response.json();
                 addMessage(data.response, false);
                 if (data.close_chat) {
                     messageInput.disabled = true;
                     sendBtn.disabled = true;
-                    chatWindow.classList.add('hidden');
                 }
-                
             } catch (error) {
                 addMessage('Error: No se pudo conectar con Hernando. Inténtalo de nuevo.', false);
                 console.error('Error:', error);
@@ -244,21 +182,24 @@
             }
         });
 
-
-        // En pantalla completa, enfoca el input al cargar
         setTimeout(() => messageInput.focus(), 0);
 
-        // Saludo inicial al abrir (vía backend para que quede en historial y evitar doble saludo del modelo).
         (async function initChat() {
             try {
-                const response = await fetch(window.HERNANDO_API_INIT_URL || `${window.location.origin}/api/chat/init`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId })
-                });
+                const response = await fetch(
+                    window.HERNANDO_API_INIT_URL || `${window.location.origin}/api/chat/init`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: userId })
+                    }
+                );
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                addMessage(data.greeting || '¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?', false);
+                addMessage(
+                    data.greeting || '¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?',
+                    false
+                );
             } catch (e) {
                 addMessage('¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?', false);
             }
@@ -266,3 +207,4 @@
     </script>
 </body>
 </html>
+

@@ -5,7 +5,7 @@
 ### 1. Crear Repositorio en GitHub
 
 1. Ve a [github.com/new](https://github.com/new)
-2. Nombre: `fundo-moraga-chatbot` (o el que prefieras)
+2. Nombre: `Fundo-Moraga` (o el que prefieras)
 3. **NO inicialices** con README, .gitignore o licencia
 4. Haz clic en "Create repository"
 
@@ -14,7 +14,7 @@
 Copia y ejecuta los comandos que GitHub te muestra (algo como):
 
 ```powershell
-git remote add origin https://github.com/TU-USUARIO/fundo-moraga-chatbot.git
+git remote add origin https://github.com/ChimiSystems/Fundo-Moraga.git
 git branch -M main
 git push -u origin main
 ```
@@ -32,7 +32,7 @@ git push -u origin main
 2. Click en **"New Project"**
 3. Selecciona **"Deploy from GitHub repo"**
 4. Autoriza Railway para acceder a tus repositorios
-5. Selecciona `fundo-moraga-chatbot`
+5. Selecciona `Fundo-Moraga`
 6. Railway detectará automáticamente Python y empezará a desplegar
 
 ### 4. Configurar Variables de Entorno en Railway
@@ -77,6 +77,21 @@ Una vez desplegado, prueba los endpoints:
 **Health Check:**
 ```
 https://hernando.fundomoraga.com/health
+```
+
+**Chat a página completa (root):**
+```
+https://hernando.fundomoraga.com/
+```
+
+**Widget (burbuja) para embeber en tu web:**
+```
+https://hernando.fundomoraga.com/widget
+```
+
+**Embed (iframes/Canva):**
+```
+https://hernando.fundomoraga.com/embed
 ```
 
 **API Docs:**

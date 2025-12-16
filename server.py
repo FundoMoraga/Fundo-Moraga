@@ -1,17 +1,3 @@
-
-# Endpoint oEmbed para Canva
-@app.route('/oembed.json')
-def oembed():
-    return jsonify({
-        "version": "1.0",
-        "type": "rich",
-        "provider_name": "Fundo Moraga",
-        "provider_url": "https://fundomoraga.com",
-        "title": "Chat IA Hernando",
-        "html": '<iframe src="https://hernando.fundomoraga.com" width="100%" height="600" frameborder="0" allowfullscreen></iframe>',
-        "width": 800,
-        "height": 600
-    })
 """
 Servidor web para Hernando - Fundo Moraga
 Maneja webhooks de Instagram y chat de la página web
@@ -22,15 +8,82 @@ from flask_cors import CORS
 import os
 import config
 from instagram_bot import InstagramBot
+from typing import Optional, Tuple
 
 app = Flask(__name__)
 CORS(app)  # Permitir peticiones desde fundomoraga.com
 
-# Inicializar bot
-bot = InstagramBot()
+# Inicializar bot (lazy) para que el servidor pueda arrancar en Railway
+# incluso si faltan variables de entorno; las rutas de chat devolverán 503 con detalle.
+_bot: Optional[InstagramBot] = None
+_bot_init_error: Optional[str] = None
 
 # Token de verificación del webhook (configúralo en .env)
 VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "fundomoraga_2025")
+
+def _config_status() -> Tuple[bool, list[str], list[str]]:
+    """
+    Retorna (configured_ok, missing_required, warnings).
+    required: Cosmos + OpenAI para chat.
+    warnings: features opcionales (Resend, Google Calendar, inbox pagos).
+    """
+    missing_required = []
+    warnings = []
+
+    if not os.getenv("COSMOS_ENDPOINT"):
+        missing_required.append("COSMOS_ENDPOINT")
+    if not os.getenv("COSMOS_KEY"):
+        missing_required.append("COSMOS_KEY")
+    if not os.getenv("OPENAI_API_KEY"):
+        missing_required.append("OPENAI_API_KEY")
+
+    if not os.getenv("RESEND_API_KEY"):
+        warnings.append("RESEND_API_KEY (emails/booking)")
+    if not os.getenv("GOOGLE_CALENDAR_ID"):
+        warnings.append("GOOGLE_CALENDAR_ID (calendar)")
+    if not (os.getenv("PAYMENT_INBOX_USER") and os.getenv("PAYMENT_INBOX_PASSWORD")):
+        warnings.append("PAYMENT_INBOX_USER/PAYMENT_INBOX_PASSWORD (payment inbox)")
+
+    return (len(missing_required) == 0, missing_required, warnings)
+
+
+def get_bot() -> InstagramBot:
+    global _bot, _bot_init_error
+    if _bot is not None:
+        return _bot
+    if _bot_init_error is not None:
+        raise RuntimeError(_bot_init_error)
+
+    configured_ok, missing_required, warnings = _config_status()
+    if not configured_ok:
+        _bot_init_error = (
+            "Configuración incompleta. Faltan variables requeridas: "
+            + ", ".join(missing_required)
+            + ". Configúralas en Railway → Variables y redepliega."
+        )
+        raise RuntimeError(_bot_init_error)
+
+    try:
+        _bot = InstagramBot()
+        return _bot
+    except Exception as e:
+        _bot_init_error = f"Error inicializando bot: {e}"
+        raise RuntimeError(_bot_init_error)
+
+
+@app.route('/oembed.json')
+def oembed():
+    """Endpoint oEmbed para Canva."""
+    return jsonify({
+        "version": "1.0",
+        "type": "rich",
+        "provider_name": "Fundo Moraga",
+        "provider_url": "https://fundomoraga.com",
+        "title": "Chat IA Hernando",
+        "html": '<iframe src="https://hernando.fundomoraga.com/embed" width="100%" height="600" frameborder="0" allowfullscreen></iframe>',
+        "width": 800,
+        "height": 600
+    })
 
 
 @app.after_request
@@ -48,25 +101,36 @@ def add_security_headers(response):
 
 @app.route('/')
 def home():
-    """Página de inicio: muestra el widget de chat."""
-    return render_template('chat_widget.html')
+    """Página de inicio: chat a página completa (para hernando.fundomoraga.com)."""
+    return render_template('chat_fullscreen.html')
 
 
 @app.route('/status')
 def status():
     """Estado JSON (útil para monitoreo)."""
+    configured_ok, missing_required, warnings = _config_status()
     return jsonify({
         "bot": "Hernando",
         "status": "online",
         "service": "Fundo Moraga",
-        "version": "1.0"
+        "version": "1.0",
+        "configured": configured_ok,
+        "missing_required": missing_required,
+        "warnings": warnings
     })
 
 
 @app.route('/health')
 def health():
     """Endpoint de salud para Railway"""
-    return jsonify({"status": "healthy"}), 200
+    configured_ok, missing_required, warnings = _config_status()
+    # Siempre 200 para no bloquear el arranque en Railway; la app reporta si está "degraded".
+    return jsonify({
+        "status": "healthy" if configured_ok else "degraded",
+        "configured": configured_ok,
+        "missing_required": missing_required,
+        "warnings": warnings
+    }), 200
 
 
 # ============= INSTAGRAM WEBHOOK =============
@@ -144,6 +208,14 @@ def web_chat():
             }), 400
         
         # Procesar mensaje con el bot
+        try:
+            bot = get_bot()
+        except Exception as e:
+            return jsonify({
+                "error": "Servicio no configurado",
+                "message": str(e)
+            }), 503
+
         response = bot.process_message(user_id, user_message)
 
         close_token = "[[CLOSE_CHAT]]"
@@ -184,6 +256,14 @@ def web_chat_init():
         data = request.get_json() or {}
         user_id = data.get('user_id', f"web_{request.remote_addr}")
 
+        try:
+            bot = get_bot()
+        except Exception as e:
+            return jsonify({
+                "error": "Servicio no configurado",
+                "message": str(e)
+            }), 503
+
         greeting = bot.start_web_conversation(user_id=user_id)
 
         from datetime import datetime, timezone
@@ -219,11 +299,16 @@ def chat_history():
         if not user_id:
             return jsonify({"error": "Se requiere user_id"}), 400
         
+        try:
+            bot = get_bot()
+        except Exception as e:
+            return jsonify({
+                "error": "Servicio no configurado",
+                "message": str(e)
+            }), 503
+
         # Obtener historial de Cosmos DB
-        history = bot.conversation_store.get_conversation_history(
-            user_id=user_id,
-            limit=limit
-        )
+        history = bot.conversation_store.get_conversation_history(user_id=user_id, limit=limit)
         
         # Formatear para respuesta
         messages = [
@@ -351,5 +436,4 @@ if __name__ == '__main__':
     print(f"💬 Web chat API: /api/chat")
     print(f"📖 Documentación: /api/docs\n")
     
-    if __name__ == "__main__":
-        app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)

@@ -30,13 +30,15 @@ class ResendClient:
         self.api_key = os.getenv('RESEND_API_KEY')
         self.from_email = os.getenv('RESEND_FROM_EMAIL', 'hernando@fundomoraga.com')
         self.to_email = os.getenv('RESEND_TO_EMAIL', 'contacto@fundomoraga.com')
-        
-        if not self.api_key:
-            raise ValueError("RESEND_API_KEY no está configurada en las variables de entorno")
-        
-        # Configurar Resend
-        resend.api_key = self.api_key
+
+        # Resend es opcional en deploy: si falta la API key, el bot debe poder arrancar
+        # y solo fallar al intentar enviar correos.
+        if self.api_key:
+            resend.api_key = self.api_key
         self._initialized = True
+
+    def is_configured(self) -> bool:
+        return bool(self.api_key)
     
     def send_conversation_summary(
         self,
@@ -60,6 +62,9 @@ class ResendClient:
             Dict con resultado del envío
         """
         try:
+            if not self.is_configured():
+                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+
             # Construir el email
             subject = f"Nuevo Lead de {platform} - {user_name}"
             
@@ -151,6 +156,9 @@ class ResendClient:
         Envía una solicitud de agendamiento/reserva al equipo de Fundo Moraga.
         """
         try:
+            if not self.is_configured():
+                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+
             subject = f"Solicitud de agendamiento ({visit_day} {visit_date}) - {full_name}"
             price_formatted = f"{int(price_clp):,}".replace(",", ".")
 
@@ -234,6 +242,9 @@ class ResendClient:
             conversation_id: ID de la conversación donde ocurrió el error
         """
         try:
+            if not self.is_configured():
+                return
+
             subject = f"⚠️ Error en Hernando - {conversation_id}"
             
             html_content = f"""
