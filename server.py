@@ -1,3 +1,17 @@
+
+# Endpoint oEmbed para Canva
+@app.route('/oembed.json')
+def oembed():
+    return jsonify({
+        "version": "1.0",
+        "type": "rich",
+        "provider_name": "Fundo Moraga",
+        "provider_url": "https://fundomoraga.com",
+        "title": "Chat IA Hernando",
+        "html": '<iframe src="https://hernando.fundomoraga.com" width="100%" height="600" frameborder="0" allowfullscreen></iframe>',
+        "width": 800,
+        "height": 600
+    })
 """
 Servidor web para Hernando - Fundo Moraga
 Maneja webhooks de Instagram y chat de la página web
