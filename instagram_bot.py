@@ -85,6 +85,18 @@ class InstagramBot:
                     metadata={"platform": "web", "source": "booking_flow"},
                 )
                 return booking_response
+
+            # 4.5 Respuesta determinística para tarifas públicas (evita respuestas genéricas del modelo)
+            pricing_response = self._handle_public_pricing(message_text)
+            if pricing_response:
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=pricing_response,
+                    conversation_id=conversation_id,
+                    metadata={"platform": "web", "source": "pricing_flow"},
+                )
+                return pricing_response
             
             # 5. Generar respuesta con OpenAI usando el contexto
             already_welcomed = any(
@@ -136,6 +148,64 @@ class InstagramBot:
         except Exception as e:
             print(f"❌ Error procesando mensaje: {e}")
             return "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente."
+
+    def _handle_public_pricing(self, message_text: str) -> Optional[str]:
+        """
+        Maneja preguntas típicas sobre tarifas públicas (en especial off-road),
+        para asegurar respuestas consistentes sin derivar a contacto.
+        """
+        t = (message_text or "").lower()
+        if not t:
+            return None
+
+        # Detectores de pregunta de precio/tarifa
+        price_markers = (
+            "precio",
+            "precios",
+            "tarifa",
+            "tarifas",
+            "valor",
+            "cuánto",
+            "cuanto",
+            "cuesta",
+            "sale",
+            "$",
+        )
+        offroad_markers = (
+            "offroad",
+            "off-road",
+            "4x4",
+            "enduro",
+            "moto",
+            "motos",
+            "auto",
+            "autos",
+            "vehículo",
+            "vehiculo",
+            "batuco",
+        )
+        weekend_markers = ("sábado", "sabado", "fin de semana", "domingo")
+
+        looks_like_price = any(m in t for m in price_markers)
+        looks_like_offroad = any(m in t for m in offroad_markers) or any(m in t for m in weekend_markers)
+
+        if not (looks_like_price and looks_like_offroad):
+            return None
+
+        lines = []
+        lines.append("En las actividades off-road (Batuco Off Road) las tarifas públicas son:")
+        lines.append("- Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.")
+        lines.append("- Sábado (solo grupos): $200.000 el día.")
+        lines.append("- Domingo: no se agenda.")
+        lines.append("")
+        lines.append("¿Te gustaría que lo agendemos? Si sí, dime en un solo mensaje:")
+        lines.append("- Fecha (ideal YYYY-MM-DD) y hora de llegada (HH:MM, entre 09:00 y 17:00)")
+        lines.append("- Nombres y apellidos")
+        lines.append("- Teléfono y correo")
+        lines.append("- Cantidad de autos y motos")
+        lines.append("")
+        lines.append("Para eventos privados/corporativos o valores personalizados, lo coordinamos con el equipo: contacto@fundomoraga.com / +5694 1242609.")
+        return "\n".join(lines)
 
     def _handle_post_ai_events(
         self,
