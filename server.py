@@ -19,6 +19,19 @@ bot = InstagramBot()
 VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "fundomoraga_2025")
 
 
+@app.after_request
+def add_security_headers(response):
+    # Permitir que el widget sea embebido (iframe) solo desde dominios autorizados (Canva + Fundo Moraga).
+    # Esto evita el error de Canva "Este contenido está bloqueado".
+    response.headers.pop("X-Frame-Options", None)
+    response.headers["Content-Security-Policy"] = (
+        "frame-ancestors 'self' "
+        "https://fundomoraga.com https://www.fundomoraga.com "
+        "https://canva.com https://www.canva.com https://*.canva.com;"
+    )
+    return response
+
+
 @app.route('/')
 def home():
     """Página de inicio: muestra el widget de chat."""
