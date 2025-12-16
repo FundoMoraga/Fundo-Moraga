@@ -226,6 +226,7 @@ nuestros canales oficiales."
 3) Captura de datos (NATURAL, no interrogatorio): cuando el usuario ya haya dado (a) nombre y (b) interés y (c) algún contacto (email/teléfono), llama a `capturar_informacion_usuario` UNA sola vez por conversación.
 4) Si solo falta el contacto, pide correo/teléfono de forma suave (“Si quieres que el equipo te contacte con más detalles, déjame tu correo o WhatsApp”).
 5) Mantén el diálogo: después de responder, haz 1 pregunta corta orientada a concretar (agendar o derivar). Prioriza: fecha+hora → autos/motos → contacto.
+6) Evita listas largas tipo formulario; pide 1 dato por vez y confirma lo que ya entendiste.
 """
 
     def _build_messages(

@@ -189,8 +189,18 @@ class InstagramBot:
         looks_like_price = any(m in t for m in price_markers)
         looks_like_offroad = any(m in t for m in offroad_markers) or any(m in t for m in weekend_markers)
 
-        if not (looks_like_price and looks_like_offroad):
+        if not looks_like_price:
             return None
+
+        if not looks_like_offroad:
+            return (
+                "¿Te refieres a las actividades **off-road** (auto/moto) o a un **evento/producción**?\n\n"
+                "Si es off-road, las tarifas públicas son:\n"
+                "• Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.\n"
+                "• Sábado (solo grupos): $200.000 el día.\n"
+                "• Domingo: no se agenda.\n\n"
+                "¿Qué es lo que te gustaría hacer? (auto/moto off-road, evento, visita, producción)"
+            )
 
         return (
             "¡Claro! Para las actividades off-road (Batuco Off Road) las tarifas públicas son:\n"
@@ -507,14 +517,17 @@ class InstagramBot:
                 self._save_booking_state(user_id, conversation_id, state)
                 return "Los domingos no estamos agendando. ¿Te acomoda lunes a sábado? [[CLOSE_CHAT]]"
 
+            arrival_time = self._parse_arrival_time(message_text)
+            details = {"arrival_time": arrival_time} if arrival_time else {}
+
             state = {
                 "stage": "collecting_details",
                 "visit_date": visit_date.isoformat(),
                 "visit_day": visit_day,
-                "details": {},
+                "details": details,
             }
             self._save_booking_state(user_id, conversation_id, state)
-            return self._booking_details_prompt(visit_day, visit_date)
+            return self._booking_details_prompt(visit_day, visit_date, arrival_time=arrival_time)
 
         if stage == "collecting_details":
             visit_day = state.get("visit_day") or "por confirmar"
@@ -523,16 +536,33 @@ class InstagramBot:
             details.update(self._parse_booking_details(message_text))
             state["details"] = details
 
-            missing = [
-                k
-                for k in ("arrival_time", "full_name", "phone", "email", "cars_count", "motos_count", "people_count")
-                if details.get(k) is None
-            ]
+            # Normalizar vehículos: si solo se reporta uno, el otro se asume 0.
+            if details.get("cars_count") is None and details.get("motos_count") is not None:
+                details["cars_count"] = 0
+            if details.get("motos_count") is None and details.get("cars_count") is not None:
+                details["motos_count"] = 0
+
+            missing = []
+            if not details.get("arrival_time"):
+                missing.append("arrival_time")
+
+            if details.get("cars_count") is None and details.get("motos_count") is None:
+                missing.append("vehicles")
+
+            if details.get("full_name") is None:
+                missing.append("full_name")
+            if details.get("phone") is None:
+                missing.append("phone")
+            if details.get("email") is None:
+                missing.append("email")
+
             if missing:
                 self._save_booking_state(user_id, conversation_id, state)
-                return self._booking_missing_prompt(visit_day, missing)
+                return self._booking_missing_prompt(visit_day, missing, details=details)
 
-            price_clp = self._calculate_price(visit_day, details["cars_count"], details["motos_count"])
+            cars_count = int(details.get("cars_count") or 0)
+            motos_count = int(details.get("motos_count") or 0)
+            price_clp = self._calculate_price(visit_day, cars_count, motos_count)
             state["price_clp"] = price_clp
             state["stage"] = "confirm_transfer"
             self._save_booking_state(user_id, conversation_id, state)
@@ -644,14 +674,16 @@ class InstagramBot:
                     self._save_booking_state(user_id, conversation_id, state)
                     return "Los domingos no estamos agendando. ¿Te acomoda lunes a sábado? [[CLOSE_CHAT]]"
 
+                arrival_time = self._parse_arrival_time(message_text)
+                details = {"arrival_time": arrival_time} if arrival_time else {}
                 state = {
                     "stage": "collecting_details",
                     "visit_date": visit_date.isoformat(),
                     "visit_day": visit_day,
-                    "details": {},
+                    "details": details,
                 }
                 self._save_booking_state(user_id, conversation_id, state)
-                return self._booking_details_prompt(visit_day, visit_date)
+                return self._booking_details_prompt(visit_day, visit_date, arrival_time=arrival_time)
 
             # Si el usuario dijo un día de la semana, proponemos la próxima fecha.
             visit_day_hint = self._parse_weekday_name_es(message_text)
@@ -869,6 +901,7 @@ class InstagramBot:
             return {}
 
         details: Dict = {}
+        raw_l = raw.lower()
 
         # Parse key:value lines (recommended format)
         for line in raw.splitlines():
@@ -932,6 +965,15 @@ class InstagramBot:
             if parsed:
                 details["arrival_time"] = parsed
 
+        # Tipo de vehículo (sin cantidad) para preguntar más natural.
+        if "vehicle_kind" not in details:
+            has_auto = re.search(r"\b(auto|autos|autom[oó]vil|autom[oó]viles|veh[ií]culo|veh[ií]culos|4x4)\b", raw_l)
+            has_moto = re.search(r"\b(moto|motos)\b", raw_l)
+            if has_auto and not has_moto:
+                details["vehicle_kind"] = "auto"
+            elif has_moto and not has_auto:
+                details["vehicle_kind"] = "moto"
+
         return details
 
     def _parse_int(self, value: str) -> Optional[int]:
@@ -941,25 +983,45 @@ class InstagramBot:
         except Exception:
             return None
 
-    def _booking_details_prompt(self, visit_day: str, visit_date: date) -> str:
+    def _booking_details_prompt(self, visit_day: str, visit_date: date, arrival_time: Optional[str] = None) -> str:
+        if arrival_time:
+            return (
+                f"¡Perfecto! Entonces sería **{visit_day} {visit_date.isoformat()}** a las **{arrival_time}** "
+                "(recuerda: horario 09:00 a 17:00). "
+                "¿Vienes en auto o moto, y cuántos?"
+            )
+
         return (
-            f"¡Buenísimo! Entonces sería **{visit_day} {visit_date.isoformat()}** (recuerda: horario 09:00 a 17:00). "
-            "Para dejarlo coordinado, ¿a qué hora te gustaría llegar y vienes en auto o moto (¿cuántos)? "
-            "Si te acomoda, también déjame tu nombre completo y un teléfono/correo para confirmación."
+            f"¡Buenísimo! Entonces sería **{visit_day} {visit_date.isoformat()}** (horario 09:00 a 17:00). "
+            "¿A qué hora te gustaría llegar?"
         )
 
-    def _booking_missing_prompt(self, visit_day: str, missing: list) -> str:
-        labels = {
-            "arrival_time": "hora de llegada (HH:MM)",
-            "full_name": "nombres y apellidos",
-            "phone": "teléfono",
-            "email": "email",
-            "cars_count": "cantidad de automóviles",
-            "motos_count": "cantidad de motos",
-            "people_count": "cantidad de personas",
-        }
-        missing_text = ", ".join(labels[m] for m in missing if m in labels)
-        return f"¡Gracias! Para dejarlo listo para **{visit_day}**, me falta: {missing_text}. ¿Me lo compartes?"
+    def _booking_missing_prompt(self, visit_day: str, missing: list, details: Optional[Dict] = None) -> str:
+        # Pedimos 1 cosa a la vez para que suene natural (no interrogatorio).
+        next_key = missing[0] if missing else None
+
+        if next_key == "arrival_time":
+            return "Perfecto. ¿A qué hora te gustaría llegar? (entre 09:00 y 17:00)"
+
+        if next_key == "vehicles":
+            kind = (details or {}).get("vehicle_kind")
+            if kind == "auto":
+                return "Perfecto, ¿cuántos autos vienen?"
+            if kind == "moto":
+                return "Perfecto, ¿cuántas motos vienen?"
+            return "¿Vienes en auto o moto, y cuántos?"
+
+        if next_key == "full_name":
+            return "Genial. ¿Me dejas tu nombre y apellido para la reserva?"
+
+        if next_key == "phone":
+            return "¿Me compartes un teléfono de contacto, por favor?"
+
+        if next_key == "email":
+            return "¿Me compartes un correo de contacto, por favor?"
+
+        # Fallback
+        return f"Para dejarlo listo para **{visit_day}**, ¿me compartes un dato más?"
 
     def _transfer_prompt(self, visit_day: str, visit_date: Optional[date], price_clp: int, details: Dict) -> str:
         date_txt = visit_date.isoformat() if visit_date else "por confirmar"
