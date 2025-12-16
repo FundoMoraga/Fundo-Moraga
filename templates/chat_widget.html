@@ -228,6 +228,11 @@
 
                 const data = await response.json();
                 addMessage(data.response, false);
+                if (data.close_chat) {
+                    messageInput.disabled = true;
+                    sendBtn.disabled = true;
+                    chatWindow.classList.add('hidden');
+                }
                 
             } catch (error) {
                 addMessage('Error: No se pudo conectar con Hernando. Inténtalo de nuevo.', false);
@@ -250,10 +255,7 @@
         chatWindow.classList.remove('hidden');
         setTimeout(() => messageInput.focus(), 0);
 
-        // Simular un mensaje de bienvenida del bot
-        setTimeout(() => {
-            addMessage('¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?', false);
-        }, 1000);
+        // Nota: no enviamos un saludo automático para evitar "doble saludo".
     </script>
 </body>
 </html>

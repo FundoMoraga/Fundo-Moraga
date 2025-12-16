@@ -134,11 +134,15 @@ class ResendClient:
 
     def send_booking_request(
         self,
+        visit_date: str,
         visit_day: str,
         full_name: str,
         phone: str,
         email: str,
-        vehicles: str,
+        cars_count: int,
+        motos_count: int,
+        people_count: int,
+        price_clp: int,
         conversation_id: str,
         platform: str = "Web",
         additional_notes: Optional[str] = None,
@@ -147,7 +151,8 @@ class ResendClient:
         Envía una solicitud de agendamiento/reserva al equipo de Fundo Moraga.
         """
         try:
-            subject = f"Solicitud de agendamiento ({visit_day}) - {full_name}"
+            subject = f"Solicitud de agendamiento ({visit_day} {visit_date}) - {full_name}"
+            price_formatted = f"{int(price_clp):,}".replace(",", ".")
 
             notes_html = ""
             if additional_notes:
@@ -176,11 +181,15 @@ class ResendClient:
                 </div>
                 <div class="content">
                     <div class="section">
-                        <p><span class="label">🗓️ Día solicitado:</span> {visit_day}</p>
+                        <p><span class="label">🗓️ Día solicitado:</span> {visit_day} ({visit_date})</p>
+                        <p><span class="label">🕘 Horario:</span> 09:00 - 17:00</p>
                         <p><span class="label">👤 Nombres y apellidos:</span> {full_name}</p>
                         <p><span class="label">📞 Teléfono:</span> {phone}</p>
                         <p><span class="label">✉️ Email:</span> {email}</p>
-                        <p><span class="label">🚗 Vehículos (número y tipo):</span> {vehicles}</p>
+                        <p><span class="label">👥 Personas:</span> {people_count}</p>
+                        <p><span class="label">🚗 Automóviles:</span> {cars_count}</p>
+                        <p><span class="label">🏍️ Motos:</span> {motos_count}</p>
+                        <p><span class="label">💵 Tarifa:</span> ${price_formatted} CLP</p>
                     </div>
 
                     {notes_html}

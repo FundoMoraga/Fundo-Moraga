@@ -25,6 +25,21 @@ INSTAGRAM_PAGE_ID = os.getenv("INSTAGRAM_PAGE_ID")
 BOT_NAME = os.getenv("BOT_NAME", "Fundo Moraga Bot")
 MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "10"))
 
+# Google Calendar (opcional, para agendamientos)
+GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
+GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
+GOOGLE_CALENDAR_TIMEZONE = os.getenv("GOOGLE_CALENDAR_TIMEZONE", "America/Santiago")
+GOOGLE_CALENDAR_SEND_UPDATES = os.getenv("GOOGLE_CALENDAR_SEND_UPDATES", "all")
+
+# Verificación de transferencia (opcional)
+PAYMENT_INBOX_HOST = os.getenv("PAYMENT_INBOX_HOST", "imap.gmail.com")
+PAYMENT_INBOX_USER = os.getenv("PAYMENT_INBOX_USER")  # ej: contacto@gmail.com
+PAYMENT_INBOX_PASSWORD = os.getenv("PAYMENT_INBOX_PASSWORD")  # ideal: App Password
+PAYMENT_INBOX_FOLDER = os.getenv("PAYMENT_INBOX_FOLDER", "INBOX")
+PAYMENT_EMAIL_FROM_CONTAINS = os.getenv("PAYMENT_EMAIL_FROM_CONTAINS", "Banco")
+PAYMENT_EMAIL_SUBJECT_CONTAINS = os.getenv("PAYMENT_EMAIL_SUBJECT_CONTAINS", "transfer")
+
 # Validar configuración requerida
 def validate_config():
     """Valida que todas las variables de entorno requeridas estén configuradas"""

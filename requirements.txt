@@ -18,6 +18,10 @@ requests>=2.31.0
 # Email service
 resend>=0.8.0
 
+# Google Calendar (agendamientos)
+google-api-python-client>=2.120.0
+google-auth>=2.29.0
+
 # Date/time handling
 python-dateutil>=2.8.2
 

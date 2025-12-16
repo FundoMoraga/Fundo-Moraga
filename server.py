@@ -118,13 +118,20 @@ def web_chat():
         
         # Procesar mensaje con el bot
         response = bot.process_message(user_id, user_message)
+
+        close_token = "[[CLOSE_CHAT]]"
+        close_chat = False
+        if isinstance(response, str) and close_token in response:
+            close_chat = True
+            response = response.replace(close_token, "").strip()
         
         from datetime import datetime, timezone
         
         return jsonify({
             "response": response,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "bot": "Hernando"
+            "bot": "Hernando",
+            "close_chat": close_chat
         }), 200
         
     except Exception as e:

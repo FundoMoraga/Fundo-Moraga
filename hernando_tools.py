@@ -436,7 +436,7 @@ HORARIOS Y PRECIOS:
    💵 $15.000 automóviles (4x4, SUVs, camionetas)
    💵 $10.000 motos
 
-📅 **Fin de Semana (Grupos)**: 
+📅 **Sábado (Grupos)**:
    💵 $200.000 el día (por grupo)
 
 📅 **Eventos Privados/Corporativos**:
