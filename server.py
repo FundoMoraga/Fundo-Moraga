@@ -21,7 +21,13 @@ VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "fundomoraga_2025")
 
 @app.route('/')
 def home():
-    """Página de inicio"""
+    """Página de inicio: muestra el widget de chat."""
+    return render_template('chat_widget.html')
+
+
+@app.route('/status')
+def status():
+    """Estado JSON (útil para monitoreo)."""
     return jsonify({
         "bot": "Hernando",
         "status": "online",

@@ -179,7 +179,13 @@
         const chatWindow = document.getElementById('chat-window');
         
         // --- API and Message Elements ---
-        const API_URL = 'https://hernando.fundomoraga.com/api/chat';
+        // Por defecto usa el mismo origen donde se sirve el widget (Railway / dominio custom).
+        // Si necesitas apuntar a otro host, define `window.HERNANDO_API_URL` antes de este script.
+        const API_URL =
+            window.HERNANDO_API_URL ||
+            (window.location.protocol.startsWith('http')
+                ? `${window.location.origin}/api/chat`
+                : 'https://hernando.fundomoraga.com/api/chat');
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
