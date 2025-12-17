@@ -55,6 +55,7 @@ class InstagramBot:
         *,
         platform: str = "web",
         source: str = "widget",
+        message_id: Optional[str] = None,
     ) -> str:
         """
         Procesa un mensaje entrante del usuario
@@ -77,12 +78,15 @@ class InstagramBot:
                 conversation_id = f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}"
             
             # 2. Guardar mensaje del usuario en Cosmos DB
+            user_metadata = {"platform": platform_key, "source": source}
+            if message_id and platform_key == "instagram":
+                user_metadata["ig_mid"] = str(message_id)
             self.conversation_store.save_message(
                 user_id=user_id,
                 role="user",
                 message=message_text,
                 conversation_id=conversation_id,
-                metadata={"platform": platform_key, "source": source}
+                metadata=user_metadata,
             )
             
             # 3. Recuperar historial de conversación
@@ -411,21 +415,27 @@ class InstagramBot:
             return None
 
         if not looks_like_offroad:
+            special_sat = self._special_open_saturday_date()
+            special_sat_txt = special_sat.isoformat() if special_sat else ""
             return (
-                "¿Te refieres a las actividades **off-road** (auto/moto) o a un **evento/producción**?\n\n"
+                "¿Te refieres a las actividades off-road (auto/moto) o a un evento/producción?\n\n"
                 "Si es off-road, las tarifas públicas son:\n"
                 "• Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.\n"
-                "• Sábado (solo grupos): $200.000 el día.\n"
+                f"• Este sábado ({special_sat_txt}) hay cupo: 10:00 a 17:00, $15.000 por vehículo / $10.000 por moto.\n"
+                "• Otros sábados: solo grupos, $200.000 el día.\n"
                 "• Domingo: no se agenda.\n\n"
                 "¿Qué es lo que te gustaría hacer? (auto/moto off-road, evento, visita, producción)"
             )
 
+        special_sat = self._special_open_saturday_date()
+        special_sat_txt = special_sat.isoformat() if special_sat else ""
         return (
             "¡Claro! Para las actividades off-road (Batuco Off Road) las tarifas públicas son:\n"
             "• Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.\n"
-            "• Sábado (solo grupos): $200.000 el día.\n"
+            f"• Este sábado ({special_sat_txt}) hay cupo: 10:00 a 17:00, $15.000 por vehículo / $10.000 por moto.\n"
+            "• Otros sábados: solo grupos, $200.000 el día.\n"
             "• Domingo: no se agenda.\n\n"
-            "Si quieres, lo dejamos coordinado al tiro: ¿qué fecha y a qué hora te gustaría llegar (entre 09:00 y 17:00)? "
+            "Si quieres, lo dejamos coordinado al tiro: ¿qué día y a qué hora te gustaría llegar? "
             "¿Vienes en auto o moto, y cuántos?\n\n"
             "Y si prefieres que el equipo te contacte para coordinar, déjame tu nombre y un correo o WhatsApp y lo derivo."
         )
@@ -473,7 +483,7 @@ class InstagramBot:
 
         if asks_today and not asks_weekday_date:
             return (
-                f"Hoy es **{today_weekday} {today.isoformat()}** (Chile). "
+                f"Hoy es {today_weekday} {today.isoformat()} (Chile). "
                 "¿Te gustaría coordinar una visita/actividad para hoy o para otro día?"
             )
 
@@ -485,16 +495,18 @@ class InstagramBot:
         if today_option and next_option:
             # Si hoy ya es ese día, entregamos ambas opciones (hoy vs próximo).
             return (
-                f"Hoy es **{today_weekday} {today.isoformat()}**. "
-                f"Si te refieres a **hoy {weekday_hint}**, es **{today_option.isoformat()}**; "
-                f"si es el **próximo {weekday_hint}**, es **{next_option.isoformat()}**. "
+                f"Hoy es {today_weekday} {today.isoformat()}. "
+                f"Si te refieres a hoy {weekday_hint}, es {today_option.isoformat()}; "
+                f"si es el próximo {weekday_hint}, es {next_option.isoformat()}. "
                 "¿Cuál de los dos te sirve?"
             )
 
         if next_option:
+            start_h, end_h = self._visit_hours_for_date(next_option)
+            hours_txt = f"{start_h}–{end_h}"
             return (
-                f"El próximo **{weekday_hint}** cae **{next_option.isoformat()}** (Chile). "
-                "Si quieres, lo coordinamos: ¿a qué hora te gustaría llegar? (09:00–17:00)"
+                f"El próximo {weekday_hint} cae {next_option.isoformat()} (Chile). "
+                f"Si quieres, lo coordinamos: ¿a qué hora te gustaría llegar? ({hours_txt})"
             )
 
         return None
@@ -770,7 +782,9 @@ class InstagramBot:
         if visit_day or visit_date:
             parts.append(f"Fecha: {visit_day} {visit_date}".strip())
         if arrival:
-            parts.append(f"Hora llegada: {arrival} (09:00–17:00)")
+            visit_dt = self._safe_date_from_iso(visit_date) if isinstance(visit_date, str) else None
+            start_h, end_h = self._visit_hours_for_date(visit_dt)
+            parts.append(f"Hora llegada: {arrival} ({start_h}–{end_h})")
         if cars is not None or motos is not None:
             parts.append(f"Vehículos: autos={cars if cars is not None else 'N/A'}, motos={motos if motos is not None else 'N/A'}")
         if stage:
@@ -1090,11 +1104,11 @@ class InstagramBot:
 
                             time_part = ""
                             if arrival_time:
-                                time_part = f" a las **{arrival_time}**"
+                                time_part = f" a las {arrival_time}"
 
                             return (
-                                f"¡Buenísimo! Para **{visit_day_hint}**{time_part}, ¿te refieres a **hoy** ({today_option.isoformat()}) "
-                                f"o al **próximo {visit_day_hint}** ({next_option.isoformat()})? (dime “hoy” o “próximo”)"
+                                f"¡Buenísimo! Para {visit_day_hint}{time_part}, ¿te refieres a hoy ({today_option.isoformat()}) "
+                                f"o al próximo {visit_day_hint} ({next_option.isoformat()})? (dime “hoy” o “próximo”)"
                             )
 
                         # Elegido explícitamente: guardamos y seguimos normal.
@@ -1122,17 +1136,19 @@ class InstagramBot:
                         }
                         self._save_booking_state(user_id, conversation_id, state, platform=platform)
                         return (
-                            f"¡Perfecto! Entonces **{visit_day_hint} {suggested.isoformat()}** a las **{arrival_time}**. "
+                            f"¡Perfecto! Entonces {visit_day_hint} {suggested.isoformat()} a las {arrival_time}. "
                             "Para dejarlo coordinado, ¿vienes en auto o moto (¿cuántos)? "
                             "Y si te acomoda, déjame tu nombre completo y un teléfono/correo para confirmación."
                         )
 
+                    start_h, end_h = self._visit_hours_for_date(suggested)
+                    hours_txt = f"{start_h}–{end_h}"
                     return (
-                        f"¡Buenísimo! ¿Te refieres a este **{visit_day_hint}** ({suggested_txt}) u otra fecha? "
-                        "Y para coordinar, ¿a qué hora te gustaría llegar? (entre 09:00 y 17:00)"
+                        f"¡Buenísimo! ¿Te refieres a este {visit_day_hint} ({suggested_txt}) u otra fecha? "
+                        f"Y para coordinar, ¿a qué hora te gustaría llegar? ({hours_txt})"
                     )
 
-                return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar? (09:00–17:00)"
+                return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar?"
 
             visit_day = self._day_name_es(visit_date)
             if visit_day == "domingo":
@@ -1198,11 +1214,11 @@ class InstagramBot:
             if missing:
                 state["awaiting_field"] = self._infer_booking_awaiting_field(missing, details)
                 self._save_booking_state(user_id, conversation_id, state, platform=platform)
-                return self._booking_missing_prompt(visit_day, missing, details=details)
+                return self._booking_missing_prompt(visit_day, visit_date, missing, details=details)
 
             cars_count = int(details.get("cars_count") or 0)
             motos_count = int(details.get("motos_count") or 0)
-            price_clp = self._calculate_price(visit_day, cars_count, motos_count)
+            price_clp = self._calculate_price(visit_day, visit_date, cars_count, motos_count)
             state["price_clp"] = price_clp
             state["stage"] = "confirm_transfer"
             state.pop("awaiting_field", None)
@@ -1294,9 +1310,11 @@ class InstagramBot:
 
                 if send_result.get("success"):
                     cal_msg = "y agendé Google Calendar" if calendar_ok else f"pero no pude agendar Calendar ({calendar_error})"
+                    start_h, end_h = self._visit_hours_for_date(visit_date)
+                    hours_txt = f"{start_h} a {end_h}"
                     return (
-                        f"¡Listo! Recibí el correo del banco: tu reserva quedó confirmada para **{visit_day}** "
-                        f"de **09:00 a 17:00**. Ya envié el formulario a `contacto@fundomoraga.com` {cal_msg}."
+                        f"¡Listo! Recibí el correo del banco: tu reserva quedó confirmada para {visit_day} "
+                        f"de {hours_txt}. Ya envié el formulario a contacto@fundomoraga.com {cal_msg}."
                     )
 
                 return "Recibí el correo del banco, pero tuve un problema enviando el formulario. Intenta nuevamente en unos minutos."
@@ -1353,10 +1371,10 @@ class InstagramBot:
                         }
                         self._save_booking_state(user_id, conversation_id, state, platform=platform)
 
-                        time_part = f" a las **{arrival_time}**" if arrival_time else ""
+                        time_part = f" a las {arrival_time}" if arrival_time else ""
                         return (
-                            f"¡Buenísimo! Para **{visit_day_hint}**{time_part}, ¿te refieres a **hoy** ({today_option.isoformat()}) "
-                            f"o al **próximo {visit_day_hint}** ({next_option.isoformat()})? (dime “hoy” o “próximo”)"
+                            f"¡Buenísimo! Para {visit_day_hint}{time_part}, ¿te refieres a hoy ({today_option.isoformat()}) "
+                            f"o al próximo {visit_day_hint} ({next_option.isoformat()})? (dime “hoy” o “próximo”)"
                         )
 
                     # Ya eligió explícitamente: avanzamos.
@@ -1369,7 +1387,7 @@ class InstagramBot:
                         }
                         self._save_booking_state(user_id, conversation_id, state, platform=platform)
                         return (
-                            f"¡Perfecto! Entonces **{visit_day_hint} {chosen.isoformat()}** a las **{arrival_time}**. "
+                            f"¡Perfecto! Entonces {visit_day_hint} {chosen.isoformat()} a las {arrival_time}. "
                             "Para dejarlo coordinado, ¿vienes en auto o moto, y cuántos?"
                         )
 
@@ -1379,9 +1397,11 @@ class InstagramBot:
                         "suggested_date": chosen.isoformat(),
                     }
                     self._save_booking_state(user_id, conversation_id, state, platform=platform)
+                    start_h, end_h = self._visit_hours_for_date(chosen)
+                    hours_txt = f"{start_h}–{end_h}"
                     return (
-                        f"¡Buenísimo! ¿Te refieres a este **{visit_day_hint}** ({chosen.isoformat()}) u otra fecha? "
-                        "Y para coordinar, ¿a qué hora te gustaría llegar? (09:00–17:00)"
+                        f"¡Buenísimo! ¿Te refieres a este {visit_day_hint} ({chosen.isoformat()}) u otra fecha? "
+                        f"Y para coordinar, ¿a qué hora te gustaría llegar? ({hours_txt})"
                     )
 
                 # Caso normal: proponemos próxima fecha única y la guardamos
@@ -1389,14 +1409,16 @@ class InstagramBot:
                 state = {"stage": "awaiting_day", "suggested_day": visit_day_hint, "suggested_date": suggested.isoformat() if suggested else None}
                 self._save_booking_state(user_id, conversation_id, state, platform=platform)
                 suggested_txt = suggested.isoformat() if suggested else "YYYY-MM-DD"
+                start_h, end_h = self._visit_hours_for_date(suggested)
+                hours_txt = f"{start_h}–{end_h}"
                 return (
-                    f"¡Buenísimo! ¿Te acomoda este **{visit_day_hint}** ({suggested_txt}) u otra fecha? "
-                    "Y para coordinar, ¿a qué hora te gustaría llegar? (09:00–17:00)"
+                    f"¡Buenísimo! ¿Te acomoda este {visit_day_hint} ({suggested_txt}) u otra fecha? "
+                    f"Y para coordinar, ¿a qué hora te gustaría llegar? ({hours_txt})"
                 )
 
             state = {"stage": "awaiting_day"}
             self._save_booking_state(user_id, conversation_id, state, platform=platform)
-            return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar? (09:00–17:00)"
+            return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar?"
 
         return None
 
@@ -1636,6 +1658,28 @@ class InstagramBot:
             days_ahead = 7
         return today + timedelta(days=days_ahead)
 
+    def _special_open_saturday_date(self) -> Optional[date]:
+        """
+        Excepción comercial: este sábado hay fecha libre y opera con tarifa normal.
+        Retorna la fecha del próximo sábado (incluye hoy si ya es sábado).
+        """
+        return self._next_weekday_date("sábado", include_today=True)
+
+    def _is_special_open_saturday(self, visit_date: Optional[date]) -> bool:
+        if not visit_date:
+            return False
+        special = self._special_open_saturday_date()
+        return bool(special and visit_date == special)
+
+    def _visit_hours_for_date(self, visit_date: Optional[date]) -> tuple[str, str]:
+        """
+        Horario normal: 09:00–17:00.
+        Excepción: este sábado (fecha libre) 10:00–17:00.
+        """
+        if visit_date and self._is_special_open_saturday(visit_date):
+            return ("10:00", "17:00")
+        return ("09:00", "17:00")
+
     def _weekday_date_options(self, weekday_es: str, *, base_date: Optional[date] = None) -> tuple[Optional[date], Optional[date]]:
         base = base_date or self._today_local_date()
         today_option = base if self._day_name_es(base) == weekday_es else None
@@ -1667,8 +1711,8 @@ class InstagramBot:
             return self._safe_date_from_iso(next_iso)
         return None
 
-    def _calculate_price(self, visit_day: str, cars_count: int, motos_count: int) -> int:
-        if visit_day == "sábado":
+    def _calculate_price(self, visit_day: str, visit_date: Optional[date], cars_count: int, motos_count: int) -> int:
+        if visit_day == "sábado" and not self._is_special_open_saturday(visit_date):
             return 200000
         return int(cars_count) * 15000 + int(motos_count) * 10000
 
@@ -1775,24 +1819,29 @@ class InstagramBot:
         return next_key
 
     def _booking_details_prompt(self, visit_day: str, visit_date: date, arrival_time: Optional[str] = None) -> str:
+        start_h, end_h = self._visit_hours_for_date(visit_date)
+        hours_txt = f"{start_h} a {end_h}"
+        hours_range_txt = f"{start_h}–{end_h}"
+
         if arrival_time:
             return (
-                f"¡Perfecto! Entonces sería **{visit_day} {visit_date.isoformat()}** a las **{arrival_time}** "
-                "(recuerda: horario 09:00 a 17:00). "
+                f"¡Perfecto! Entonces sería {visit_day} {visit_date.isoformat()} a las {arrival_time} "
+                f"(horario {hours_txt}). "
                 "¿Vienes en auto o moto, y cuántos?"
             )
 
         return (
-            f"¡Buenísimo! Entonces sería **{visit_day} {visit_date.isoformat()}** (horario 09:00 a 17:00). "
-            "¿A qué hora te gustaría llegar?"
+            f"¡Buenísimo! Entonces sería {visit_day} {visit_date.isoformat()} (horario {hours_txt}). "
+            f"¿A qué hora te gustaría llegar? ({hours_range_txt})"
         )
 
-    def _booking_missing_prompt(self, visit_day: str, missing: list, details: Optional[Dict] = None) -> str:
+    def _booking_missing_prompt(self, visit_day: str, visit_date: Optional[date], missing: list, details: Optional[Dict] = None) -> str:
         # Pedimos 1 cosa a la vez para que suene natural (no interrogatorio).
         next_key = missing[0] if missing else None
 
         if next_key == "arrival_time":
-            return "Perfecto. ¿A qué hora te gustaría llegar? (entre 09:00 y 17:00)"
+            start_h, end_h = self._visit_hours_for_date(visit_date)
+            return f"Perfecto. ¿A qué hora te gustaría llegar? ({start_h}–{end_h})"
 
         if next_key == "vehicles":
             kind = (details or {}).get("vehicle_kind")
@@ -1812,16 +1861,21 @@ class InstagramBot:
             return "¿Me compartes un correo de contacto, por favor?"
 
         # Fallback
-        return f"Para dejarlo listo para **{visit_day}**, ¿me compartes un dato más?"
+        date_txt = visit_day or "esa fecha"
+        return f"Para dejarlo listo para {date_txt}, ¿me compartes un dato más?"
 
     def _transfer_prompt(self, visit_day: str, visit_date: Optional[date], price_clp: int, details: Dict) -> str:
         date_txt = visit_date.isoformat() if visit_date else "por confirmar"
         price_txt = f"${price_clp:,}".replace(",", ".")
-        extra = " (sábado es tarifa por grupo)" if visit_day == "sábado" else ""
+        extra = ""
+        if visit_day == "sábado" and not self._is_special_open_saturday(visit_date):
+            extra = " (sábado es tarifa por grupo)"
         arrival_time = (details or {}).get("arrival_time") or "por confirmar"
+        start_h, end_h = self._visit_hours_for_date(visit_date)
+        hours_txt = f"{start_h}–{end_h}"
 
         return (
-            f"Perfecto 😊 Para **{visit_day} {date_txt}**, llegada **{arrival_time}** (dentro de 09:00–17:00), la tarifa es **{price_txt} CLP**{extra}.\n\n"
+            f"Perfecto. Para {visit_day} {date_txt}, llegada {arrival_time} (dentro de {hours_txt}), la tarifa es {price_txt} CLP{extra}.\n\n"
             "Para dejarlo reservado, la visita queda válida una vez realizada la transferencia. "
             "¿Harás la transferencia ahora?\n\n"
             "Datos para transferir:\n"
@@ -1835,8 +1889,15 @@ class InstagramBot:
 
     def _event_times(self, visit_date: date) -> tuple[str, str]:
         tz = ZoneInfo(config.GOOGLE_CALENDAR_TIMEZONE)
-        start_dt = datetime.combine(visit_date, time(9, 0), tzinfo=tz)
+        start_h, end_h = self._visit_hours_for_date(visit_date)
+        start_hour = int(start_h.split(":")[0])
+        end_hour = int(end_h.split(":")[0])
+        start_dt = datetime.combine(visit_date, time(start_hour, 0), tzinfo=tz)
         end_dt = datetime.combine(visit_date, time(17, 0), tzinfo=tz)
+        try:
+            end_dt = datetime.combine(visit_date, time(end_hour, 0), tzinfo=tz)
+        except Exception:
+            pass
         return start_dt.isoformat(), end_dt.isoformat()
 
     def _calendar_description(self, conversation_id: str, details: Dict, price_clp: int, payment_check) -> str:
@@ -2118,6 +2179,32 @@ class InstagramBot:
 
         return None
 
+    def _already_processed_instagram_mid(self, ig_user_id: str, mid: str) -> bool:
+        """
+        Evita respuestas duplicadas cuando el mismo mensaje llega por `messages` y también por `message_edit`.
+        Guardamos el `mid` en metadata del mensaje del usuario (ig_mid) y lo buscamos en el historial reciente.
+        """
+        if not ig_user_id or not mid:
+            return False
+        try:
+            conversation_id = self.conversation_store.get_latest_conversation_id(ig_user_id)
+            if not conversation_id:
+                return False
+            history = self.conversation_store.get_conversation_history(
+                user_id=ig_user_id,
+                conversation_id=conversation_id,
+                limit=max(20, int(getattr(config, "MAX_CONVERSATION_HISTORY", 40) or 40)),
+            )
+            for msg in history or []:
+                if msg.get("role") != "user":
+                    continue
+                metadata = msg.get("metadata") or {}
+                if str(metadata.get("ig_mid") or "") == str(mid):
+                    return True
+        except Exception:
+            return False
+        return False
+
     def _handle_instagram_message_edit_events(self, webhook_data: Dict) -> bool:
         """
         Maneja webhooks tipo `message_edit` que a veces no incluyen `sender` ni `text`.
@@ -2157,23 +2244,26 @@ class InstagramBot:
                     continue
 
                 ig_user_id = f"ig_{sender_id}"
+                if self._already_processed_instagram_mid(ig_user_id, mid):
+                    continue
                 response_text = self.process_message(
                     ig_user_id,
                     message_text,
                     platform="instagram",
                     source="instagram_webhook_message_edit",
+                    message_id=mid,
                 )
                 self.send_instagram_message(sender_id, response_text)
                 handled_any = True
 
         return handled_any
 
-    def _extract_instagram_inbound_texts(self, webhook_data: Dict) -> list[tuple[str, str]]:
+    def _extract_instagram_inbound_texts(self, webhook_data: Dict) -> list[tuple[str, str, Optional[str]]]:
         """
-        Extrae (sender_id, text) desde payloads de webhooks de Instagram.
+        Extrae (sender_id, text, mid) desde payloads de webhooks de Instagram.
         Soporta formato tipo Messenger (entry[].messaging[]) y formato tipo Graph (entry[].changes[]).
         """
-        extracted: list[tuple[str, str]] = []
+        extracted: list[tuple[str, str, Optional[str]]] = []
 
         for entry in webhook_data.get("entry") or []:
             # Formato tipo Messenger (Instagram Messaging API / Messenger Platform)
@@ -2188,6 +2278,7 @@ class InstagramBot:
                         continue
 
                     text = (message.get("text") or "").strip()
+                    mid = message.get("mid")
                     if not text:
                         quick_payload = ((message.get("quick_reply") or {}).get("payload") or "").strip()
                         if quick_payload:
@@ -2197,14 +2288,14 @@ class InstagramBot:
                         text = "[adjunto]"
 
                     if text:
-                        extracted.append((str(sender_id), text))
+                        extracted.append((str(sender_id), text, str(mid) if mid else None))
                         continue
 
                 if "postback" in messaging_event:
                     postback = messaging_event.get("postback") or {}
                     payload = (postback.get("payload") or postback.get("title") or "").strip()
                     if payload:
-                        extracted.append((str(sender_id), payload))
+                        extracted.append((str(sender_id), payload, None))
 
             # Formato tipo Graph (entry[].changes[])
             for change in entry.get("changes") or []:
@@ -2230,7 +2321,7 @@ class InstagramBot:
                     text = (value.get("text") or value.get("message_text") or "").strip()
 
                 if text:
-                    extracted.append((str(sender_id), text))
+                    extracted.append((str(sender_id), text, None))
 
         return extracted
     
@@ -2266,17 +2357,20 @@ class InstagramBot:
                 )
                 return
 
-            for sender_id, message_text in inbound_texts:
+            for sender_id, message_text, mid in inbound_texts:
                 if message_text == "[adjunto]":
                     response = "Recibí un adjunto. ¿Me puedes contar en texto qué necesitas o qué te gustaría coordinar?"
                 else:
                     ig_user_id = f"ig_{sender_id}"
+                    if mid and self._already_processed_instagram_mid(ig_user_id, mid):
+                        continue
                     # Procesar mensaje y obtener respuesta
                     response = self.process_message(
                         ig_user_id,
                         message_text,
                         platform="instagram",
                         source="instagram_webhook",
+                        message_id=mid,
                     )
 
                 # Enviar respuesta al usuario

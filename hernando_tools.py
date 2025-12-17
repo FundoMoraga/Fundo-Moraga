@@ -463,6 +463,10 @@ HORARIOS Y PRECIOS:
 📅 **Sábado (Grupos)**:
    💵 $200.000 el día (por grupo)
 
+📅 **Este sábado (fecha libre)**:
+   🕙 10:00 AM - 5:00 PM
+   💵 $15.000 por vehículo / $10.000 por moto
+
 📅 **Eventos Privados/Corporativos**:
    💵 Valores y condiciones personalizadas
    📞 Contactar al equipo de ventas
@@ -485,7 +489,7 @@ RESERVAS Y CONSULTAS:
 📧 contacto@fundomoraga.com
 📱 +5694 1242609
 
-Si quieres, lo coordinamos al tiro 😊 ¿Qué día te gustaría venir y a qué hora te acomoda llegar (entre 09:00 y 17:00)? ¿Vienes en auto o moto, y cuántos? Si me dejas un teléfono o correo, el equipo puede confirmarte sin vueltas.
+Si quieres, lo coordinamos al tiro 😊 ¿Qué día te gustaría venir y a qué hora te acomoda llegar (según el horario del día)? ¿Vienes en auto o moto, y cuántos? Si me dejas un teléfono o correo, el equipo puede confirmarte sin vueltas.
             """,
             "turismo_rural": """
 🏞️ **TURISMO RURAL Y EXPERIENCIAS DE NATURALEZA**

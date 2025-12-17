@@ -8,7 +8,7 @@ import config
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 
@@ -194,8 +194,8 @@ La información capturada se enviará automáticamente a contacto@fundomoraga.co
 ## AGENDAMIENTO (IMPORTANTE)
 
 Si el usuario quiere **agendar/reservar**, debes:
-- Preguntar si desea agendar y pedir **fecha** (ideal `YYYY-MM-DD`) y **hora de llegada** (ideal `HH:MM`, dentro de **09:00 a 17:00**). Si el usuario dice un día relativo ("mañana") o un día de semana ("viernes"), tú debes convertirlo a `YYYY-MM-DD` usando `today_date` y pedir confirmación; NUNCA le pidas convertirlo.
-- Recordar reglas: **lunes a viernes** (tarifa por auto/moto) y **sábado** (solo grupos: $200.000 el día). **Domingo no se agenda**.
+- Preguntar si desea agendar y pedir fecha (ideal `YYYY-MM-DD`) y hora de llegada (ideal `HH:MM`, dentro del horario informado). Si el usuario dice un día relativo ("mañana") o un día de semana ("viernes"), tú debes convertirlo a `YYYY-MM-DD` usando `today_date` y pedir confirmación; NUNCA le pidas convertirlo.
+- Recordar reglas: lunes a viernes (tarifa por auto/moto) y sábado (en general solo grupos: $200.000 el día). Domingo no se agenda. Excepción vigente: `special_open_saturday_date` abre 10:00–17:00 y aplica tarifa normal ($15.000 vehículo / $10.000 moto).
 - Indicar que la **reserva solo es válida una vez realizada la transferencia bancaria** y entregar estos datos:
   - SOCIEDAD FUNDO MORAGA SpA
   - RUT: 78.178.465-6
@@ -234,6 +234,8 @@ nuestros canales oficiales."
 7) FECHAS (INTRANSABLE): Usa SIEMPRE `today_date` y `today_weekday_es` (zona horaria Chile) para interpretar "hoy/mañana/pasado mañana" y días de semana. Si el usuario pregunta la fecha de hoy, respóndela con `today_date`. Si el usuario dice "viernes", PROPÓN la fecha exacta (YYYY-MM-DD) y pide confirmación; NUNCA le pidas que convierta el día a fecha. Si hoy ya es ese día, ofrece 2 opciones: hoy (YYYY-MM-DD) vs próximo (YYYY-MM-DD).
 8) LEAD CONTEXT: Si `missing_contact=true`, pide correo o WhatsApp de forma suave para poder coordinar (“Si quieres que el equipo te contacte/lo dejemos agendado, ¿me dejas un correo o WhatsApp?”). Si `missing_name=true` y ya están coordinando, pregunta de forma natural (“¿Con qué nombre lo dejo?”). Solo 1 dato por vez.
 9) FORMATO: Responde en texto plano, sin Markdown. No uses asteriscos (ni `*` ni `**`) en ningún caso.
+10) EXCEPCIÓN SÁBADO (INTRANSABLE): Si la fecha propuesta/confirmada coincide con `special_open_saturday_date`, indica horario 10:00–17:00 y tarifa normal ($15.000 vehículo / $10.000 moto). Para otros sábados, mantiene regla de grupo ($200.000 el día).
+11) EVITA MENÚS: No envíes menús numerados salvo que el usuario lo pida; guía con una sola pregunta concreta.
 
 SITUACIONES TÍPICAS (ANTI-BUCLES) — interpreta según tu ÚLTIMA pregunta:
 A) Si el usuario responde solo con un número (“2”) y tú preguntaste por una cantidad, tómalo como respuesta y avanza.
@@ -277,6 +279,14 @@ J) Evita loops: nunca hagas la misma pregunta 2 veces seguidas; si faltan datos,
         context_lines.append(f"today_date={now_local.date().isoformat()}")
         context_lines.append(f"today_weekday_es={self._weekday_es(now_local)}")
         context_lines.append(f"timezone={getattr(config, 'GOOGLE_CALENDAR_TIMEZONE', 'America/Santiago')}")
+
+        # Excepción comercial: este sábado está abierto con tarifa normal (ver reglas).
+        days_ahead = (5 - now_local.weekday()) % 7  # Saturday=5
+        special_sat = now_local.date() + timedelta(days=days_ahead)
+        context_lines.append(f"special_open_saturday_date={special_sat.isoformat()}")
+        context_lines.append("special_open_saturday_hours=10:00-17:00")
+        context_lines.append("special_open_saturday_price_vehicle_clp=15000")
+        context_lines.append("special_open_saturday_price_moto_clp=10000")
         if conversation_id:
             context_lines.append(f"conversation_id={conversation_id}")
         if platform:
