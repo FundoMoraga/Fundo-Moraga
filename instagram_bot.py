@@ -1855,9 +1855,6 @@ class InstagramBot:
                 print("⚠️ Instagram no configurado: falta INSTAGRAM_ACCESS_TOKEN")
                 return False
 
-            # URL de la API de Instagram Messaging
-            url = f"https://graph.facebook.com/v18.0/me/messages"
-
             headers = {
                 "Content-Type": "application/json"
             }
@@ -1868,13 +1865,35 @@ class InstagramBot:
                 "message": {"text": message_text},
             }
 
-            response = requests.post(
-                url,
-                params={"access_token": self.access_token},
-                json=payload,
-                headers=headers,
-                timeout=15,
-            )
+            def _post(url: str):
+                return requests.post(
+                    url,
+                    params={"access_token": self.access_token},
+                    json=payload,
+                    headers=headers,
+                    timeout=15,
+                )
+
+            # URL de la API de Instagram Messaging (Messenger Platform)
+            primary_url = "https://graph.facebook.com/v18.0/me/messages"
+            response = _post(primary_url)
+
+            # Algunos tokens válidos para IG pueden no resolver `me` como Page; reintenta con el ID del activo.
+            if response.status_code != 200:
+                try:
+                    err = response.json().get("error", {})
+                except Exception:
+                    err = {}
+                err_subcode = err.get("error_subcode")
+                err_msg = (err.get("message") or "")
+                should_retry = (
+                    err_subcode == 33
+                    or "Object with ID 'me' does not exist" in err_msg
+                    or "Object with ID 'me' does not exist" in (response.text or "")
+                )
+                if should_retry and self.page_id:
+                    fallback_url = f"https://graph.facebook.com/v18.0/{self.page_id}/messages"
+                    response = _post(fallback_url)
 
             if response.status_code == 200:
                 print(f"✅ Mensaje enviado a {recipient_id}")
