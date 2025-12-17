@@ -217,6 +217,19 @@ class InstagramBot:
                     is_farewell=is_farewell,
                 )
                 return pricing_response
+
+            # 4.7 Saludo determinístico (evita depender del modelo en el primer mensaje)
+            greeting_response = self._handle_greeting(message_text)
+            if greeting_response:
+                greeting_response = self._sanitize_user_response(greeting_response)
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=greeting_response,
+                    conversation_id=conversation_id,
+                    metadata={"platform": platform_key, "source": "greeting_flow"},
+                )
+                return greeting_response
             
             # 5. Generar respuesta con OpenAI usando el contexto
             already_welcomed = any(
@@ -248,6 +261,12 @@ class InstagramBot:
             model_used = ai_result.get("model_used") if isinstance(ai_result, dict) else None
             model_requested = config.OPENAI_MODEL
             model_to_store = model_used or model_requested
+
+            # Si OpenAI falló y devolvió el mensaje genérico, entregamos un fallback útil y natural.
+            if response_text.strip().lower().startswith("lo siento, hubo un problema al procesar tu mensaje"):
+                fallback = self._fallback_when_ai_unavailable(message_text)
+                if fallback:
+                    response_text = self._sanitize_user_response(fallback)
             
             # 6. Guardar respuesta del asistente en Cosmos DB
             self.conversation_store.save_message(
@@ -326,6 +345,53 @@ class InstagramBot:
             "bye",
         )
         return any(k in t for k in farewell_keywords)
+
+    def _handle_greeting(self, message_text: str) -> Optional[str]:
+        """
+        Responde saludos simples de forma determinística.
+        Útil cuando OpenAI no está disponible o para evitar depender del modelo en el primer mensaje.
+        """
+        t = (message_text or "").strip().lower()
+        if not t:
+            return None
+
+        # Saludos típicos (incluye elongaciones: holaaa, hooola, etc.)
+        if not re.fullmatch(r"(hola+|hoo+la+|buenas+|buenos\s+d[ií]as+|buenas\s+tardes+|buenas\s+noches+|hello+|hi+|wena+s?)\b[.!?]*", t):
+            return None
+
+        special_sat = self._special_open_saturday_date()
+        special_sat_txt = special_sat.isoformat() if special_sat else ""
+        return (
+            "¡Hola! Soy Hernando, tu anfitrión virtual del Fundo Moraga.\n\n"
+            "¿Qué quieres hacer? Puedo ayudarte a coordinar off-road (autos/motos), una visita/turismo rural, o un evento/producción.\n\n"
+            f"Tip: este sábado ({special_sat_txt}) tenemos cupo, de 10:00 a 17:00, con tarifa normal.\n\n"
+            "Cuéntame tu idea en una frase."
+        )
+
+    def _fallback_when_ai_unavailable(self, message_text: str) -> str:
+        """
+        Fallback para cuando OpenAI no responde (API caído / key inválida / sin acceso).
+        Mantiene la conversación útil y orientada a concretar.
+        """
+        # Reusar flujos determinísticos si aplican.
+        for handler in (self._handle_public_pricing, self._handle_admin_coordination, self._handle_date_questions):
+            try:
+                r = handler(message_text)
+                if r:
+                    return r
+            except Exception:
+                continue
+
+        if self._is_booking_intent(message_text):
+            return (
+                "Perfecto. Para coordinarlo bien: ¿qué día te gustaría venir (ideal YYYY-MM-DD) y a qué hora llegarías? "
+                "¿Vienes en auto o moto, y cuántos?"
+            )
+
+        return (
+            "Estoy con un problema técnico para generar la respuesta completa, pero igual puedo ayudarte.\n\n"
+            "¿Buscas off-road (autos/motos), una visita/turismo rural, o un evento/producción?"
+        )
 
     def _maybe_finalize_after_reply(
         self,
@@ -2083,9 +2149,9 @@ class InstagramBot:
             print(f"❌ Error en send_instagram_message: {e}")
             return False
 
-    def _fetch_instagram_message_text_from_graph(self, mid: str) -> Optional[tuple[str, str]]:
+    def _fetch_instagram_message_details_from_graph(self, mid: str) -> Optional[tuple[str, str, str]]:
         """
-        Intenta recuperar (sender_id, text) desde Graph API usando un message id (mid).
+        Intenta recuperar (from_id, to_id, text) desde Graph API usando un message id (mid).
         Esto es útil cuando el webhook llega como `message_edit` sin `sender` ni `text`.
         """
         if not mid:
@@ -2117,19 +2183,17 @@ class InstagramBot:
                 continue
 
             data = response.json() or {}
-            sender_id = (
-                (data.get("from") or {}).get("id")
-                or (data.get("sender") or {}).get("id")
-            )
+            from_id = ((data.get("from") or {}).get("id") or (data.get("sender") or {}).get("id") or "").strip()
+            to_id = ((data.get("to") or {}).get("id") or (data.get("recipient") or {}).get("id") or "").strip()
             text = (data.get("message") or data.get("text") or "").strip()
-            if sender_id and text:
-                return (str(sender_id), text)
+            if text and (from_id or to_id):
+                return (str(from_id), str(to_id), text)
 
         if last_error:
             print(f"⚠️ No pude recuperar mensaje por mid vía Graph API: {last_error}")
         return None
 
-    def _fetch_instagram_message_text_from_conversations(self, target_mid: str) -> Optional[tuple[str, str]]:
+    def _fetch_instagram_message_details_from_conversations(self, target_mid: str) -> Optional[tuple[str, str, str]]:
         """
         Fallback: busca el `target_mid` en el inbox vía Conversations API.
         Solo devuelve datos si encuentra exactamente ese mensaje.
@@ -2172,10 +2236,12 @@ class InstagramBot:
                     msg_id = msg.get("id") or msg.get("mid")
                     if msg_id != target_mid:
                         continue
-                    sender_id = (msg.get("from") or {}).get("id")
+                    from_id = ((msg.get("from") or {}).get("id") or "").strip()
+                    # Conversations API no siempre trae "to"; lo inferimos por el `base` si es posible.
+                    to_id = str(base) if base and base != "me" else ""
                     text = (msg.get("message") or msg.get("text") or "").strip()
-                    if sender_id and text:
-                        return (str(sender_id), text)
+                    if text and (from_id or to_id):
+                        return (str(from_id), str(to_id), text)
 
         return None
 
@@ -2229,18 +2295,30 @@ class InstagramBot:
                 if num_edit_int > 0:
                     continue
 
-                message_details = self._fetch_instagram_message_text_from_graph(mid)
+                message_details = self._fetch_instagram_message_details_from_graph(mid)
                 if not message_details:
-                    message_details = self._fetch_instagram_message_text_from_conversations(mid)
+                    message_details = self._fetch_instagram_message_details_from_conversations(mid)
 
                 if not message_details:
                     mid_short = (str(mid)[:36] + "...") if isinstance(mid, str) and len(mid) > 36 else str(mid)
                     print(f"⚠️ Webhook message_edit recibido pero no pude recuperar texto/sender (mid={mid_short})")
                     continue
 
-                sender_id, message_text = message_details
-                # Guardrail: no responder a mensajes del propio bot/propia cuenta.
-                if sender_id and (sender_id == entry_id or (self.page_id and sender_id == str(self.page_id))):
+                from_id, to_id, message_text = message_details
+
+                # Si el mensaje NO viene dirigido a nuestra cuenta (entry_id o page_id), no lo procesamos.
+                is_to_our_account = bool(
+                    to_id and (to_id == entry_id or (self.page_id and to_id == str(self.page_id)))
+                )
+                if not is_to_our_account:
+                    continue
+
+                # Guardrail: no responder a mensajes salientes del propio bot.
+                if from_id and (from_id == entry_id or (self.page_id and from_id == str(self.page_id))):
+                    continue
+
+                sender_id = (messaging_event.get("sender") or {}).get("id") or from_id
+                if not sender_id:
                     continue
 
                 ig_user_id = f"ig_{sender_id}"
@@ -2350,11 +2428,7 @@ class InstagramBot:
                 if self._handle_instagram_message_edit_events(webhook_data):
                     return
 
-                object_type = webhook_data.get("object")
-                print(
-                    "⚠️ Webhook recibido sin mensajes de texto procesables "
-                    f"(object={object_type}, keys={list(webhook_data.keys())})"
-                )
+                # Ignorar eventos sin texto (read receipts, seen, delivery, etc.) para no ensuciar logs.
                 return
 
             for sender_id, message_text, mid in inbound_texts:
