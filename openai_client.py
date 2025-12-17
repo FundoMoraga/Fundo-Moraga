@@ -6,6 +6,8 @@ from openai import OpenAI
 from typing import Any, Dict, List, Optional
 import config
 import json
+import os
+import re
 
 
 class ChatbotAI:
@@ -273,6 +275,99 @@ nuestros canales oficiales."
 
         messages.append({"role": "user", "content": user_message})
         return messages
+
+    def _model_candidates(self) -> List[str]:
+        """
+        Retorna una lista de modelos a intentar en orden.
+        - Primero: el modelo configurado (OPENAI_MODEL)
+        - Luego: OPENAI_MODEL_FALLBACKS (comma/semicolon-separated)
+        - Finalmente: fallbacks razonables para mantener el servicio operativo
+        """
+        candidates: List[str] = []
+
+        if self.model:
+            candidates.append(self.model)
+
+        raw = (os.getenv("OPENAI_MODEL_FALLBACKS") or "").strip()
+        if raw:
+            for part in re.split(r"[;,]", raw):
+                m = part.strip()
+                if m:
+                    candidates.append(m)
+
+        # Heurística: si el usuario configuró algo tipo "gpt-5.2", intenta variantes comunes.
+        if self.model and self.model.startswith("gpt-5"):
+            candidates.extend(["gpt-5-mini", "gpt-5"])
+
+        # Fallbacks seguros (si están disponibles en la cuenta).
+        candidates.extend(["gpt-4.1-mini", "gpt-4o-mini"])
+
+        # De-dup preservando orden
+        seen = set()
+        unique: List[str] = []
+        for m in candidates:
+            k = m.strip().lower()
+            if not k or k in seen:
+                continue
+            seen.add(k)
+            unique.append(m.strip())
+        return unique
+
+    def _generate_with_model(
+        self,
+        *,
+        model: str,
+        base_messages: List[Dict[str, str]],
+        return_events: bool,
+    ) -> Any:
+        messages: List[Any] = [dict(m) for m in base_messages]
+        events: List[Dict[str, Any]] = []
+
+        max_tool_rounds = 3
+        for _ in range(max_tool_rounds):
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=self.tools_manager.tools,
+                tool_choice="auto",
+                temperature=0.7,
+                max_tokens=800,
+            )
+
+            response_message = response.choices[0].message
+            tool_calls = response_message.tool_calls
+
+            if not tool_calls:
+                final_text = response_message.content or ""
+                if return_events:
+                    return {"text": final_text, "events": events, "model_used": model}
+                return final_text
+
+            messages.append(response_message)
+
+            for tool_call in tool_calls:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments or "{}")
+
+                print(f"🔧 Ejecutando herramienta: {function_name}")
+                print(f"   Argumentos: {function_args}")
+
+                function_result = self.tools_manager.execute_tool(function_name, function_args)
+                events.append({"tool": function_name, "args": function_args, "result": function_result})
+
+                messages.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": json.dumps(function_result),
+                    }
+                )
+
+        fallback_text = "Listo. ¿En qué más te puedo ayudar?"
+        if return_events:
+            return {"text": fallback_text, "events": events, "model_used": model}
+        return fallback_text
     
     def generate_response(
         self, 
@@ -295,69 +390,34 @@ nuestros canales oficiales."
         Returns:
             Respuesta generada por el modelo
         """
-        try:
-            messages = self._build_messages(
-                user_message=user_message,
-                conversation_history=conversation_history,
-                conversation_id=conversation_id,
-                platform=platform,
-                already_welcomed=already_welcomed,
-                lead_capture_already_sent=lead_capture_already_sent,
-            )
+        messages = self._build_messages(
+            user_message=user_message,
+            conversation_history=conversation_history,
+            conversation_id=conversation_id,
+            platform=platform,
+            already_welcomed=already_welcomed,
+            lead_capture_already_sent=lead_capture_already_sent,
+        )
 
-            events: List[Dict[str, Any]] = []
+        last_error: Optional[Exception] = None
+        for model in self._model_candidates():
+            try:
+                if model != self.model:
+                    print(f"⚠️ Probando modelo fallback: {model} (configurado: {self.model})")
+                return self._generate_with_model(model=model, base_messages=messages, return_events=return_events)
+            except Exception as e:
+                last_error = e
+                print(f"❌ Error generando respuesta con OpenAI (model={model}): {e}")
 
-            max_tool_rounds = 3
-            for _ in range(max_tool_rounds):
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    tools=self.tools_manager.tools,
-                    tool_choice="auto",
-                    temperature=0.7,
-                    max_tokens=800,
-                )
+        import traceback
+        if last_error:
+            traceback.print_exception(type(last_error), last_error, last_error.__traceback__)
 
-                response_message = response.choices[0].message
-                tool_calls = response_message.tool_calls
-
-                if not tool_calls:
-                    final_text = response_message.content or ""
-                    return {"text": final_text, "events": events} if return_events else final_text
-
-                messages.append(response_message)
-
-                for tool_call in tool_calls:
-                    function_name = tool_call.function.name
-                    function_args = json.loads(tool_call.function.arguments or "{}")
-
-                    print(f"🔧 Ejecutando herramienta: {function_name}")
-                    print(f"   Argumentos: {function_args}")
-
-                    function_result = self.tools_manager.execute_tool(function_name, function_args)
-                    events.append({"tool": function_name, "args": function_args, "result": function_result})
-
-                    messages.append(
-                        {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": function_name,
-                            "content": json.dumps(function_result),
-                        }
-                    )
-
-            fallback_text = "Listo. ¿En qué más te puedo ayudar?"
-            return {"text": fallback_text, "events": events} if return_events else fallback_text
-            
-        except Exception as e:
-            print(f"❌ Error generando respuesta con OpenAI: {e}")
-            import traceback
-            traceback.print_exc()
-            error_text = (
-                "Lo siento, hubo un problema al procesar tu mensaje. "
-                "Por favor, intenta nuevamente o contáctanos directamente en contacto@fundomoraga.com"
-            )
-            return {"text": error_text, "events": []} if return_events else error_text
+        error_text = (
+            "Lo siento, hubo un problema al procesar tu mensaje. "
+            "Por favor, intenta nuevamente o contáctanos directamente en contacto@fundomoraga.com"
+        )
+        return {"text": error_text, "events": [], "model_used": None} if return_events else error_text
     
     def generate_response_with_context(
         self, 

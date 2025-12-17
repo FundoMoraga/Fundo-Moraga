@@ -120,6 +120,9 @@ class InstagramBot:
 
             response_text = ai_result.get("text") if isinstance(ai_result, dict) else ai_result
             events = ai_result.get("events", []) if isinstance(ai_result, dict) else []
+            model_used = ai_result.get("model_used") if isinstance(ai_result, dict) else None
+            model_requested = config.OPENAI_MODEL
+            model_to_store = model_used or model_requested
             
             # 6. Guardar respuesta del asistente en Cosmos DB
             self.conversation_store.save_message(
@@ -127,7 +130,11 @@ class InstagramBot:
                 role="assistant",
                 message=response_text,
                 conversation_id=conversation_id,
-                metadata={"platform": "web", "model": config.OPENAI_MODEL}
+                metadata={
+                    "platform": "web",
+                    "model": model_to_store,
+                    "model_requested": model_requested,
+                }
             )
 
             # 7. Si el modelo ejecutó herramientas de captura/formulario, enviar email y marcar conversación
