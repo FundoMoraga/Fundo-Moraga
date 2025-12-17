@@ -28,8 +28,12 @@ class InstagramBot:
         self.resend_client = get_resend_client()
         self.calendar_client = get_google_calendar_client()
         self.payment_inbox = get_payment_inbox_client()
-        # self.access_token = config.INSTAGRAM_ACCESS_TOKEN
-        # self.page_id = config.INSTAGRAM_PAGE_ID
+        # Instagram (opcional). Si no está configurado, el chat web sigue funcionando.
+        self.access_token = config.INSTAGRAM_ACCESS_TOKEN
+        self.page_id = config.INSTAGRAM_PAGE_ID
+
+    def is_instagram_configured(self) -> bool:
+        return bool(self.access_token)
 
     def _sanitize_user_response(self, text: str) -> str:
         """
@@ -37,14 +41,21 @@ class InstagramBot:
         """
         if not isinstance(text, str):
             return text
-        # Quitar cualquier asterisco (evita **bold** y *italics*)
-        sanitized = text.replace("*", "")
+        # Quitar markdown básico (evita **bold**, *italics*, y `code`)
+        sanitized = text.replace("*", "").replace("`", "")
         # Normalizaciones suaves
         sanitized = re.sub(r"[ \t]{2,}", " ", sanitized)
         sanitized = re.sub(r" ?\n ?", "\n", sanitized)
         return sanitized.strip()
     
-    def process_message(self, user_id: str, message_text: str) -> str:
+    def process_message(
+        self,
+        user_id: str,
+        message_text: str,
+        *,
+        platform: str = "web",
+        source: str = "widget",
+    ) -> str:
         """
         Procesa un mensaje entrante del usuario
         
@@ -56,7 +67,9 @@ class InstagramBot:
             Respuesta generada para el usuario
         """
         try:
-            print(f"📥 Mensaje de {user_id}: {message_text}")
+            platform_key = (platform or "web").strip().lower()
+            platform_label = "Instagram" if platform_key == "instagram" else "Web"
+            print(f"📥 Mensaje de {user_id} ({platform_label}): {message_text}")
             
             # 1. Obtener ID de conversación actual o crear nueva
             conversation_id = self.conversation_store.get_latest_conversation_id(user_id)
@@ -69,7 +82,7 @@ class InstagramBot:
                 role="user",
                 message=message_text,
                 conversation_id=conversation_id,
-                metadata={"platform": "web", "source": "widget"}
+                metadata={"platform": platform_key, "source": source}
             )
             
             # 3. Recuperar historial de conversación
@@ -79,7 +92,7 @@ class InstagramBot:
                 limit=config.MAX_CONVERSATION_HISTORY
             )
 
-            platform = "Web"
+            platform = platform_label
             lead_context = self._build_lead_context(conversation_history, conversation_id)
 
             # 4. Flujo determinístico de agendamiento (no depende del modelo)
@@ -97,7 +110,7 @@ class InstagramBot:
                     role="assistant",
                     message=booking_response,
                     conversation_id=conversation_id,
-                    metadata={"platform": "web", "source": "booking_flow"},
+                    metadata={"platform": platform_key, "source": "booking_flow"},
                 )
                 self._maybe_auto_lead_capture(
                     user_id=user_id,
@@ -117,7 +130,7 @@ class InstagramBot:
                     role="assistant",
                     message=date_response,
                     conversation_id=conversation_id,
-                    metadata={"platform": "web", "source": "date_flow"},
+                    metadata={"platform": platform_key, "source": "date_flow"},
                 )
                 self._maybe_auto_lead_capture(
                     user_id=user_id,
@@ -137,7 +150,7 @@ class InstagramBot:
                     role="assistant",
                     message=admin_response,
                     conversation_id=conversation_id,
-                    metadata={"platform": "web", "source": "admin_flow"},
+                    metadata={"platform": platform_key, "source": "admin_flow"},
                 )
                 self._maybe_auto_lead_capture(
                     user_id=user_id,
@@ -157,7 +170,7 @@ class InstagramBot:
                     role="assistant",
                     message=pricing_response,
                     conversation_id=conversation_id,
-                    metadata={"platform": "web", "source": "pricing_flow"},
+                    metadata={"platform": platform_key, "source": "pricing_flow"},
                 )
                 self._maybe_auto_lead_capture(
                     user_id=user_id,
@@ -203,7 +216,7 @@ class InstagramBot:
                 message=response_text,
                 conversation_id=conversation_id,
                 metadata={
-                    "platform": "web",
+                    "platform": platform_key,
                     "model": model_to_store,
                     "model_requested": model_requested,
                 }
@@ -480,7 +493,7 @@ class InstagramBot:
                     role="assistant",
                     message="",
                     conversation_id=conversation_id,
-                    metadata={"platform": "web", "type": "lead_capture", "source": "tool", "args": args},
+                    metadata={"platform": (platform or "web").lower(), "type": "lead_capture", "source": "tool", "args": args},
                 )
                 return True
 
@@ -511,7 +524,7 @@ class InstagramBot:
                     role="assistant",
                     message="",
                     conversation_id=conversation_id,
-                    metadata={"platform": "web", "type": "lead_capture", "source": "tool_form", "args": args},
+                    metadata={"platform": (platform or "web").lower(), "type": "lead_capture", "source": "tool_form", "args": args},
                 )
                 return True
 
@@ -718,7 +731,7 @@ class InstagramBot:
                 message="",
                 conversation_id=conversation_id,
                 metadata={
-                    "platform": "web",
+                    "platform": (platform or "web").lower(),
                     "type": "lead_capture",
                     "source": "auto",
                     "args": {"nombre": known_name, "interes": interest, "contacto": known_contact, "booking": booking_details},
@@ -909,10 +922,11 @@ class InstagramBot:
                 deadline = datetime.fromisoformat(state["transfer_deadline"].replace("Z", "+00:00"))
                 if datetime.now(timezone.utc) > deadline:
                     state["stage"] = "closed"
-                    self._save_booking_state(user_id, conversation_id, state)
+                    self._save_booking_state(user_id, conversation_id, state, platform=platform)
+                    close_token = " [[CLOSE_CHAT]]" if (platform or "").lower() == "web" else ""
                     return (
                         "Se cumplió el plazo de 10 minutos sin confirmación de transferencia, así que cierro esta solicitud. "
-                        "Si quieres intentarlo de nuevo, escríbeme nuevamente. [[CLOSE_CHAT]]"
+                        f"Si quieres intentarlo de nuevo, escríbeme nuevamente.{close_token}"
                     )
             except Exception:
                 pass
@@ -956,7 +970,7 @@ class InstagramBot:
                             state["suggested_day"] = visit_day_hint
                             state["suggested_date_today"] = today_option.isoformat()
                             state["suggested_date_next"] = next_option.isoformat()
-                            self._save_booking_state(user_id, conversation_id, state)
+                            self._save_booking_state(user_id, conversation_id, state, platform=platform)
 
                             time_part = ""
                             if arrival_time:
@@ -970,14 +984,14 @@ class InstagramBot:
                         # Elegido explícitamente: guardamos y seguimos normal.
                         state["suggested_date"] = chosen.isoformat()
                         state["suggested_day"] = visit_day_hint
-                        self._save_booking_state(user_id, conversation_id, state)
+                        self._save_booking_state(user_id, conversation_id, state, platform=platform)
                         suggested = chosen
                     else:
                         suggested = self._next_weekday_date(visit_day_hint, base_date=today)
                         # Guardar sugerencia para que un "sí" posterior la confirme
                         state["suggested_date"] = suggested.isoformat() if suggested else None
                         state["suggested_day"] = visit_day_hint
-                        self._save_booking_state(user_id, conversation_id, state)
+                        self._save_booking_state(user_id, conversation_id, state, platform=platform)
 
                     suggested_txt = suggested.isoformat() if suggested else "YYYY-MM-DD"
 
@@ -990,7 +1004,7 @@ class InstagramBot:
                             "visit_day": visit_day_hint,
                             "details": {"arrival_time": arrival_time},
                         }
-                        self._save_booking_state(user_id, conversation_id, state)
+                        self._save_booking_state(user_id, conversation_id, state, platform=platform)
                         return (
                             f"¡Perfecto! Entonces **{visit_day_hint} {suggested.isoformat()}** a las **{arrival_time}**. "
                             "Para dejarlo coordinado, ¿vienes en auto o moto (¿cuántos)? "
@@ -1007,8 +1021,9 @@ class InstagramBot:
             visit_day = self._day_name_es(visit_date)
             if visit_day == "domingo":
                 state["stage"] = "closed"
-                self._save_booking_state(user_id, conversation_id, state)
-                return "Los domingos no estamos agendando. ¿Te acomoda lunes a sábado? [[CLOSE_CHAT]]"
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
+                close_token = " [[CLOSE_CHAT]]" if (platform or "").lower() == "web" else ""
+                return f"Los domingos no estamos agendando. ¿Te acomoda lunes a sábado?{close_token}"
 
             arrival_time = self._parse_arrival_time(message_text)
             details = {"arrival_time": arrival_time} if arrival_time else {}
@@ -1019,7 +1034,7 @@ class InstagramBot:
                 "visit_day": visit_day,
                 "details": details,
             }
-            self._save_booking_state(user_id, conversation_id, state)
+            self._save_booking_state(user_id, conversation_id, state, platform=platform)
             return self._booking_details_prompt(visit_day, visit_date, arrival_time=arrival_time)
 
         if stage == "collecting_details":
@@ -1066,7 +1081,7 @@ class InstagramBot:
 
             if missing:
                 state["awaiting_field"] = self._infer_booking_awaiting_field(missing, details)
-                self._save_booking_state(user_id, conversation_id, state)
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
                 return self._booking_missing_prompt(visit_day, missing, details=details)
 
             cars_count = int(details.get("cars_count") or 0)
@@ -1075,7 +1090,7 @@ class InstagramBot:
             state["price_clp"] = price_clp
             state["stage"] = "confirm_transfer"
             state.pop("awaiting_field", None)
-            self._save_booking_state(user_id, conversation_id, state)
+            self._save_booking_state(user_id, conversation_id, state, platform=platform)
 
             return self._transfer_prompt(visit_day, visit_date, price_clp, details)
 
@@ -1086,13 +1101,14 @@ class InstagramBot:
                 state["stage"] = "awaiting_transfer"
                 state["transfer_started_at"] = now.isoformat().replace("+00:00", "Z")
                 state["transfer_deadline"] = (now + timedelta(minutes=10)).isoformat().replace("+00:00", "Z")
-                self._save_booking_state(user_id, conversation_id, state)
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
                 return "Perfecto. Avísame cuando la hayas completado (por ejemplo: “listo, transferí”) y reviso el correo del banco."
 
             if any(x in t for x in ("no", "nop", "después", "despues")):
                 state["stage"] = "closed"
-                self._save_booking_state(user_id, conversation_id, state)
-                return "Entendido. La reserva solo queda válida con transferencia, así que cierro esta solicitud. [[CLOSE_CHAT]]"
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
+                close_token = " [[CLOSE_CHAT]]" if (platform or "").lower() == "web" else ""
+                return f"Entendido. La reserva solo queda válida con transferencia, así que cierro esta solicitud.{close_token}"
 
             return "¿Harás la transferencia ahora? Responde “sí” o “no”, por favor."
 
@@ -1158,7 +1174,7 @@ class InstagramBot:
 
                 state["stage"] = "confirmed" if send_result.get("success") else "error"
                 state["confirmed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-                self._save_booking_state(user_id, conversation_id, state)
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
 
                 if send_result.get("success"):
                     cal_msg = "y agendé Google Calendar" if calendar_ok else f"pero no pude agendar Calendar ({calendar_error})"
@@ -1181,8 +1197,9 @@ class InstagramBot:
                 visit_day = self._day_name_es(visit_date)
                 if visit_day == "domingo":
                     state["stage"] = "closed"
-                    self._save_booking_state(user_id, conversation_id, state)
-                    return "Los domingos no estamos agendando. ¿Te acomoda lunes a sábado? [[CLOSE_CHAT]]"
+                    self._save_booking_state(user_id, conversation_id, state, platform=platform)
+                    close_token = " [[CLOSE_CHAT]]" if (platform or "").lower() == "web" else ""
+                    return f"Los domingos no estamos agendando. ¿Te acomoda lunes a sábado?{close_token}"
 
                 arrival_time = self._parse_arrival_time(message_text)
                 details = {"arrival_time": arrival_time} if arrival_time else {}
@@ -1192,7 +1209,7 @@ class InstagramBot:
                     "visit_day": visit_day,
                     "details": details,
                 }
-                self._save_booking_state(user_id, conversation_id, state)
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
                 return self._booking_details_prompt(visit_day, visit_date, arrival_time=arrival_time)
 
             # Si el usuario dijo un día de la semana, proponemos la próxima fecha.
@@ -1218,7 +1235,7 @@ class InstagramBot:
                             "suggested_date_today": today_option.isoformat(),
                             "suggested_date_next": next_option.isoformat(),
                         }
-                        self._save_booking_state(user_id, conversation_id, state)
+                        self._save_booking_state(user_id, conversation_id, state, platform=platform)
 
                         time_part = f" a las **{arrival_time}**" if arrival_time else ""
                         return (
@@ -1234,7 +1251,7 @@ class InstagramBot:
                             "visit_day": visit_day_hint,
                             "details": {"arrival_time": arrival_time},
                         }
-                        self._save_booking_state(user_id, conversation_id, state)
+                        self._save_booking_state(user_id, conversation_id, state, platform=platform)
                         return (
                             f"¡Perfecto! Entonces **{visit_day_hint} {chosen.isoformat()}** a las **{arrival_time}**. "
                             "Para dejarlo coordinado, ¿vienes en auto o moto, y cuántos?"
@@ -1245,7 +1262,7 @@ class InstagramBot:
                         "suggested_day": visit_day_hint,
                         "suggested_date": chosen.isoformat(),
                     }
-                    self._save_booking_state(user_id, conversation_id, state)
+                    self._save_booking_state(user_id, conversation_id, state, platform=platform)
                     return (
                         f"¡Buenísimo! ¿Te refieres a este **{visit_day_hint}** ({chosen.isoformat()}) u otra fecha? "
                         "Y para coordinar, ¿a qué hora te gustaría llegar? (09:00–17:00)"
@@ -1254,7 +1271,7 @@ class InstagramBot:
                 # Caso normal: proponemos próxima fecha única y la guardamos
                 suggested = self._next_weekday_date(visit_day_hint, base_date=today)
                 state = {"stage": "awaiting_day", "suggested_day": visit_day_hint, "suggested_date": suggested.isoformat() if suggested else None}
-                self._save_booking_state(user_id, conversation_id, state)
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
                 suggested_txt = suggested.isoformat() if suggested else "YYYY-MM-DD"
                 return (
                     f"¡Buenísimo! ¿Te acomoda este **{visit_day_hint}** ({suggested_txt}) u otra fecha? "
@@ -1262,7 +1279,7 @@ class InstagramBot:
                 )
 
             state = {"stage": "awaiting_day"}
-            self._save_booking_state(user_id, conversation_id, state)
+            self._save_booking_state(user_id, conversation_id, state, platform=platform)
             return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar? (09:00–17:00)"
 
         return None
@@ -1276,13 +1293,13 @@ class InstagramBot:
                 return metadata["state"]
         return None
 
-    def _save_booking_state(self, user_id: str, conversation_id: str, state: Dict) -> None:
+    def _save_booking_state(self, user_id: str, conversation_id: str, state: Dict, *, platform: str = "web") -> None:
         self.conversation_store.save_message(
             user_id=user_id,
             role="assistant",
             message="",
             conversation_id=conversation_id,
-            metadata={"platform": "web", "type": "booking_state", "state": state},
+            metadata={"platform": (platform or "web").lower(), "type": "booking_state", "state": state},
         )
 
     def _is_booking_intent(self, text: str) -> bool:
@@ -1834,6 +1851,10 @@ class InstagramBot:
             True si se envió correctamente, False si hubo error
         """
         try:
+            if not self.is_instagram_configured():
+                print("⚠️ Instagram no configurado: falta INSTAGRAM_ACCESS_TOKEN")
+                return False
+
             # URL de la API de Instagram Messaging
             url = f"https://graph.facebook.com/v18.0/me/messages"
             
@@ -1842,6 +1863,7 @@ class InstagramBot:
             }
             
             payload = {
+                "messaging_type": "RESPONSE",
                 "recipient": {"id": recipient_id},
                 "message": {"text": message_text},
                 "access_token": self.access_token
@@ -1868,6 +1890,10 @@ class InstagramBot:
             webhook_data: Datos recibidos del webhook
         """
         try:
+            if not self.is_instagram_configured():
+                print("⚠️ Webhook recibido pero Instagram no está configurado (falta INSTAGRAM_ACCESS_TOKEN).")
+                return
+
             # Extraer información del webhook
             # Estructura de webhook de Instagram: 
             # https://developers.facebook.com/docs/messenger-platform/webhooks
@@ -1879,7 +1905,7 @@ class InstagramBot:
                 if "messaging" not in entry:
                     continue
                 
-                for messaging_event in entry["messaging"]:
+                for messaging_event in entry.get("messaging", []) or []:
                     sender_id = messaging_event.get("sender", {}).get("id")
                     
                     # Verificar que es un mensaje de texto
@@ -1893,8 +1919,14 @@ class InstagramBot:
                         message_text = message.get("text", "")
                         
                         if sender_id and message_text:
+                            ig_user_id = f"ig_{sender_id}"
                             # Procesar mensaje y obtener respuesta
-                            response = self.process_message(sender_id, message_text)
+                            response = self.process_message(
+                                ig_user_id,
+                                message_text,
+                                platform="instagram",
+                                source="instagram_webhook",
+                            )
                             
                             # Enviar respuesta al usuario
                             self.send_instagram_message(sender_id, response)
@@ -1912,10 +1944,8 @@ class InstagramBot:
         Returns:
             Mensaje de bienvenida
         """
-        welcome_message = (
-            f"¡Hola! Soy el asistente virtual de {config.BOT_NAME}. "
-            "Estoy aquí para ayudarte con información sobre nuestros productos, "
-            "precios y pedidos. ¿En qué puedo ayudarte hoy? 🍒🍎"
+        welcome_message = self._sanitize_user_response(
+            "¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?"
         )
         
         # Crear nueva conversación
