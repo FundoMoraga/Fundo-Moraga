@@ -18,7 +18,15 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Instagram
-INSTAGRAM_ACCESS_TOKEN = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+def _clean_token(value: str | None) -> str | None:
+    if not value:
+        return None
+    cleaned = value.strip().strip('"').strip("'")
+    if cleaned.lower().startswith("bearer "):
+        cleaned = cleaned.split(" ", 1)[1].strip()
+    return cleaned or None
+
+INSTAGRAM_ACCESS_TOKEN = _clean_token(os.getenv("INSTAGRAM_ACCESS_TOKEN"))
 INSTAGRAM_PAGE_ID = os.getenv("INSTAGRAM_PAGE_ID")
 
 # Bot Configuration
