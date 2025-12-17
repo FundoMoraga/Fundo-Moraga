@@ -1857,20 +1857,25 @@ class InstagramBot:
 
             # URL de la API de Instagram Messaging
             url = f"https://graph.facebook.com/v18.0/me/messages"
-            
+
             headers = {
                 "Content-Type": "application/json"
             }
-            
+
             payload = {
                 "messaging_type": "RESPONSE",
                 "recipient": {"id": recipient_id},
                 "message": {"text": message_text},
-                "access_token": self.access_token
             }
-            
-            response = requests.post(url, json=payload, headers=headers)
-            
+
+            response = requests.post(
+                url,
+                params={"access_token": self.access_token},
+                json=payload,
+                headers=headers,
+                timeout=15,
+            )
+
             if response.status_code == 200:
                 print(f"✅ Mensaje enviado a {recipient_id}")
                 return True
@@ -1881,6 +1886,72 @@ class InstagramBot:
         except Exception as e:
             print(f"❌ Error en send_instagram_message: {e}")
             return False
+
+    def _extract_instagram_inbound_texts(self, webhook_data: Dict) -> list[tuple[str, str]]:
+        """
+        Extrae (sender_id, text) desde payloads de webhooks de Instagram.
+        Soporta formato tipo Messenger (entry[].messaging[]) y formato tipo Graph (entry[].changes[]).
+        """
+        extracted: list[tuple[str, str]] = []
+
+        for entry in webhook_data.get("entry") or []:
+            # Formato tipo Messenger (Instagram Messaging API / Messenger Platform)
+            for messaging_event in entry.get("messaging") or []:
+                sender_id = (messaging_event.get("sender") or {}).get("id")
+                if not sender_id:
+                    continue
+
+                if "message" in messaging_event:
+                    message = messaging_event.get("message") or {}
+                    if message.get("is_echo"):
+                        continue
+
+                    text = (message.get("text") or "").strip()
+                    if not text:
+                        quick_payload = ((message.get("quick_reply") or {}).get("payload") or "").strip()
+                        if quick_payload:
+                            text = quick_payload
+
+                    if not text and message.get("attachments"):
+                        text = "[adjunto]"
+
+                    if text:
+                        extracted.append((str(sender_id), text))
+                        continue
+
+                if "postback" in messaging_event:
+                    postback = messaging_event.get("postback") or {}
+                    payload = (postback.get("payload") or postback.get("title") or "").strip()
+                    if payload:
+                        extracted.append((str(sender_id), payload))
+
+            # Formato tipo Graph (entry[].changes[])
+            for change in entry.get("changes") or []:
+                value = change.get("value") or {}
+
+                sender_id = (
+                    (value.get("sender") or {}).get("id")
+                    or (value.get("from") or {}).get("id")
+                    or value.get("sender_id")
+                    or value.get("from_id")
+                )
+                if not sender_id:
+                    continue
+
+                text = ""
+                message_value = value.get("message")
+                if isinstance(message_value, dict):
+                    text = (message_value.get("text") or "").strip()
+                elif isinstance(message_value, str):
+                    text = message_value.strip()
+
+                if not text:
+                    text = (value.get("text") or value.get("message_text") or "").strip()
+
+                if text:
+                    extracted.append((str(sender_id), text))
+
+        return extracted
     
     def handle_webhook_message(self, webhook_data: Dict) -> None:
         """
@@ -1900,36 +1971,31 @@ class InstagramBot:
             
             if "entry" not in webhook_data:
                 return
-            
-            for entry in webhook_data["entry"]:
-                if "messaging" not in entry:
-                    continue
-                
-                for messaging_event in entry.get("messaging", []) or []:
-                    sender_id = messaging_event.get("sender", {}).get("id")
-                    
-                    # Verificar que es un mensaje de texto
-                    if "message" in messaging_event:
-                        message = messaging_event["message"]
-                        
-                        # Ignorar mensajes del propio bot
-                        if message.get("is_echo"):
-                            continue
-                        
-                        message_text = message.get("text", "")
-                        
-                        if sender_id and message_text:
-                            ig_user_id = f"ig_{sender_id}"
-                            # Procesar mensaje y obtener respuesta
-                            response = self.process_message(
-                                ig_user_id,
-                                message_text,
-                                platform="instagram",
-                                source="instagram_webhook",
-                            )
-                            
-                            # Enviar respuesta al usuario
-                            self.send_instagram_message(sender_id, response)
+
+            inbound_texts = self._extract_instagram_inbound_texts(webhook_data)
+            if not inbound_texts:
+                object_type = webhook_data.get("object")
+                print(
+                    "⚠️ Webhook recibido sin mensajes de texto procesables "
+                    f"(object={object_type}, keys={list(webhook_data.keys())})"
+                )
+                return
+
+            for sender_id, message_text in inbound_texts:
+                if message_text == "[adjunto]":
+                    response = "Recibí un adjunto. ¿Me puedes contar en texto qué necesitas o qué te gustaría coordinar?"
+                else:
+                    ig_user_id = f"ig_{sender_id}"
+                    # Procesar mensaje y obtener respuesta
+                    response = self.process_message(
+                        ig_user_id,
+                        message_text,
+                        platform="instagram",
+                        source="instagram_webhook",
+                    )
+
+                # Enviar respuesta al usuario
+                self.send_instagram_message(sender_id, response)
         
         except Exception as e:
             print(f"❌ Error manejando webhook: {e}")
