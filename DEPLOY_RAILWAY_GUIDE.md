@@ -156,12 +156,18 @@ Railway detectará el push y redesplegará automáticamente.
 
 ## 📱 Configurar Instagram (Después del Deploy)
 
-1. Usa el dominio: `https://hernando.fundomoraga.com`
+1. Define tu dominio público (elige uno):
+   - Dominio Railway: `https://<tu-proyecto>.up.railway.app`
+   - Dominio propio (opcional): `https://hernando.fundomoraga.com`
 2. Ve a [developers.facebook.com](https://developers.facebook.com)
 3. Configura el webhook:
-   - URL: `https://hernando.fundomoraga.com/webhook/instagram`
-   - Verify Token: `fundomoraga_2025`
+   - URL: `https://TU-DOMINIO/webhook/instagram` (reemplaza `TU-DOMINIO` por el dominio real del deploy)
+   - Verify Token: el mismo valor de `WEBHOOK_VERIFY_TOKEN` en Railway (por defecto: `fundomoraga_2025`)
    - Suscripciones: `messages`
+
+Notas:
+- El verify token es sensible a mayúsculas/minúsculas y no debe llevar espacios.
+- Si cambias `WEBHOOK_VERIFY_TOKEN` en Railway, reinicia/redeploy para que tome el nuevo valor.
 
 ---
 

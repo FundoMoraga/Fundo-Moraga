@@ -94,9 +94,13 @@ Una vez desplegado, configura el webhook de Instagram:
 1. Ve a [Meta for Developers](https://developers.facebook.com/)
 2. Selecciona tu app de Instagram
 3. En "Webhooks" → "Instagram" → "Edit"
-4. **Callback URL**: `https://hernando.fundomoraga.com/webhook/instagram`
-5. **Verify Token**: `fundomoraga_2025` (el que configuraste en variables)
+4. **Callback URL**: `https://TU-DOMINIO/webhook/instagram` (reemplaza `TU-DOMINIO` por el dominio real del deploy)
+5. **Verify Token**: el mismo valor de `WEBHOOK_VERIFY_TOKEN` en Railway (por defecto: `fundomoraga_2025`)
 6. Suscríbete a: `messages`, `messaging_postbacks`
+
+Notas:
+- El verify token es sensible a mayúsculas/minúsculas y no debe llevar espacios.
+- Si cambias `WEBHOOK_VERIFY_TOKEN` en Railway, reinicia/redeploy para que tome el nuevo valor.
 
 ---
 

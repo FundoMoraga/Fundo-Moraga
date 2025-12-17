@@ -140,7 +140,7 @@ def health():
 
 # ============= INSTAGRAM WEBHOOK =============
 
-@app.route('/webhook/instagram', methods=['GET', 'POST'])
+@app.route('/webhook/instagram', methods=['GET', 'POST'], strict_slashes=False)
 def instagram_webhook():
     """
     Webhook para Instagram/Facebook Messenger.
