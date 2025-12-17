@@ -1887,6 +1887,152 @@ class InstagramBot:
             print(f"❌ Error en send_instagram_message: {e}")
             return False
 
+    def _fetch_instagram_message_text_from_graph(self, mid: str) -> Optional[tuple[str, str]]:
+        """
+        Intenta recuperar (sender_id, text) desde Graph API usando un message id (mid).
+        Esto es útil cuando el webhook llega como `message_edit` sin `sender` ni `text`.
+        """
+        if not mid:
+            return None
+        if not self.is_instagram_configured():
+            return None
+
+        url = f"https://graph.facebook.com/v18.0/{mid}"
+        field_candidates = [
+            "id,from,to,message,created_time",
+            "id,from,to,text,created_time",
+            "id,from,to,message,text,created_time",
+        ]
+
+        last_error = None
+        for fields in field_candidates:
+            try:
+                response = requests.get(
+                    url,
+                    params={"access_token": self.access_token, "fields": fields},
+                    timeout=15,
+                )
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+            if response.status_code != 200:
+                last_error = f"{response.status_code} {response.text}"
+                continue
+
+            data = response.json() or {}
+            sender_id = (
+                (data.get("from") or {}).get("id")
+                or (data.get("sender") or {}).get("id")
+            )
+            text = (data.get("message") or data.get("text") or "").strip()
+            if sender_id and text:
+                return (str(sender_id), text)
+
+        if last_error:
+            print(f"⚠️ No pude recuperar mensaje por mid vía Graph API: {last_error}")
+        return None
+
+    def _fetch_instagram_message_text_from_conversations(self, target_mid: str) -> Optional[tuple[str, str]]:
+        """
+        Fallback: busca el `target_mid` en el inbox vía Conversations API.
+        Solo devuelve datos si encuentra exactamente ese mensaje.
+        """
+        if not target_mid:
+            return None
+        if not self.is_instagram_configured():
+            return None
+
+        bases: list[str] = []
+        if self.page_id:
+            bases.append(str(self.page_id))
+        bases.append("me")
+
+        for base in bases:
+            url = f"https://graph.facebook.com/v18.0/{base}/conversations"
+            try:
+                response = requests.get(
+                    url,
+                    params={
+                        "access_token": self.access_token,
+                        "fields": "messages.limit(25){id,mid,message,text,from,created_time},updated_time",
+                        "limit": 25,
+                    },
+                    timeout=15,
+                )
+            except Exception as e:
+                print(f"⚠️ Error consultando conversations (base={base}): {e}")
+                continue
+
+            if response.status_code != 200:
+                # No spamear logs con tokens: el body no debería incluir el token, pero igual dejamos breve.
+                print(f"⚠️ Conversations API no respondió 200 (base={base}): {response.status_code}")
+                continue
+
+            payload = response.json() or {}
+            for conv in payload.get("data") or []:
+                messages = (conv.get("messages") or {}).get("data") or []
+                for msg in messages:
+                    msg_id = msg.get("id") or msg.get("mid")
+                    if msg_id != target_mid:
+                        continue
+                    sender_id = (msg.get("from") or {}).get("id")
+                    text = (msg.get("message") or msg.get("text") or "").strip()
+                    if sender_id and text:
+                        return (str(sender_id), text)
+
+        return None
+
+    def _handle_instagram_message_edit_events(self, webhook_data: Dict) -> bool:
+        """
+        Maneja webhooks tipo `message_edit` que a veces no incluyen `sender` ni `text`.
+        En ese caso, intenta recuperar el mensaje real desde Graph API usando `mid`.
+        """
+        handled_any = False
+        for entry in webhook_data.get("entry") or []:
+            entry_id = str(entry.get("id") or "")
+            for messaging_event in entry.get("messaging") or []:
+                message_edit = messaging_event.get("message_edit") or {}
+                mid = message_edit.get("mid")
+                if not mid:
+                    continue
+
+                num_edit = message_edit.get("num_edit")
+                try:
+                    num_edit_int = int(num_edit) if num_edit is not None else 0
+                except Exception:
+                    num_edit_int = 0
+
+                # Evita responder a ediciones posteriores (para no duplicar respuestas).
+                if num_edit_int > 0:
+                    continue
+
+                message_details = self._fetch_instagram_message_text_from_graph(mid)
+                if not message_details:
+                    message_details = self._fetch_instagram_message_text_from_conversations(mid)
+
+                if not message_details:
+                    mid_short = (str(mid)[:36] + "...") if isinstance(mid, str) and len(mid) > 36 else str(mid)
+                    print(f"⚠️ Webhook message_edit recibido pero no pude recuperar texto/sender (mid={mid_short})")
+                    continue
+
+                sender_id, message_text = message_details
+                # Guardrail: no responder a mensajes del propio bot/propia cuenta.
+                if sender_id and (sender_id == entry_id or (self.page_id and sender_id == str(self.page_id))):
+                    continue
+
+                ig_user_id = f"ig_{sender_id}"
+                response_text = self.process_message(
+                    ig_user_id,
+                    message_text,
+                    platform="instagram",
+                    source="instagram_webhook_message_edit",
+                )
+                self.send_instagram_message(sender_id, response_text)
+                handled_any = True
+
+        return handled_any
+
     def _extract_instagram_inbound_texts(self, webhook_data: Dict) -> list[tuple[str, str]]:
         """
         Extrae (sender_id, text) desde payloads de webhooks de Instagram.
@@ -1974,6 +2120,10 @@ class InstagramBot:
 
             inbound_texts = self._extract_instagram_inbound_texts(webhook_data)
             if not inbound_texts:
+                # Fallback: algunos webhooks llegan solo como `message_edit` (mid + num_edit) sin texto.
+                if self._handle_instagram_message_edit_events(webhook_data):
+                    return
+
                 object_type = webhook_data.get("object")
                 print(
                     "⚠️ Webhook recibido sin mensajes de texto procesables "
