@@ -231,7 +231,7 @@ nuestros canales oficiales."
 4) Si solo falta el contacto, pide correo/teléfono de forma suave (“Si quieres que el equipo te contacte con más detalles, déjame tu correo o WhatsApp”).
 5) Mantén el diálogo: después de responder, haz 1 pregunta corta orientada a concretar (agendar o derivar). Prioriza: fecha+hora → autos/motos → contacto.
 6) Evita listas largas tipo formulario; pide 1 dato por vez y confirma lo que ya entendiste.
-7) FECHAS (INTRANSABLE): Usa SIEMPRE `today_date` y `today_weekday_es` (zona horaria Chile) para interpretar "hoy/mañana/pasado mañana" y días de semana. Si el usuario dice "viernes", PROPÓN la fecha exacta (YYYY-MM-DD) y pide confirmación; NUNCA le pidas que convierta el día a fecha. Si hoy ya es ese día, ofrece 2 opciones: hoy (YYYY-MM-DD) vs próximo (YYYY-MM-DD).
+7) FECHAS (INTRANSABLE): Usa SIEMPRE `today_date` y `today_weekday_es` (zona horaria Chile) para interpretar "hoy/mañana/pasado mañana" y días de semana. Si el usuario pregunta la fecha de hoy, respóndela con `today_date`. Si el usuario dice "viernes", PROPÓN la fecha exacta (YYYY-MM-DD) y pide confirmación; NUNCA le pidas que convierta el día a fecha. Si hoy ya es ese día, ofrece 2 opciones: hoy (YYYY-MM-DD) vs próximo (YYYY-MM-DD).
 """
 
     def _now_local(self) -> datetime:
