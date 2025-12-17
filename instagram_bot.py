@@ -86,6 +86,18 @@ class InstagramBot:
                 )
                 return booking_response
 
+            # 4.25 Respuesta determinística para fecha/día (evita errores del modelo)
+            date_response = self._handle_date_questions(message_text)
+            if date_response:
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=date_response,
+                    conversation_id=conversation_id,
+                    metadata={"platform": "web", "source": "date_flow"},
+                )
+                return date_response
+
             # 4.5 Respuesta determinística para tarifas públicas (evita respuestas genéricas del modelo)
             pricing_response = self._handle_public_pricing(message_text)
             if pricing_response:
@@ -218,6 +230,75 @@ class InstagramBot:
             "¿Vienes en auto o moto, y cuántos?\n\n"
             "Y si prefieres que el equipo te contacte para coordinar, déjame tu nombre y un correo o WhatsApp y lo derivo."
         )
+
+    def _handle_date_questions(self, message_text: str) -> Optional[str]:
+        """
+        Responde preguntas típicas sobre la fecha/día actual o la fecha de un día de la semana.
+        Zona horaria: Chile (config.GOOGLE_CALENDAR_TIMEZONE).
+        """
+        raw = (message_text or "").strip()
+        if not raw:
+            return None
+
+        t = raw.lower()
+        # Preguntas por fecha/día de hoy
+        asks_today = any(
+            k in t
+            for k in (
+                "qué fecha es hoy",
+                "que fecha es hoy",
+                "fecha de hoy",
+                "día de hoy",
+                "dia de hoy",
+                "qué día es hoy",
+                "que dia es hoy",
+                "que día es hoy",
+                "hoy qué día es",
+                "hoy que dia es",
+                "hoy qué fecha es",
+                "hoy que fecha es",
+            )
+        )
+
+        weekday_hint = self._parse_weekday_name_es(t)
+        asks_weekday_date = (
+            weekday_hint is not None
+            and any(k in t for k in ("qué fecha", "que fecha", "qué día", "que dia", "cuándo cae", "cuando cae"))
+        )
+
+        if not asks_today and not asks_weekday_date:
+            return None
+
+        today = self._today_local_date()
+        today_weekday = self._day_name_es(today)
+
+        if asks_today and not asks_weekday_date:
+            return (
+                f"Hoy es **{today_weekday} {today.isoformat()}** (Chile). "
+                "¿Te gustaría coordinar una visita/actividad para hoy o para otro día?"
+            )
+
+        # Pregunta por fecha de un día de la semana (ej: "¿qué fecha es este viernes?")
+        if not weekday_hint:
+            return None
+
+        today_option, next_option = self._weekday_date_options(weekday_hint, base_date=today)
+        if today_option and next_option:
+            # Si hoy ya es ese día, entregamos ambas opciones (hoy vs próximo).
+            return (
+                f"Hoy es **{today_weekday} {today.isoformat()}**. "
+                f"Si te refieres a **hoy {weekday_hint}**, es **{today_option.isoformat()}**; "
+                f"si es el **próximo {weekday_hint}**, es **{next_option.isoformat()}**. "
+                "¿Cuál de los dos te sirve?"
+            )
+
+        if next_option:
+            return (
+                f"El próximo **{weekday_hint}** cae **{next_option.isoformat()}** (Chile). "
+                "Si quieres, lo coordinamos: ¿a qué hora te gustaría llegar? (09:00–17:00)"
+            )
+
+        return None
 
     def _handle_post_ai_events(
         self,
@@ -477,6 +558,14 @@ class InstagramBot:
 
         if stage == "awaiting_day":
             visit_date = self._parse_visit_date(message_text)
+            # Si venimos de una pregunta tipo "¿hoy o próximo viernes?", elegimos según la respuesta.
+            if not visit_date:
+                picked = self._pick_suggested_date_from_state(message_text, state)
+                if picked:
+                    # Limpiar sugerencias múltiples una vez elegida.
+                    state.pop("suggested_date_today", None)
+                    state.pop("suggested_date_next", None)
+                    visit_date = picked
             # Confirmación simple (ej: "sí") cuando ya propusimos una fecha
             t_lower = (message_text or "").strip().lower()
             if not visit_date and any(x in t_lower for x in ("sí", "si", "dale", "ok", "de acuerdo", "confirmo")):
@@ -488,12 +577,48 @@ class InstagramBot:
                 # Si el usuario dijo un día de la semana (ej: "viernes"), proponemos la próxima fecha.
                 visit_day_hint = self._parse_weekday_name_es(message_text)
                 if visit_day_hint:
-                    suggested = self._next_weekday_date(visit_day_hint)
+                    today = self._today_local_date()
+                    today_option, next_option = self._weekday_date_options(visit_day_hint, base_date=today)
+
+                    # Caso especial: si hoy YA es ese día, ofrecemos 2 opciones (hoy vs próximo).
+                    if today_option and next_option:
+                        tl = t_lower
+                        chosen = None
+                        if "hoy" in tl:
+                            chosen = today_option
+                        elif any(x in tl for x in ("próximo", "proximo", "siguiente", "la otra", "otra semana", "próxima semana", "proxima semana")):
+                            chosen = next_option
+
+                        arrival_time = self._parse_arrival_time(message_text)
+                        if not chosen:
+                            state.pop("suggested_date", None)
+                            state["suggested_day"] = visit_day_hint
+                            state["suggested_date_today"] = today_option.isoformat()
+                            state["suggested_date_next"] = next_option.isoformat()
+                            self._save_booking_state(user_id, conversation_id, state)
+
+                            time_part = ""
+                            if arrival_time:
+                                time_part = f" a las **{arrival_time}**"
+
+                            return (
+                                f"¡Buenísimo! Para **{visit_day_hint}**{time_part}, ¿te refieres a **hoy** ({today_option.isoformat()}) "
+                                f"o al **próximo {visit_day_hint}** ({next_option.isoformat()})? (dime “hoy” o “próximo”)"
+                            )
+
+                        # Elegido explícitamente: guardamos y seguimos normal.
+                        state["suggested_date"] = chosen.isoformat()
+                        state["suggested_day"] = visit_day_hint
+                        self._save_booking_state(user_id, conversation_id, state)
+                        suggested = chosen
+                    else:
+                        suggested = self._next_weekday_date(visit_day_hint, base_date=today)
+                        # Guardar sugerencia para que un "sí" posterior la confirme
+                        state["suggested_date"] = suggested.isoformat() if suggested else None
+                        state["suggested_day"] = visit_day_hint
+                        self._save_booking_state(user_id, conversation_id, state)
+
                     suggested_txt = suggested.isoformat() if suggested else "YYYY-MM-DD"
-                    # Guardar sugerencia para que un "sí" posterior la confirme
-                    state["suggested_date"] = suggested.isoformat() if suggested else None
-                    state["suggested_day"] = visit_day_hint
-                    self._save_booking_state(user_id, conversation_id, state)
 
                     # Si el usuario ya dio hora en el mismo mensaje, avanzamos al siguiente paso.
                     arrival_time = self._parse_arrival_time(message_text)
@@ -695,8 +820,62 @@ class InstagramBot:
             # Si el usuario dijo un día de la semana, proponemos la próxima fecha.
             visit_day_hint = self._parse_weekday_name_es(message_text)
             if visit_day_hint:
-                suggested = self._next_weekday_date(visit_day_hint)
-                state = {"stage": "awaiting_day"}
+                today = self._today_local_date()
+                today_option, next_option = self._weekday_date_options(visit_day_hint, base_date=today)
+                t_lower = (message_text or "").strip().lower()
+                arrival_time = self._parse_arrival_time(message_text)
+
+                # Si hoy es ese día, ofrecer dos opciones
+                if today_option and next_option:
+                    chosen = None
+                    if "hoy" in t_lower:
+                        chosen = today_option
+                    elif any(x in t_lower for x in ("próximo", "proximo", "siguiente", "la otra", "otra semana", "próxima semana", "proxima semana")):
+                        chosen = next_option
+
+                    if not chosen:
+                        state = {
+                            "stage": "awaiting_day",
+                            "suggested_day": visit_day_hint,
+                            "suggested_date_today": today_option.isoformat(),
+                            "suggested_date_next": next_option.isoformat(),
+                        }
+                        self._save_booking_state(user_id, conversation_id, state)
+
+                        time_part = f" a las **{arrival_time}**" if arrival_time else ""
+                        return (
+                            f"¡Buenísimo! Para **{visit_day_hint}**{time_part}, ¿te refieres a **hoy** ({today_option.isoformat()}) "
+                            f"o al **próximo {visit_day_hint}** ({next_option.isoformat()})? (dime “hoy” o “próximo”)"
+                        )
+
+                    # Ya eligió explícitamente: avanzamos.
+                    if arrival_time:
+                        state = {
+                            "stage": "collecting_details",
+                            "visit_date": chosen.isoformat(),
+                            "visit_day": visit_day_hint,
+                            "details": {"arrival_time": arrival_time},
+                        }
+                        self._save_booking_state(user_id, conversation_id, state)
+                        return (
+                            f"¡Perfecto! Entonces **{visit_day_hint} {chosen.isoformat()}** a las **{arrival_time}**. "
+                            "Para dejarlo coordinado, ¿vienes en auto o moto, y cuántos?"
+                        )
+
+                    state = {
+                        "stage": "awaiting_day",
+                        "suggested_day": visit_day_hint,
+                        "suggested_date": chosen.isoformat(),
+                    }
+                    self._save_booking_state(user_id, conversation_id, state)
+                    return (
+                        f"¡Buenísimo! ¿Te refieres a este **{visit_day_hint}** ({chosen.isoformat()}) u otra fecha? "
+                        "Y para coordinar, ¿a qué hora te gustaría llegar? (09:00–17:00)"
+                    )
+
+                # Caso normal: proponemos próxima fecha única y la guardamos
+                suggested = self._next_weekday_date(visit_day_hint, base_date=today)
+                state = {"stage": "awaiting_day", "suggested_day": visit_day_hint, "suggested_date": suggested.isoformat() if suggested else None}
                 self._save_booking_state(user_id, conversation_id, state)
                 suggested_txt = suggested.isoformat() if suggested else "YYYY-MM-DD"
                 return (
@@ -729,7 +908,10 @@ class InstagramBot:
         )
 
     def _is_booking_intent(self, text: str) -> bool:
-        t = (text or "").lower()
+        t = (text or "").lower().strip()
+        if not t:
+            return False
+
         keywords = [
             "agendar",
             "agenda",
@@ -738,13 +920,17 @@ class InstagramBot:
             "agend",
             "quiero ir",
             "quiero venir",
+            "quiero visitar",
+            "quiero pasar",
+            "me gustaría ir",
+            "me gustaria ir",
+            "me gustaría venir",
+            "me gustaria venir",
+            "se puede ir",
+            "puedo ir",
+            "podemos ir",
             "ir el ",
             "venir el ",
-            "viernes",
-            "sábado",
-            "sabado",
-            "domingo",
-            "fin de semana",
         ]
         if any(k in t for k in keywords):
             return True
@@ -753,6 +939,33 @@ class InstagramBot:
         if re.search(r"\b\d{4}-\d{2}-\d{2}\b", t):
             return True
         if re.search(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", t):
+            return True
+
+        # Señales suaves de agendamiento: día/fecha + intención de visitar (o hora).
+        has_weekday = self._parse_weekday_name_es(t) is not None
+        has_relative_day = any(x in t for x in ("hoy", "mañana", "manana", "pasado mañana", "pasado manana"))
+        has_time = self._parse_arrival_time(t) is not None
+
+        price_markers = ("precio", "precios", "tarifa", "tarifas", "valor", "cuánto", "cuanto", "cuesta", "$")
+
+        visit_markers = (
+            "ir",
+            "venir",
+            "visitar",
+            "pasar",
+            "llegar",
+            "entrada",
+            "ingreso",
+            "entrar",
+            "ingresar",
+        )
+        has_visit_intent = any(re.search(rf"\b{re.escape(v)}\b", t) for v in visit_markers)
+
+        if (has_weekday or has_relative_day) and (has_visit_intent or has_time):
+            return True
+
+        # Respuestas cortas tipo "viernes" suelen ser continuación de una coordinación.
+        if has_weekday and len(t.split()) <= 3 and not any(p in t for p in price_markers):
             return True
 
         return False
@@ -790,8 +1003,7 @@ class InstagramBot:
             return None
 
         tl = t.lower()
-        tz = ZoneInfo(config.GOOGLE_CALENDAR_TIMEZONE)
-        today = datetime.now(tz).date()
+        today = self._today_local_date()
 
         if "pasado mañana" in tl or "pasado manana" in tl:
             return today + timedelta(days=2)
@@ -803,7 +1015,14 @@ class InstagramBot:
         # "este viernes", "el viernes", etc.
         weekday_hint = self._parse_weekday_name_es(tl)
         if weekday_hint:
-            return self._next_weekday_date(weekday_hint)
+            # Si hoy ya es ese día y no está explícito "hoy/próximo", evitamos asumir: el caller ofrecerá opciones.
+            if self._day_name_es(today) == weekday_hint:
+                if "hoy" in tl:
+                    return today
+                if any(x in tl for x in ("próximo", "proximo", "siguiente", "la otra", "otra semana", "próxima semana", "proxima semana")):
+                    return today + timedelta(days=7)
+                return None
+            return self._next_weekday_date(weekday_hint, base_date=today)
 
         iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", t)
         if iso_match:
@@ -873,17 +1092,32 @@ class InstagramBot:
             return "domingo"
         return None
 
-    def _next_weekday_date(self, weekday_es: str) -> Optional[date]:
+    def _today_local_date(self) -> date:
+        tz_name = getattr(config, "GOOGLE_CALENDAR_TIMEZONE", None) or "America/Santiago"
+        try:
+            tz = ZoneInfo(tz_name)
+        except Exception:
+            tz = timezone.utc
+        return datetime.now(tz).date()
+
+    def _next_weekday_date(
+        self, weekday_es: str, *, base_date: Optional[date] = None, include_today: bool = False
+    ) -> Optional[date]:
         names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
         if weekday_es not in names:
             return None
         target = names.index(weekday_es)
-        tz = ZoneInfo(config.GOOGLE_CALENDAR_TIMEZONE)
-        today = datetime.now(tz).date()
+        today = base_date or self._today_local_date()
         days_ahead = (target - today.weekday()) % 7
-        if days_ahead == 0:
+        if days_ahead == 0 and not include_today:
             days_ahead = 7
         return today + timedelta(days=days_ahead)
+
+    def _weekday_date_options(self, weekday_es: str, *, base_date: Optional[date] = None) -> tuple[Optional[date], Optional[date]]:
+        base = base_date or self._today_local_date()
+        today_option = base if self._day_name_es(base) == weekday_es else None
+        next_option = self._next_weekday_date(weekday_es, base_date=base, include_today=False)
+        return today_option, next_option
 
     def _day_name_es(self, d: date) -> str:
         names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
@@ -896,6 +1130,19 @@ class InstagramBot:
             return date.fromisoformat(iso_str)
         except Exception:
             return None
+
+    def _pick_suggested_date_from_state(self, message_text: str, state: Dict) -> Optional[date]:
+        t = (message_text or "").strip().lower()
+        today_iso = state.get("suggested_date_today")
+        next_iso = state.get("suggested_date_next")
+        if not (today_iso and next_iso):
+            return None
+
+        if any(x in t for x in ("hoy", "hoy mismo", "ahora", "ya")):
+            return self._safe_date_from_iso(today_iso)
+        if any(x in t for x in ("próximo", "proximo", "siguiente", "la otra", "otra semana", "próxima semana", "proxima semana")):
+            return self._safe_date_from_iso(next_iso)
+        return None
 
     def _calculate_price(self, visit_day: str, cars_count: int, motos_count: int) -> int:
         if visit_day == "sábado":
