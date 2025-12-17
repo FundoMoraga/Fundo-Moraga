@@ -1006,7 +1006,22 @@ class InstagramBot:
             visit_day = state.get("visit_day") or "por confirmar"
             visit_date = self._safe_date_from_iso(state.get("visit_date"))
             details = state.get("details") or {}
-            details.update(self._parse_booking_details(message_text))
+            awaiting_field = (state.get("awaiting_field") or "").strip()
+            raw = (message_text or "").strip()
+
+            # Si acabamos de preguntar por una cantidad específica (autos/motos),
+            # una respuesta tipo "2" debe interpretarse como cantidad, no como hora.
+            if awaiting_field in ("cars_count", "motos_count") and re.fullmatch(r"\d{1,3}", raw):
+                count = self._parse_int(raw)
+                if count is not None:
+                    details[awaiting_field] = count
+                    # Normalizar señal de tipo de vehículo para prompts posteriores.
+                    if awaiting_field == "cars_count":
+                        details.setdefault("vehicle_kind", "auto")
+                    if awaiting_field == "motos_count":
+                        details.setdefault("vehicle_kind", "moto")
+            else:
+                details.update(self._parse_booking_details(message_text))
             state["details"] = details
 
             # Normalizar vehículos: si solo se reporta uno, el otro se asume 0.
@@ -1030,6 +1045,7 @@ class InstagramBot:
                 missing.append("email")
 
             if missing:
+                state["awaiting_field"] = self._infer_booking_awaiting_field(missing, details)
                 self._save_booking_state(user_id, conversation_id, state)
                 return self._booking_missing_prompt(visit_day, missing, details=details)
 
@@ -1038,6 +1054,7 @@ class InstagramBot:
             price_clp = self._calculate_price(visit_day, cars_count, motos_count)
             state["price_clp"] = price_clp
             state["stage"] = "confirm_transfer"
+            state.pop("awaiting_field", None)
             self._save_booking_state(user_id, conversation_id, state)
 
             return self._transfer_prompt(visit_day, visit_date, price_clp, details)
@@ -1393,7 +1410,7 @@ class InstagramBot:
         - "a las 9"
         - "9am" / "9 am"
         """
-        raw = (text or "").lower()
+        raw = (text or "").lower().strip()
         if not raw:
             return None
 
@@ -1401,19 +1418,31 @@ class InstagramBot:
         if m:
             return f"{int(m.group(1)):02d}:{m.group(2)}"
 
-        m = re.search(r"\b(?:a\s+las\s+)?([01]?\d|2[0-3])\s*(am|pm)?\b", raw)
+        # "a las 9" / "a las 9:30"
+        m = re.search(r"\ba\s+las\s+([01]?\d|2[0-3])(?:[:.]([0-5]\d))?\b", raw)
+        if m:
+            hour = int(m.group(1))
+            minute = m.group(2) or "00"
+            return f"{hour:02d}:{minute}"
+
+        # "9am" / "9 pm"
+        m = re.search(r"\b([01]?\d|2[0-3])\s*(am|pm)\b", raw)
+        if m:
+            hour = int(m.group(1))
+            mer = m.group(2)
+            if mer == "pm" and hour < 12:
+                hour += 12
+            if mer == "am" and hour == 12:
+                hour = 0
+            return f"{hour:02d}:00"
+
+        # Respuesta corta (solo número): solo si el mensaje es EXACTAMENTE el número.
+        m = re.fullmatch(r"([01]?\d|2[0-3])", raw)
         if not m:
             return None
 
         hour = int(m.group(1))
-        mer = m.group(2)
-        if mer == "pm" and hour < 12:
-            hour += 12
-        if mer == "am" and hour == 12:
-            hour = 0
-        if 0 <= hour <= 23:
-            return f"{hour:02d}:00"
-        return None
+        return f"{hour:02d}:00"
 
     def _parse_weekday_name_es(self, text: str) -> Optional[str]:
         t = (text or "").lower()
@@ -1577,6 +1606,20 @@ class InstagramBot:
             return int(digits) if digits else None
         except Exception:
             return None
+
+    def _infer_booking_awaiting_field(self, missing: list, details: Optional[Dict] = None) -> str:
+        """
+        Infere qué campo estamos esperando para interpretar respuestas cortas (ej: "2").
+        """
+        next_key = missing[0] if missing else ""
+        if next_key == "vehicles":
+            kind = (details or {}).get("vehicle_kind")
+            if kind == "auto":
+                return "cars_count"
+            if kind == "moto":
+                return "motos_count"
+            return "vehicles"
+        return next_key
 
     def _booking_details_prompt(self, visit_day: str, visit_date: date, arrival_time: Optional[str] = None) -> str:
         if arrival_time:
