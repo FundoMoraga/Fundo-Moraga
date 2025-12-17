@@ -67,6 +67,7 @@ class InstagramBot:
             )
 
             platform = "Web"
+            lead_context = self._build_lead_context(conversation_history, conversation_id)
 
             # 4. Flujo determinístico de agendamiento (no depende del modelo)
             booking_response = self._handle_booking_flow(
@@ -84,6 +85,13 @@ class InstagramBot:
                     conversation_id=conversation_id,
                     metadata={"platform": "web", "source": "booking_flow"},
                 )
+                self._maybe_auto_lead_capture(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    platform=platform,
+                    lead_context=lead_context,
+                )
                 return booking_response
 
             # 4.25 Respuesta determinística para fecha/día (evita errores del modelo)
@@ -96,7 +104,33 @@ class InstagramBot:
                     conversation_id=conversation_id,
                     metadata={"platform": "web", "source": "date_flow"},
                 )
+                self._maybe_auto_lead_capture(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    platform=platform,
+                    lead_context=lead_context,
+                )
                 return date_response
+
+            # 4.3 Flujo determinístico para eventos/producciones (coordinar con equipo)
+            admin_response = self._handle_admin_coordination(message_text)
+            if admin_response:
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=admin_response,
+                    conversation_id=conversation_id,
+                    metadata={"platform": "web", "source": "admin_flow"},
+                )
+                self._maybe_auto_lead_capture(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    platform=platform,
+                    lead_context=lead_context,
+                )
+                return admin_response
 
             # 4.5 Respuesta determinística para tarifas públicas (evita respuestas genéricas del modelo)
             pricing_response = self._handle_public_pricing(message_text)
@@ -107,6 +141,13 @@ class InstagramBot:
                     message=pricing_response,
                     conversation_id=conversation_id,
                     metadata={"platform": "web", "source": "pricing_flow"},
+                )
+                self._maybe_auto_lead_capture(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    platform=platform,
+                    lead_context=lead_context,
                 )
                 return pricing_response
             
@@ -127,6 +168,7 @@ class InstagramBot:
                 platform=platform,
                 already_welcomed=already_welcomed,
                 lead_capture_already_sent=lead_capture_already_sent,
+                extra_context=lead_context,
                 return_events=True,
             )
 
@@ -150,14 +192,24 @@ class InstagramBot:
             )
 
             # 7. Si el modelo ejecutó herramientas de captura/formulario, enviar email y marcar conversación
+            lead_handled = False
             if events:
-                self._handle_post_ai_events(
+                lead_handled = self._handle_post_ai_events(
                     user_id=user_id,
                     conversation_id=conversation_id,
                     conversation_history=conversation_history,
                     latest_message=message_text,
                     platform=platform,
                     events=events,
+                )
+
+            if not lead_handled:
+                self._maybe_auto_lead_capture(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    platform=platform,
+                    lead_context=lead_context,
                 )
             
             print(f"📤 Respuesta: {response_text}")
@@ -300,6 +352,81 @@ class InstagramBot:
 
         return None
 
+    def _handle_admin_coordination(self, message_text: str) -> Optional[str]:
+        """
+        Consultas que requieren coordinación formal con el equipo (eventos, producciones, prensa, etc.).
+        """
+        t = (message_text or "").strip().lower()
+        if not t:
+            return None
+
+        markers = (
+            "evento",
+            "matrimonio",
+            "cumple",
+            "cumpleaños",
+            "fiesta",
+            "corporativo",
+            "empresa",
+            "team building",
+            "teambuilding",
+            "producción",
+            "produccion",
+            "filmación",
+            "filmacion",
+            "grabación",
+            "grabacion",
+            "rodaje",
+            "fotografía",
+            "fotografia",
+            "sesión",
+            "sesion",
+            "comercial",
+            "videoclip",
+            "película",
+            "pelicula",
+            "serie",
+            "prensa",
+            "periodista",
+            "nota",
+            "medio",
+            "locación",
+            "locacion",
+            "cotizar",
+            "cotización",
+            "cotizacion",
+        )
+
+        if not any(m in t for m in markers):
+            return None
+
+        # Si es claramente off-road (tarifas públicas), no forzamos derivación aquí.
+        offroad_markers = (
+            "offroad",
+            "off-road",
+            "4x4",
+            "enduro",
+            "batuco",
+            "moto",
+            "motos",
+            "auto",
+            "autos",
+            "vehículo",
+            "vehiculo",
+        )
+        if any(m in t for m in offroad_markers):
+            return None
+
+        return (
+            "¡Bacán! Eso lo coordinamos directo con el equipo de Fundo Moraga, porque depende de la fecha, el tipo de actividad "
+            "y los requerimientos.\n\n"
+            "📧 Email: contacto@fundomoraga.com\n"
+            "📱 WhatsApp: +5694 1242609\n\n"
+            "Si quieres, te ahorro un paso: cuéntame en una frase qué quieres hacer y para qué fecha tentativamente, "
+            "y déjame un correo o WhatsApp para que te contacten.\n\n"
+            "¿Para qué fecha lo estás pensando?"
+        )
+
     def _handle_post_ai_events(
         self,
         user_id: str,
@@ -308,13 +435,13 @@ class InstagramBot:
         latest_message: str,
         platform: str,
         events: list,
-    ) -> None:
+    ) -> bool:
         lead_capture_already_sent = any(
             (msg.get("metadata") or {}).get("type") == "lead_capture" for msg in (conversation_history or [])
         )
 
         if lead_capture_already_sent:
-            return
+            return True
 
         for event in events:
             tool = (event or {}).get("tool")
@@ -337,7 +464,7 @@ class InstagramBot:
                     conversation_id=conversation_id,
                     metadata={"platform": "web", "type": "lead_capture", "source": "tool", "args": args},
                 )
-                return
+                return True
 
             if tool == "enviar_formulario_contacto":
                 nombre = args.get("nombre")
@@ -368,7 +495,221 @@ class InstagramBot:
                     conversation_id=conversation_id,
                     metadata={"platform": "web", "type": "lead_capture", "source": "tool_form", "args": args},
                 )
+                return True
+
+        return False
+
+    def _build_lead_context(self, conversation_history: list, conversation_id: str) -> Dict[str, str]:
+        """
+        Construye un set compacto de señales para el modelo (evita preguntas repetidas y guía el siguiente paso).
+        """
+        lead_capture_present = any(
+            (m.get("metadata") or {}).get("type") == "lead_capture" for m in (conversation_history or [])
+        )
+
+        booking_state = self._get_booking_state(conversation_history, conversation_id) or {}
+        booking_details = (booking_state.get("details") or {}) if isinstance(booking_state, dict) else {}
+
+        user_messages = [
+            (m.get("message") or "")
+            for m in (conversation_history or [])
+            if m.get("role") == "user" and (m.get("message") or "").strip()
+        ]
+        joined = " \n".join(user_messages[-12:])
+
+        # Nombre
+        known_name = (booking_details.get("full_name") or "").strip() if isinstance(booking_details, dict) else ""
+        if not known_name:
+            m = re.search(
+                r"\b(me llamo|soy)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+){0,4})\b",
+                joined,
+                re.IGNORECASE,
+            )
+            if m:
+                known_name = m.group(2).strip(" .,!¿?;:")
+
+        # Contacto
+        emails = []
+        phones = []
+        if isinstance(booking_details, dict):
+            if booking_details.get("email"):
+                emails.append(str(booking_details.get("email")).strip())
+            if booking_details.get("phone"):
+                phones.append(str(booking_details.get("phone")).strip())
+
+        emails.extend(re.findall(r"([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", joined, re.IGNORECASE))
+        phones.extend(re.findall(r"(\+?\d[\d\s\-()]{7,}\d)", joined))
+
+        # De-dup preservando orden
+        def _dedup(values: list[str]) -> list[str]:
+            seen = set()
+            out: list[str] = []
+            for v in values:
+                vv = (v or "").strip()
+                if not vv:
+                    continue
+                key = vv.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(vv)
+            return out
+
+        emails = _dedup(emails)
+        phones = _dedup(phones)
+        known_contact = " / ".join([*emails[:2], *phones[:2]]).strip()
+
+        missing_name = "false" if known_name else "true"
+        missing_contact = "false" if known_contact else "true"
+
+        intent = "general"
+        if booking_state:
+            intent = "agendamiento"
+        else:
+            lower = joined.lower()
+            if any(k in lower for k in ("offroad", "off-road", "4x4", "enduro", "batuco")):
+                intent = "offroad"
+            if any(k in lower for k in ("evento", "producción", "produccion", "filmación", "filmacion", "matrimonio", "corporativo")):
+                intent = "evento_produccion"
+
+        ctx: Dict[str, str] = {
+            "lead_capture_present": "true" if lead_capture_present else "false",
+            "missing_name": missing_name,
+            "missing_contact": missing_contact,
+            "lead_intent": intent,
+        }
+
+        if known_name:
+            ctx["known_name"] = known_name
+        if known_contact:
+            ctx["known_contact"] = known_contact
+
+        if booking_state:
+            for k in ("stage", "visit_date", "visit_day"):
+                v = booking_state.get(k)
+                if v:
+                    ctx[f"booking_{k}"] = str(v)
+            if isinstance(booking_details, dict):
+                for k in ("arrival_time", "cars_count", "motos_count"):
+                    v = booking_details.get(k)
+                    if v is not None and v != "":
+                        ctx[f"booking_{k}"] = str(v)
+
+        return ctx
+
+    def _build_conversation_snippet(self, conversation_history: list, *, max_messages: int = 12) -> str:
+        lines: list[str] = []
+        for msg in (conversation_history or [])[-max_messages:]:
+            metadata = msg.get("metadata") or {}
+            if metadata.get("type") in ("booking_state", "lead_capture", "conversation_summary"):
+                continue
+            role = msg.get("role") or "user"
+            content = (msg.get("message") or "").strip()
+            if not content:
+                continue
+            lines.append(f"{role}: {content}")
+        return "\n".join(lines).strip()
+
+    def _interest_from_booking_state(self, state: Dict) -> str:
+        details = (state.get("details") or {}) if isinstance(state, dict) else {}
+        visit_day = state.get("visit_day") or ""
+        visit_date = state.get("visit_date") or ""
+        arrival = details.get("arrival_time") or ""
+        cars = details.get("cars_count")
+        motos = details.get("motos_count")
+        stage = state.get("stage") or ""
+
+        parts = ["Intención: agendar visita/actividad off-road"]
+        if visit_day or visit_date:
+            parts.append(f"Fecha: {visit_day} {visit_date}".strip())
+        if arrival:
+            parts.append(f"Hora llegada: {arrival} (09:00–17:00)")
+        if cars is not None or motos is not None:
+            parts.append(f"Vehículos: autos={cars if cars is not None else 'N/A'}, motos={motos if motos is not None else 'N/A'}")
+        if stage:
+            parts.append(f"Estado: {stage}")
+        return " | ".join(parts)
+
+    def _maybe_auto_lead_capture(
+        self,
+        *,
+        user_id: str,
+        conversation_id: str,
+        conversation_history: list,
+        platform: str,
+        lead_context: Dict[str, str],
+    ) -> None:
+        """
+        Captura automática de lead (sin depender de tool-calls) cuando ya existe contacto en la conversación.
+        Envía email solo una vez por conversación.
+        """
+        try:
+            if not self.resend_client.is_configured():
                 return
+
+            if any((m.get("metadata") or {}).get("type") == "lead_capture" for m in (conversation_history or [])):
+                return
+
+            known_contact = (lead_context.get("known_contact") or "").strip()
+            if not known_contact:
+                return
+
+            known_name = (lead_context.get("known_name") or "").strip() or "No proporcionado"
+
+            booking_state = self._get_booking_state(conversation_history, conversation_id)
+            if booking_state:
+                interest = self._interest_from_booking_state(booking_state)
+                booking_details = (booking_state.get("details") or {}) if isinstance(booking_state, dict) else None
+            else:
+                # Evitar emails "vacíos" (solo contacto, sin interés). Si no hay contenido útil, no enviamos aún.
+                user_text = " \n".join(
+                    (m.get("message") or "")
+                    for m in (conversation_history or [])
+                    if m.get("role") == "user" and (m.get("message") or "").strip()
+                )
+                scrubbed = re.sub(r"([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", "", user_text, flags=re.IGNORECASE)
+                scrubbed = re.sub(r"(\+?\d[\d\s\-()]{7,}\d)", "", scrubbed)
+                scrubbed = re.sub(r"\s+", " ", scrubbed).strip()
+                if len(scrubbed) < 12 and lead_context.get("lead_intent") in (None, "", "general"):
+                    return
+
+                snippet = self._build_conversation_snippet(conversation_history, max_messages=12)
+                # Aprovecha GPT-5.2 para resumir sin inventar.
+                interest = self.chatbot_ai.summarize_lead_interest(
+                    conversation_snippet=snippet,
+                    known_name=(lead_context.get("known_name") or None),
+                    known_contact=known_contact,
+                    booking_details=None,
+                )
+                booking_details = None
+
+            if not interest:
+                interest = "No especificado"
+
+            send_result = self.resend_client.send_conversation_summary(
+                user_name=known_name,
+                user_interest=interest,
+                user_contact=known_contact,
+                conversation_id=conversation_id,
+                platform=platform,
+            )
+
+            self.conversation_store.save_message(
+                user_id=user_id,
+                role="assistant",
+                message="",
+                conversation_id=conversation_id,
+                metadata={
+                    "platform": "web",
+                    "type": "lead_capture",
+                    "source": "auto",
+                    "args": {"nombre": known_name, "interes": interest, "contacto": known_contact, "booking": booking_details},
+                    "sent": bool(send_result.get("success")),
+                    "error": send_result.get("error"),
+                },
+            )
+        except Exception as e:
+            print(f"❌ Error en auto lead capture: {e}")
 
     def finalize_conversation(self, user_id: str, reason: str = "end") -> None:
         """

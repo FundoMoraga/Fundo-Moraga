@@ -254,6 +254,7 @@ nuestros canales oficiales."
         platform: Optional[str] = None,
         already_welcomed: Optional[bool] = None,
         lead_capture_already_sent: Optional[bool] = None,
+        extra_context: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, str]]:
         messages: List[Dict[str, str]] = [{"role": "system", "content": self.system_prompt}]
 
@@ -270,6 +271,21 @@ nuestros canales oficiales."
             context_lines.append(f"already_welcomed={'true' if already_welcomed else 'false'}")
         if lead_capture_already_sent is not None:
             context_lines.append(f"lead_capture_already_sent={'true' if lead_capture_already_sent else 'false'}")
+
+        if extra_context:
+            for k, v in extra_context.items():
+                if v is None:
+                    continue
+                key = str(k).strip()
+                if not key:
+                    continue
+                # Limitar tamaño para evitar inflar el prompt con datos enormes
+                value = str(v).strip()
+                if not value:
+                    continue
+                if len(value) > 400:
+                    value = value[:400] + "…"
+                context_lines.append(f"{key}={value}")
 
         if context_lines:
             messages.append({"role": "system", "content": "CONTEXTO\n" + "\n".join(context_lines)})
@@ -411,6 +427,7 @@ nuestros canales oficiales."
         platform: Optional[str] = None,
         already_welcomed: Optional[bool] = None,
         lead_capture_already_sent: Optional[bool] = None,
+        extra_context: Optional[Dict[str, Any]] = None,
         return_events: bool = False,
     ) -> Any:
         """
@@ -430,6 +447,7 @@ nuestros canales oficiales."
             platform=platform,
             already_welcomed=already_welcomed,
             lead_capture_already_sent=lead_capture_already_sent,
+            extra_context=extra_context,
         )
 
         last_error: Optional[Exception] = None
@@ -487,6 +505,61 @@ nuestros canales oficiales."
         except Exception as e:
             print(f"❌ Error generando respuesta con contexto: {e}")
             return "Lo siento, hubo un problema al procesar tu mensaje."
+
+    def summarize_lead_interest(
+        self,
+        *,
+        conversation_snippet: str,
+        known_name: Optional[str] = None,
+        known_contact: Optional[str] = None,
+        booking_details: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Genera un resumen corto del interés del usuario para uso interno (email/CRM).
+        No debe inventar datos: si algo no está explícito, debe omitirlo.
+        """
+        try:
+            sys = (
+                "Eres un asistente que redacta resúmenes internos para el equipo de Fundo Moraga.\n"
+                "Reglas:\n"
+                "- No inventes datos.\n"
+                "- Sé breve (2–4 líneas).\n"
+                "- Menciona objetivo del usuario y, si aplica, fecha/hora/vehículos.\n"
+                "- No incluyas el contacto dentro del resumen (va aparte).\n"
+            )
+
+            known_lines = []
+            if known_name:
+                known_lines.append(f"Nombre: {known_name}")
+            if known_contact:
+                known_lines.append(f"Contacto: {known_contact}")
+            if booking_details:
+                try:
+                    known_lines.append("Reserva (parcial): " + json.dumps(booking_details, ensure_ascii=False))
+                except Exception:
+                    known_lines.append(f"Reserva (parcial): {booking_details}")
+
+            user = (
+                "Datos conocidos (pueden venir vacíos):\n"
+                + ("\n".join(known_lines) if known_lines else "(ninguno)\n")
+                + "\n\n"
+                "Conversación (fragmento):\n"
+                f"{conversation_snippet}\n\n"
+                "Escribe el resumen:"
+            )
+
+            kwargs: Dict[str, Any] = dict(
+                model=self.model,
+                messages=[{"role": "system", "content": sys}, {"role": "user", "content": user}],
+                temperature=0.2,
+            )
+            kwargs[self._token_param_name(self.model)] = 200
+            response = self.client.chat.completions.create(**kwargs)
+            return (response.choices[0].message.content or "").strip()
+        except Exception as e:
+            print(f"❌ Error generando resumen de lead: {e}")
+            # Fallback determinístico
+            return (conversation_snippet or "").strip()[:400]
 
 
 # Singleton instance
