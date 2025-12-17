@@ -30,6 +30,19 @@ class InstagramBot:
         self.payment_inbox = get_payment_inbox_client()
         # self.access_token = config.INSTAGRAM_ACCESS_TOKEN
         # self.page_id = config.INSTAGRAM_PAGE_ID
+
+    def _sanitize_user_response(self, text: str) -> str:
+        """
+        El chat del sitio no debe mostrar asteriscos/Markdown. Remueve asteriscos y normaliza espacios.
+        """
+        if not isinstance(text, str):
+            return text
+        # Quitar cualquier asterisco (evita **bold** y *italics*)
+        sanitized = text.replace("*", "")
+        # Normalizaciones suaves
+        sanitized = re.sub(r"[ \t]{2,}", " ", sanitized)
+        sanitized = re.sub(r" ?\n ?", "\n", sanitized)
+        return sanitized.strip()
     
     def process_message(self, user_id: str, message_text: str) -> str:
         """
@@ -78,6 +91,7 @@ class InstagramBot:
                 platform=platform,
             )
             if booking_response:
+                booking_response = self._sanitize_user_response(booking_response)
                 self.conversation_store.save_message(
                     user_id=user_id,
                     role="assistant",
@@ -97,6 +111,7 @@ class InstagramBot:
             # 4.25 Respuesta determinística para fecha/día (evita errores del modelo)
             date_response = self._handle_date_questions(message_text)
             if date_response:
+                date_response = self._sanitize_user_response(date_response)
                 self.conversation_store.save_message(
                     user_id=user_id,
                     role="assistant",
@@ -116,6 +131,7 @@ class InstagramBot:
             # 4.3 Flujo determinístico para eventos/producciones (coordinar con equipo)
             admin_response = self._handle_admin_coordination(message_text)
             if admin_response:
+                admin_response = self._sanitize_user_response(admin_response)
                 self.conversation_store.save_message(
                     user_id=user_id,
                     role="assistant",
@@ -135,6 +151,7 @@ class InstagramBot:
             # 4.5 Respuesta determinística para tarifas públicas (evita respuestas genéricas del modelo)
             pricing_response = self._handle_public_pricing(message_text)
             if pricing_response:
+                pricing_response = self._sanitize_user_response(pricing_response)
                 self.conversation_store.save_message(
                     user_id=user_id,
                     role="assistant",
@@ -173,6 +190,7 @@ class InstagramBot:
             )
 
             response_text = ai_result.get("text") if isinstance(ai_result, dict) else ai_result
+            response_text = self._sanitize_user_response(response_text)
             events = ai_result.get("events", []) if isinstance(ai_result, dict) else []
             model_used = ai_result.get("model_used") if isinstance(ai_result, dict) else None
             model_requested = config.OPENAI_MODEL
@@ -850,7 +868,9 @@ class InstagramBot:
         """
         conversation_id = f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}"
 
-        greeting = "¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?"
+        greeting = self._sanitize_user_response(
+            "¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?"
+        )
 
         self.conversation_store.save_message(
             user_id=user_id,
