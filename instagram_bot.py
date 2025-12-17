@@ -1955,7 +1955,7 @@ class InstagramBot:
                     url,
                     params={
                         "access_token": self.access_token,
-                        "fields": "messages.limit(25){id,mid,message,text,from,created_time},updated_time",
+                        "fields": "messages.limit(25){id,message,text,from,created_time},updated_time",
                         "limit": 25,
                     },
                     timeout=15,
