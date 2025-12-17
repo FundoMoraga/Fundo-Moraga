@@ -313,6 +313,18 @@ nuestros canales oficiales."
             unique.append(m.strip())
         return unique
 
+    def _token_param_name(self, model: str) -> str:
+        """
+        Algunos modelos (p.ej. gpt-5.*) no aceptan `max_tokens` en Chat Completions y exigen
+        `max_completion_tokens`.
+        """
+        m = (model or "").strip().lower()
+        if m.startswith("gpt-5"):
+            return "max_completion_tokens"
+        if m.startswith(("o1", "o3")):
+            return "max_completion_tokens"
+        return "max_tokens"
+
     def _generate_with_model(
         self,
         *,
@@ -324,15 +336,17 @@ nuestros canales oficiales."
         events: List[Dict[str, Any]] = []
 
         max_tool_rounds = 3
+        token_param = self._token_param_name(model)
         for _ in range(max_tool_rounds):
-            response = self.client.chat.completions.create(
+            kwargs: Dict[str, Any] = dict(
                 model=model,
                 messages=messages,
                 tools=self.tools_manager.tools,
                 tool_choice="auto",
                 temperature=0.7,
-                max_tokens=800,
             )
+            kwargs[token_param] = 800
+            response = self.client.chat.completions.create(**kwargs)
 
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
@@ -446,7 +460,7 @@ nuestros canales oficiales."
                 model=self.model,
                 messages=messages,
                 temperature=0.7,
-                max_tokens=500
+                **{self._token_param_name(self.model): 500},
             )
             
             return response.choices[0].message.content
