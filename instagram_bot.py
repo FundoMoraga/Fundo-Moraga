@@ -1214,7 +1214,13 @@ class InstagramBot:
                         f"Y para coordinar, ¿a qué hora te gustaría llegar? ({hours_txt})"
                     )
 
-                return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar?"
+                special_sat = self._special_open_saturday_date()
+                special_txt = f" Tip: este sábado ({special_sat.isoformat()}) hay cupo 10:00–17:00 con tarifa normal." if special_sat else ""
+                return (
+                    "¡Buenísimo! ¿Qué día te gustaría venir?"
+                    " (ideal: YYYY-MM-DD, o dime por ejemplo “este viernes”)."
+                    + special_txt
+                )
 
             visit_day = self._day_name_es(visit_date)
             if visit_day == "domingo":
@@ -1484,7 +1490,13 @@ class InstagramBot:
 
             state = {"stage": "awaiting_day"}
             self._save_booking_state(user_id, conversation_id, state, platform=platform)
-            return "¡Buenísimo! ¿Qué fecha te gustaría venir para agendar? (ideal: YYYY-MM-DD) ¿Y a qué hora te gustaría llegar?"
+            special_sat = self._special_open_saturday_date()
+            special_txt = f" Tip: este sábado ({special_sat.isoformat()}) hay cupo 10:00–17:00 con tarifa normal." if special_sat else ""
+            return (
+                "¡Buenísimo! ¿Qué día te gustaría venir?"
+                " (ideal: YYYY-MM-DD, o dime por ejemplo “este viernes”)."
+                + special_txt
+            )
 
         return None
 
