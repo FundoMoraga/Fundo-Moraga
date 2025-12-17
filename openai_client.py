@@ -8,6 +8,8 @@ import config
 import json
 import os
 import re
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 
 class ChatbotAI:
@@ -192,7 +194,7 @@ La información capturada se enviará automáticamente a contacto@fundomoraga.co
 ## AGENDAMIENTO (IMPORTANTE)
 
 Si el usuario quiere **agendar/reservar**, debes:
-- Preguntar si desea agendar y pedir **fecha** (ideal `YYYY-MM-DD`) y **hora de llegada** (ideal `HH:MM`, dentro de **09:00 a 17:00**).
+- Preguntar si desea agendar y pedir **fecha** (ideal `YYYY-MM-DD`) y **hora de llegada** (ideal `HH:MM`, dentro de **09:00 a 17:00**). Si el usuario dice un día relativo ("mañana") o un día de semana ("viernes"), tú debes convertirlo a `YYYY-MM-DD` usando `today_date` y pedir confirmación; NUNCA le pidas convertirlo.
 - Recordar reglas: **lunes a viernes** (tarifa por auto/moto) y **sábado** (solo grupos: $200.000 el día). **Domingo no se agenda**.
 - Indicar que la **reserva solo es válida una vez realizada la transferencia bancaria** y entregar estos datos:
   - SOCIEDAD FUNDO MORAGA SpA
@@ -229,7 +231,20 @@ nuestros canales oficiales."
 4) Si solo falta el contacto, pide correo/teléfono de forma suave (“Si quieres que el equipo te contacte con más detalles, déjame tu correo o WhatsApp”).
 5) Mantén el diálogo: después de responder, haz 1 pregunta corta orientada a concretar (agendar o derivar). Prioriza: fecha+hora → autos/motos → contacto.
 6) Evita listas largas tipo formulario; pide 1 dato por vez y confirma lo que ya entendiste.
+7) FECHAS (INTRANSABLE): Usa SIEMPRE `today_date` y `today_weekday_es` (zona horaria Chile) para interpretar "hoy/mañana/pasado mañana" y días de semana. Si el usuario dice "viernes", PROPÓN la fecha exacta (YYYY-MM-DD) y pide confirmación; NUNCA le pidas que convierta el día a fecha. Si hoy ya es ese día, ofrece 2 opciones: hoy (YYYY-MM-DD) vs próximo (YYYY-MM-DD).
 """
+
+    def _now_local(self) -> datetime:
+        tz_name = getattr(config, "GOOGLE_CALENDAR_TIMEZONE", None) or "America/Santiago"
+        try:
+            tz = ZoneInfo(tz_name)
+        except Exception:
+            tz = timezone.utc
+        return datetime.now(tz)
+
+    def _weekday_es(self, dt: datetime) -> str:
+        names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+        return names[dt.weekday()]
 
     def _build_messages(
         self,
@@ -243,6 +258,10 @@ nuestros canales oficiales."
         messages: List[Dict[str, str]] = [{"role": "system", "content": self.system_prompt}]
 
         context_lines = []
+        now_local = self._now_local()
+        context_lines.append(f"today_date={now_local.date().isoformat()}")
+        context_lines.append(f"today_weekday_es={self._weekday_es(now_local)}")
+        context_lines.append(f"timezone={getattr(config, 'GOOGLE_CALENDAR_TIMEZONE', 'America/Santiago')}")
         if conversation_id:
             context_lines.append(f"conversation_id={conversation_id}")
         if platform:
