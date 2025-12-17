@@ -94,6 +94,7 @@ class InstagramBot:
 
             platform = platform_label
             lead_context = self._build_lead_context(conversation_history, conversation_id)
+            is_farewell = self._is_farewell_message(message_text)
 
             # 4. Flujo determinístico de agendamiento (no depende del modelo)
             booking_response = self._handle_booking_flow(
@@ -119,6 +120,14 @@ class InstagramBot:
                     platform=platform,
                     lead_context=lead_context,
                 )
+                self._maybe_finalize_after_reply(
+                    platform_key=platform_key,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    lead_context=lead_context,
+                    is_farewell=is_farewell,
+                )
                 return booking_response
 
             # 4.25 Respuesta determinística para fecha/día (evita errores del modelo)
@@ -138,6 +147,14 @@ class InstagramBot:
                     conversation_history=conversation_history,
                     platform=platform,
                     lead_context=lead_context,
+                )
+                self._maybe_finalize_after_reply(
+                    platform_key=platform_key,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    lead_context=lead_context,
+                    is_farewell=is_farewell,
                 )
                 return date_response
 
@@ -159,6 +176,14 @@ class InstagramBot:
                     platform=platform,
                     lead_context=lead_context,
                 )
+                self._maybe_finalize_after_reply(
+                    platform_key=platform_key,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    lead_context=lead_context,
+                    is_farewell=is_farewell,
+                )
                 return admin_response
 
             # 4.5 Respuesta determinística para tarifas públicas (evita respuestas genéricas del modelo)
@@ -179,6 +204,14 @@ class InstagramBot:
                     platform=platform,
                     lead_context=lead_context,
                 )
+                self._maybe_finalize_after_reply(
+                    platform_key=platform_key,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    lead_context=lead_context,
+                    is_farewell=is_farewell,
+                )
                 return pricing_response
             
             # 5. Generar respuesta con OpenAI usando el contexto
@@ -191,11 +224,14 @@ class InstagramBot:
                 (msg.get("metadata") or {}).get("type") == "lead_capture" for msg in (conversation_history or [])
             )
 
+            # Para alinear el estilo con el chat web, no pasamos "Instagram" como plataforma al prompt del modelo.
+            prompt_platform = "Web"
+
             ai_result = self.chatbot_ai.generate_response(
                 user_message=message_text,
                 conversation_history=conversation_history,
                 conversation_id=conversation_id,
-                platform=platform,
+                platform=prompt_platform,
                 already_welcomed=already_welcomed,
                 lead_capture_already_sent=lead_capture_already_sent,
                 extra_context=lead_context,
@@ -242,6 +278,15 @@ class InstagramBot:
                     platform=platform,
                     lead_context=lead_context,
                 )
+
+            self._maybe_finalize_after_reply(
+                platform_key=platform_key,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                conversation_history=conversation_history,
+                lead_context=lead_context,
+                is_farewell=is_farewell,
+            )
             
             print(f"📤 Respuesta: {response_text}")
             
@@ -250,6 +295,77 @@ class InstagramBot:
         except Exception as e:
             print(f"❌ Error procesando mensaje: {e}")
             return "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente."
+
+    def _is_farewell_message(self, message_text: str) -> bool:
+        t = (message_text or "").strip().lower()
+        if not t:
+            return False
+        farewell_keywords = (
+            "gracias",
+            "muchas gracias",
+            "listo",
+            "perfecto",
+            "ok",
+            "oka",
+            "dale",
+            "de acuerdo",
+            "adios",
+            "adiós",
+            "chao",
+            "chau",
+            "hasta luego",
+            "hasta pronto",
+            "eso es todo",
+            "nada más",
+            "nada mas",
+            "saludos",
+            "bye",
+        )
+        return any(k in t for k in farewell_keywords)
+
+    def _maybe_finalize_after_reply(
+        self,
+        *,
+        platform_key: str,
+        user_id: str,
+        conversation_id: str,
+        conversation_history: list,
+        lead_context: Dict[str, str],
+        is_farewell: bool,
+    ) -> None:
+        """
+        En web, el cierre se gatilla explícitamente con [[CLOSE_CHAT]].
+        En Instagram, hacemos un cierre suave solo si el usuario se despide y ya existe información útil.
+        """
+        try:
+            if platform_key != "instagram":
+                return
+            if not is_farewell:
+                return
+
+            # Evitar duplicados: si ya enviamos el resumen, no repetir.
+            if any((m.get("metadata") or {}).get("type") == "conversation_summary" for m in (conversation_history or [])):
+                return
+
+            booking_state = self._get_booking_state(conversation_history, conversation_id) or {}
+            booking_details = (booking_state.get("details") or {}) if isinstance(booking_state, dict) else {}
+            has_booking_info = bool(
+                booking_state
+                or booking_details.get("arrival_time")
+                or booking_details.get("cars_count") is not None
+                or booking_details.get("motos_count") is not None
+            )
+            has_contact = (lead_context or {}).get("missing_contact") == "false"
+            has_name = (lead_context or {}).get("missing_name") == "false"
+            lead_capture_present = (lead_context or {}).get("lead_capture_present") == "true"
+
+            # Solo finaliza si hay algo útil que enviar.
+            if not (lead_capture_present or has_booking_info or (has_contact and has_name)):
+                return
+
+            self.finalize_conversation(user_id=user_id, reason="instagram_farewell", platform="Instagram")
+        except Exception as e:
+            print(f"⚠️ Error intentando finalizar conversación en Instagram: {e}")
 
     def _handle_public_pricing(self, message_text: str) -> Optional[str]:
         """
@@ -742,7 +858,7 @@ class InstagramBot:
         except Exception as e:
             print(f"❌ Error en auto lead capture: {e}")
 
-    def finalize_conversation(self, user_id: str, reason: str = "end") -> None:
+    def finalize_conversation(self, user_id: str, reason: str = "end", *, platform: str = "Web") -> None:
         """
         Compila información extraída de la conversación (nombre/contacto/interés/reserva)
         y envía un resumen final por correo. Se ejecuta una sola vez por conversación.
@@ -770,7 +886,7 @@ class InstagramBot:
                 summary_text=summary,
                 conversation_id=conversation_id,
                 user_id=user_id,
-                platform="Web",
+                platform=platform,
             )
 
             self.conversation_store.save_message(
@@ -779,7 +895,7 @@ class InstagramBot:
                 message="",
                 conversation_id=conversation_id,
                 metadata={
-                    "platform": "web",
+                    "platform": (platform or "web").lower(),
                     "type": "conversation_summary",
                     "reason": reason,
                     "sent": bool(send_result.get("success")),

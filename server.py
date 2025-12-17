@@ -233,7 +233,7 @@ def web_chat():
         # Si el flujo cerró la conversación, generar resumen final interno (no bloqueante).
         if close_chat:
             try:
-                bot.finalize_conversation(user_id=user_id, reason="close_chat")
+                bot.finalize_conversation(user_id=user_id, reason="close_chat", platform="Web")
             except Exception as e:
                 print(f"⚠️ Error enviando resumen final: {e}")
         
