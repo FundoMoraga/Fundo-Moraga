@@ -1627,6 +1627,7 @@ class InstagramBot:
             t = (message_text or "").lower()
             if any(x in t for x in ("listo", "transfer", "hecho", "pagado", "enviado")):
                 since_iso = state.get("transfer_started_at") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                details = state.get("details") or {}
                 if not self.payment_inbox.is_configured():
                     return (
                         "Estoy listo para confirmar, pero aún no tengo acceso configurado a la bandeja de pagos. "
@@ -1642,7 +1643,6 @@ class InstagramBot:
 
                 visit_day = state.get("visit_day") or "por confirmar"
                 visit_date = self._safe_date_from_iso(state.get("visit_date"))
-                details = state.get("details") or {}
                 price_clp = int(state.get("price_clp") or 0)
 
                 send_result = self.resend_client.send_booking_request(
