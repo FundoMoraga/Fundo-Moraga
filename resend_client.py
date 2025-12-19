@@ -7,6 +7,7 @@ import os
 import re
 from dotenv import load_dotenv
 import resend
+from html import escape
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -360,6 +361,113 @@ class ResendClient:
             return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
         except Exception as e:
             print(f"Error enviando resumen final con Resend: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    def send_contact_sheet(
+        self,
+        *,
+        user_name: str,
+        user_contact: str,
+        user_interest: str,
+        conversation_id: str,
+        platform: str = "Web",
+        booking_details: Optional[Dict] = None,
+        notes: Optional[str] = None,
+    ) -> Dict:
+        """
+        Envía ficha de contacto al equipo (formato Fundo Moraga).
+        """
+        try:
+            if not self.is_configured():
+                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+
+            name_txt = escape(user_name or "No identificado")
+            contact_txt = escape(user_contact or "No identificado")
+            interest_txt = escape(user_interest or "No identificado")
+            notes_txt = escape(notes or "").strip()
+
+            booking_html = ""
+            if booking_details:
+                visit_day = escape(str(booking_details.get("visit_day") or "N/A"))
+                visit_date = escape(str(booking_details.get("visit_date") or ""))
+                arrival = escape(str(booking_details.get("arrival_time") or "N/A"))
+                cars = escape(str(booking_details.get("cars_count") if booking_details.get("cars_count") is not None else "N/A"))
+                motos = escape(str(booking_details.get("motos_count") if booking_details.get("motos_count") is not None else "N/A"))
+                people = escape(str(booking_details.get("people_count") if booking_details.get("people_count") is not None else "N/A"))
+                price = booking_details.get("price_clp")
+                if price is not None:
+                    try:
+                        price_txt = f"${int(price):,} CLP".replace(",", ".")
+                    except Exception:
+                        price_txt = str(price)
+                else:
+                    price_txt = "N/A"
+
+                booking_html = f"""
+                <div class="section">
+                    <p><span class="label">📅 Reserva:</span></p>
+                    <p>Día/fecha: {visit_day} {visit_date}</p>
+                    <p>Hora llegada: {arrival}</p>
+                    <p>Autos: {cars} | Motos: {motos} | Personas: {people}</p>
+                    <p>Tarifa: {escape(price_txt)}</p>
+                </div>
+                """
+
+            notes_html = ""
+            if notes_txt:
+                notes_html = f"""
+                <div class="section" style="white-space: pre-wrap;">
+                    <p><span class="label">📝 Notas:</span></p>
+                    {notes_txt}
+                </div>
+                """
+
+            subject = f"Ficha de contacto - {name_txt}"
+            html_content = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
+                    .content {{ padding: 20px; }}
+                    .section {{ margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #2c5530; }}
+                    .label {{ font-weight: bold; color: #2c5530; }}
+                    .footer {{ margin-top: 30px; padding: 15px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>🌿 Ficha de Contacto - Fundo Moraga</h1>
+                </div>
+                <div class="content">
+                    <div class="section">
+                        <p><span class="label">👤 Nombre:</span> {name_txt}</p>
+                        <p><span class="label">📞 Contacto:</span> {contact_txt}</p>
+                        <p><span class="label">🎯 Interés:</span> {interest_txt}</p>
+                        <p><span class="label">🔗 Plataforma:</span> {escape(platform)}</p>
+                        <p><span class="label">🆔 ID Conversación:</span> {escape(conversation_id)}</p>
+                        <p><span class="label">📅 Fecha:</span> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
+                    </div>
+                    {booking_html}
+                    {notes_html}
+                </div>
+                <div class="footer">
+                    <p>Mensaje generado automáticamente por Hernando.</p>
+                </div>
+            </body>
+            </html>
+            """
+
+            params = {
+                "from": self.from_email,
+                "to": self.to_emails,
+                "subject": subject,
+                "html": html_content,
+            }
+            response = resend.Emails.send(params)
+            return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
+        except Exception as e:
+            print(f"Error enviando ficha de contacto con Resend: {str(e)}")
             return {"success": False, "error": str(e)}
 
 

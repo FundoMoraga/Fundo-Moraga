@@ -3,7 +3,7 @@ Bot principal de Instagram para Fundo Moraga
 Integra Cosmos DB para memoria y OpenAI para respuestas
 """
 import requests
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from datetime import datetime, timezone, timedelta, date, time
 import os
 import config
@@ -820,6 +820,7 @@ class InstagramBot:
             "cotizar",
             "cotización",
             "cotizacion",
+            "productora",
         )
 
         if not any(m in t for m in markers):
@@ -842,14 +843,25 @@ class InstagramBot:
         if any(m in t for m in offroad_markers):
             return None
 
+        has_prod = "productora" in t
+        intro = (
+            "¡Bacán! Para eventos/producciones, el Fundo Moraga funciona como locación "
+            "(no incluye comida/banquetería, luces, sonido, carpas, generadores ni mobiliario)."
+        )
+        extras = (
+            "Si te sirve, hay adicionales con costo: plataformas de piedra, pozas de agua con barro y caminos nuevos."
+        )
+        if has_prod:
+            return (
+                f"{intro} Si ya tienes productora, nos alineamos con tu equipo para accesos, montaje y uso de espacios.\n\n"
+                f"{extras}\n\n"
+                "Para avanzar, ¿qué fecha y cuántas personas serían?"
+            )
+
         return (
-            "¡Bacán! Eso lo coordinamos directo con el equipo de Fundo Moraga, porque depende de la fecha, el tipo de actividad "
-            "y los requerimientos.\n\n"
-            "📧 Email: contacto@fundomoraga.com\n"
-            "📱 WhatsApp: +5694 1242609\n\n"
-            "Si quieres, te ahorro un paso: cuéntame en una frase qué quieres hacer y para qué fecha tentativamente, "
-            "y déjame un correo o WhatsApp para que te contacten.\n\n"
-            "¿Para qué fecha lo estás pensando?"
+            f"{intro}\n\n"
+            f"{extras}\n\n"
+            "Para avanzar, ¿qué fecha y cuántas personas serían?"
         )
 
     def _handle_post_ai_events(
@@ -1169,6 +1181,17 @@ class InstagramBot:
                 platform=platform,
             )
 
+            contact_payload = self._compile_contact_sheet_payload(history, reason=reason)
+            sheet_result = self.resend_client.send_contact_sheet(
+                user_name=contact_payload.get("name") or "No identificado",
+                user_contact=contact_payload.get("contact") or "No identificado",
+                user_interest=contact_payload.get("interest") or "No identificado",
+                conversation_id=conversation_id,
+                platform=platform,
+                booking_details=contact_payload.get("booking"),
+                notes=contact_payload.get("notes"),
+            )
+
             self.conversation_store.save_message(
                 user_id=user_id,
                 role="assistant",
@@ -1180,10 +1203,84 @@ class InstagramBot:
                     "reason": reason,
                     "sent": bool(send_result.get("success")),
                     "error": send_result.get("error"),
+                    "contact_sheet_sent": bool(sheet_result.get("success")),
+                    "contact_sheet_error": sheet_result.get("error"),
                 },
             )
         except Exception as e:
             print(f"❌ Error finalizando conversación: {e}")
+
+    def _compile_contact_sheet_payload(self, history: list, *, reason: str) -> Dict[str, Any]:
+        """
+        Genera payload estructurado para ficha de contacto.
+        """
+        lead_args = None
+        latest_booking_state = None
+        user_messages: list[str] = []
+
+        for msg in history or []:
+            metadata = msg.get("metadata") or {}
+            if metadata.get("type") == "lead_capture" and isinstance(metadata.get("args"), dict):
+                lead_args = metadata.get("args")
+            if metadata.get("type") == "booking_state" and isinstance(metadata.get("state"), dict):
+                latest_booking_state = metadata.get("state")
+            if msg.get("role") == "user" and msg.get("message"):
+                user_messages.append(str(msg.get("message")))
+
+        nombre = (lead_args or {}).get("nombre") if lead_args else None
+        interes = (lead_args or {}).get("interes") if lead_args else None
+        contacto = (lead_args or {}).get("contacto") if lead_args else None
+
+        booking_details = (latest_booking_state or {}).get("details") or {}
+        if not nombre:
+            nombre = booking_details.get("full_name")
+        booking_contact_parts = [booking_details.get("email"), booking_details.get("phone")]
+        booking_contact = " / ".join([p for p in booking_contact_parts if p])
+        if not contacto:
+            contacto = booking_contact or None
+
+        if not nombre:
+            joined = " \n".join(user_messages[-10:])
+            m = re.search(
+                r"\b(me llamo|soy)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+){0,4})\b",
+                joined,
+                re.IGNORECASE,
+            )
+            if m:
+                nombre = m.group(2).strip(" .,!¿?;:")
+
+        emails = re.findall(r"([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", " \n".join(user_messages), re.IGNORECASE)
+        phones = re.findall(r"(\+?\d[\d\s\-()]{7,}\d)", " \n".join(user_messages))
+        extra_contact = " / ".join([*emails, *phones]).strip() or None
+        if not contacto and extra_contact:
+            contacto = extra_contact
+
+        if not interes:
+            interes = " | ".join([m.strip() for m in user_messages[-5:] if m.strip()]) or None
+
+        notes = "\n".join([m.strip() for m in user_messages[-8:] if m.strip()])
+
+        booking_payload = None
+        if latest_booking_state:
+            booking_payload = {
+                "visit_day": latest_booking_state.get("visit_day"),
+                "visit_date": latest_booking_state.get("visit_date"),
+                "arrival_time": booking_details.get("arrival_time"),
+                "cars_count": booking_details.get("cars_count"),
+                "motos_count": booking_details.get("motos_count"),
+                "people_count": booking_details.get("people_count"),
+                "price_clp": latest_booking_state.get("price_clp"),
+                "stage": latest_booking_state.get("stage"),
+                "reason": reason,
+            }
+
+        return {
+            "name": nombre,
+            "contact": contacto,
+            "interest": interes,
+            "notes": notes,
+            "booking": booking_payload,
+        }
 
     def _compile_conversation_summary(self, user_id: str, conversation_id: str, history: list, reason: str) -> str:
         # Preferir info explícita capturada por tool
