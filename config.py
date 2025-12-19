@@ -15,7 +15,7 @@ COSMOS_CONTAINER = os.getenv("COSMOS_CONTAINER", "conversations")
 
 # OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")
 
 # Instagram
 def _clean_token(value: str | None) -> str | None:

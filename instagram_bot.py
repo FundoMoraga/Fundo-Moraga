@@ -222,7 +222,35 @@ class InstagramBot:
                 )
                 return pricing_response
 
-            # 4.6 Respuesta determinística para preguntas frecuentes (baños/comida, etc.)
+            # 4.6 Respuesta determinística para visitas/turismo rural (evita depender del modelo)
+            visit_response = self._handle_visit_interest(message_text)
+            if visit_response:
+                visit_response = self._sanitize_user_response(visit_response)
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=visit_response,
+                    conversation_id=conversation_id,
+                    metadata={"platform": platform_key, "source": "visit_flow"},
+                )
+                self._maybe_auto_lead_capture(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    platform=platform,
+                    lead_context=lead_context,
+                )
+                self._maybe_finalize_after_reply(
+                    platform_key=platform_key,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    lead_context=lead_context,
+                    is_farewell=is_farewell,
+                )
+                return visit_response
+
+            # 4.7 Respuesta determinística para preguntas frecuentes (baños/comida, etc.)
             amenities_response = self._handle_amenities_questions(message_text)
             if amenities_response:
                 amenities_response = self._sanitize_user_response(amenities_response)
@@ -250,7 +278,7 @@ class InstagramBot:
                 )
                 return amenities_response
 
-            # 4.7 Saludo determinístico (evita depender del modelo en el primer mensaje)
+            # 4.8 Saludo determinístico (evita depender del modelo en el primer mensaje)
             greeting_response = self._handle_greeting(message_text)
             if greeting_response:
                 greeting_response = self._sanitize_user_response(greeting_response)
@@ -409,6 +437,7 @@ class InstagramBot:
         # Reusar flujos determinísticos si aplican.
         for handler in (
             self._handle_public_pricing,
+            self._handle_visit_interest,
             self._handle_admin_coordination,
             self._handle_date_questions,
             self._handle_amenities_questions,
@@ -469,6 +498,99 @@ class InstagramBot:
 
         parts.append("Si me dices si vienes por off-road, visita/turismo o evento, y cuántos son, te oriento mejor.")
         parts.append("Para confirmación formal: contacto@fundomoraga.com / WhatsApp +5694 1242609.")
+        return "\n\n".join(parts)
+
+    def _handle_visit_interest(self, message_text: str) -> Optional[str]:
+        """
+        Maneja interés por visitas/turismo rural sin depender del modelo.
+        """
+        t = (message_text or "").strip().lower()
+        if not t:
+            return None
+
+        # Evitar capturar eventos/producciones o temas off-road.
+        admin_markers = (
+            "evento",
+            "matrimonio",
+            "cumple",
+            "cumpleaños",
+            "fiesta",
+            "corporativo",
+            "empresa",
+            "team building",
+            "teambuilding",
+            "producción",
+            "produccion",
+            "filmación",
+            "filmacion",
+            "grabación",
+            "grabacion",
+            "rodaje",
+            "fotografía",
+            "fotografia",
+            "sesión",
+            "sesion",
+            "comercial",
+            "videoclip",
+            "película",
+            "pelicula",
+            "serie",
+            "prensa",
+            "periodista",
+            "nota",
+            "medio",
+            "locación",
+            "locacion",
+            "cotizar",
+            "cotización",
+            "cotizacion",
+        )
+        if any(m in t for m in admin_markers):
+            return None
+
+        offroad_markers = (
+            "offroad",
+            "off-road",
+            "4x4",
+            "enduro",
+            "batuco",
+            "moto",
+            "motos",
+            "auto",
+            "autos",
+            "vehículo",
+            "vehiculo",
+        )
+        if any(m in t for m in offroad_markers):
+            return None
+
+        visit_markers = (
+            "visita",
+            "visitar",
+            "turismo",
+            "turismo rural",
+            "tour",
+            "recorrido",
+            "paseo",
+            "caminata",
+            "caminar",
+            "humedal",
+        )
+        if not any(m in t for m in visit_markers):
+            return None
+
+        price_markers = ("precio", "precios", "tarifa", "tarifas", "valor", "cuánto", "cuanto", "cuesta", "$")
+        parts = [
+            "¡Qué buena! Las visitas/turismo rural se coordinan previamente porque el fundo es privado.",
+            "¿Qué día te gustaría venir y cuántas personas serían?",
+            "Si quieres que el equipo lo coordine por ti, déjame un correo o WhatsApp.",
+        ]
+        if any(m in t for m in price_markers):
+            parts.insert(
+                1,
+                "No tenemos una tarifa pública única para visitas; depende del tipo de visita y del grupo.",
+            )
+
         return "\n\n".join(parts)
 
     def _maybe_finalize_after_reply(
@@ -1609,12 +1731,82 @@ class InstagramBot:
         if not t:
             return False
 
+        # Evitar forzar agendamiento si el mensaje parece de eventos/producciones.
+        admin_markers = (
+            "evento",
+            "matrimonio",
+            "cumple",
+            "cumpleaños",
+            "fiesta",
+            "corporativo",
+            "empresa",
+            "team building",
+            "teambuilding",
+            "producción",
+            "produccion",
+            "filmación",
+            "filmacion",
+            "grabación",
+            "grabacion",
+            "rodaje",
+            "fotografía",
+            "fotografia",
+            "sesión",
+            "sesion",
+            "comercial",
+            "videoclip",
+            "película",
+            "pelicula",
+            "serie",
+            "prensa",
+            "periodista",
+            "nota",
+            "medio",
+            "locación",
+            "locacion",
+            "cotizar",
+            "cotización",
+            "cotizacion",
+        )
+        offroad_markers = (
+            "offroad",
+            "off-road",
+            "4x4",
+            "enduro",
+            "batuco",
+            "moto",
+            "motos",
+            "auto",
+            "autos",
+            "vehículo",
+            "vehiculo",
+        )
+        if any(m in t for m in admin_markers) and not any(m in t for m in offroad_markers):
+            return False
+
         keywords = [
             "agendar",
             "agenda",
             "reservar",
             "reserva",
             "agend",
+            "inscribir",
+            "inscribo",
+            "inscribirme",
+            "inscribirse",
+            "inscribirnos",
+            "inscripción",
+            "inscripcion",
+            "registro",
+            "registrar",
+            "registrarme",
+            "registrarnos",
+            "anotar",
+            "anotarme",
+            "anotarnos",
+            "apuntar",
+            "apuntarme",
+            "apuntarnos",
             "quiero ir",
             "quiero venir",
             "quiero visitar",
