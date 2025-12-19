@@ -855,13 +855,13 @@ class InstagramBot:
             return (
                 f"{intro} Si ya tienes productora, nos alineamos con tu equipo para accesos, montaje y uso de espacios.\n\n"
                 f"{extras}\n\n"
-                "Para avanzar, ¿qué fecha y cuántas personas serían?"
+                "Para avanzar hacia la reserva, ¿qué fecha y cuántas personas serían?"
             )
 
         return (
             f"{intro}\n\n"
             f"{extras}\n\n"
-            "Para avanzar, ¿qué fecha y cuántas personas serían?"
+            "Para avanzar hacia la reserva, ¿qué fecha y cuántas personas serían?"
         )
 
     def _handle_post_ai_events(
