@@ -8,11 +8,13 @@ from flask_cors import CORS
 import os
 import config
 from instagram_bot import InstagramBot
+from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
 import json
 
 app = Flask(__name__)
 CORS(app)  # Permitir peticiones desde fundomoraga.com
+start_reminder_scheduler()
 
 # Inicializar bot (lazy) para que el servidor pueda arrancar en Railway
 # incluso si faltan variables de entorno; las rutas de chat devolverán 503 con detalle.

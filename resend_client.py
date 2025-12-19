@@ -265,6 +265,159 @@ class ResendClient:
         except Exception as e:
             print(f"Error enviando solicitud de agendamiento con Resend: {str(e)}")
             return {"success": False, "error": str(e)}
+
+    def send_booking_confirmation_to_user(
+        self,
+        *,
+        to_email: str,
+        full_name: str,
+        visit_date: str,
+        visit_day: str,
+        arrival_time: str,
+        cars_count: int,
+        motos_count: int,
+        people_count: int,
+        price_clp: int,
+    ) -> Dict:
+        """
+        Envía confirmación de reserva al usuario final.
+        """
+        try:
+            if not self.is_configured():
+                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+            if not to_email:
+                return {"success": False, "error": "Email de usuario no proporcionado"}
+
+            name_txt = escape(full_name or "Cliente")
+            date_txt = escape(visit_date or "por confirmar")
+            day_txt = escape(visit_day or "")
+            arrival_txt = escape(arrival_time or "por confirmar")
+            price_txt = f"${int(price_clp):,} CLP".replace(",", ".") if price_clp else "por confirmar"
+
+            subject = f"Reserva confirmada - Batuco Off Road ({day_txt} {date_txt})".strip()
+
+            html_content = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
+                    .content {{ padding: 20px; }}
+                    .section {{ margin-bottom: 18px; padding: 14px; background-color: #f5f5f5; border-left: 4px solid #2c5530; }}
+                    .label {{ font-weight: bold; color: #2c5530; }}
+                    .footer {{ margin-top: 24px; padding: 12px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>✅ Reserva confirmada</h1>
+                </div>
+                <div class="content">
+                    <p>Hola {name_txt}, ya verificamos tu transferencia. Tu reserva quedó confirmada.</p>
+                    <div class="section">
+                        <p><span class="label">📅 Fecha:</span> {day_txt} {date_txt}</p>
+                        <p><span class="label">🕘 Hora de llegada:</span> {arrival_txt}</p>
+                        <p><span class="label">🚗 Autos:</span> {cars_count} | <span class="label">🏍️ Motos:</span> {motos_count}</p>
+                        <p><span class="label">👥 Personas:</span> {people_count}</p>
+                        <p><span class="label">💵 Tarifa:</span> {escape(price_txt)}</p>
+                    </div>
+                    <p>Un día antes te enviaremos un recordatorio por este mismo correo.</p>
+                    <p>Si necesitas cambios, contáctanos en contacto@fundomoraga.com o WhatsApp +5694 1242609.</p>
+                </div>
+                <div class="footer">
+                    <p>Mensaje automático de Hernando - Fundo Moraga</p>
+                </div>
+            </body>
+            </html>
+            """
+
+            params = {
+                "from": self.from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            }
+            response = resend.Emails.send(params)
+            return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
+        except Exception as e:
+            print(f"Error enviando confirmación al usuario con Resend: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    def send_booking_reminder_to_user(
+        self,
+        *,
+        to_email: str,
+        full_name: str,
+        visit_date: str,
+        visit_day: str,
+        arrival_time: str,
+        cars_count: int,
+        motos_count: int,
+        people_count: int,
+        price_clp: int,
+    ) -> Dict:
+        """
+        Envía recordatorio de reserva (1 día antes).
+        """
+        try:
+            if not self.is_configured():
+                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+            if not to_email:
+                return {"success": False, "error": "Email de usuario no proporcionado"}
+
+            name_txt = escape(full_name or "Cliente")
+            date_txt = escape(visit_date or "por confirmar")
+            day_txt = escape(visit_day or "")
+            arrival_txt = escape(arrival_time or "por confirmar")
+            price_txt = f"${int(price_clp):,} CLP".replace(",", ".") if price_clp else "por confirmar"
+
+            subject = f"Recordatorio de tu reserva - {day_txt} {date_txt}".strip()
+
+            html_content = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
+                    .content {{ padding: 20px; }}
+                    .section {{ margin-bottom: 18px; padding: 14px; background-color: #f5f5f5; border-left: 4px solid #2c5530; }}
+                    .label {{ font-weight: bold; color: #2c5530; }}
+                    .footer {{ margin-top: 24px; padding: 12px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>⏰ Recordatorio de reserva</h1>
+                </div>
+                <div class="content">
+                    <p>Hola {name_txt}, te recordamos tu reserva en Batuco Off Road para mañana.</p>
+                    <div class="section">
+                        <p><span class="label">📅 Fecha:</span> {day_txt} {date_txt}</p>
+                        <p><span class="label">🕘 Hora de llegada:</span> {arrival_txt}</p>
+                        <p><span class="label">🚗 Autos:</span> {cars_count} | <span class="label">🏍️ Motos:</span> {motos_count}</p>
+                        <p><span class="label">👥 Personas:</span> {people_count}</p>
+                        <p><span class="label">💵 Tarifa:</span> {escape(price_txt)}</p>
+                    </div>
+                    <p>Si necesitas cambiar algo, contáctanos en contacto@fundomoraga.com o WhatsApp +5694 1242609.</p>
+                </div>
+                <div class="footer">
+                    <p>Mensaje automático de Hernando - Fundo Moraga</p>
+                </div>
+            </body>
+            </html>
+            """
+
+            params = {
+                "from": self.from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            }
+            response = resend.Emails.send(params)
+            return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
+        except Exception as e:
+            print(f"Error enviando recordatorio al usuario con Resend: {str(e)}")
+            return {"success": False, "error": str(e)}
     
     def send_error_notification(self, error_message: str, conversation_id: str):
         """

@@ -7,17 +7,18 @@ Requiere variables:
 Opcionales:
 - PAYMENT_INBOX_HOST (default: imap.gmail.com)
 - PAYMENT_INBOX_FOLDER (default: INBOX)
-- PAYMENT_EMAIL_FROM_CONTAINS (default: "Banco")
-- PAYMENT_EMAIL_SUBJECT_CONTAINS (default: "transfer")
+- PAYMENT_EMAIL_FROM_CONTAINS (default: "Banco")  # acepta múltiples keywords separadas por | o ,
+- PAYMENT_EMAIL_SUBJECT_CONTAINS (default: "transferencia")  # acepta múltiples keywords separadas por | o ,
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 import email
 import imaplib
+import re
 
 import config
 
@@ -37,15 +38,25 @@ class PaymentInboxClient:
         self.user = config.PAYMENT_INBOX_USER
         self.password = config.PAYMENT_INBOX_PASSWORD
         self.folder = config.PAYMENT_INBOX_FOLDER
-        self.from_contains = (config.PAYMENT_EMAIL_FROM_CONTAINS or "").lower()
-        self.subject_contains = (config.PAYMENT_EMAIL_SUBJECT_CONTAINS or "").lower()
+        self.from_keywords = self._split_keywords(config.PAYMENT_EMAIL_FROM_CONTAINS)
+        self.subject_keywords = self._split_keywords(config.PAYMENT_EMAIL_SUBJECT_CONTAINS)
+
+    def _split_keywords(self, raw: Optional[str]) -> List[str]:
+        if not raw:
+            return []
+        parts = re.split(r"[|,]", raw)
+        return [p.strip().lower() for p in parts if p and p.strip()]
 
     def is_configured(self) -> bool:
         return bool(self.user and self.password and self.host and self.folder)
 
-    def find_payment_email(self, since_iso: str, max_scan: int = 20) -> PaymentCheckResult:
+    def find_payment_email(
+        self, since_iso: str, max_scan: int = 20, expected_from: Optional[str] = None
+    ) -> PaymentCheckResult:
         """
         Busca un correo de pago recibido desde `since_iso` (ISO8601).
+        El match se cumple si el asunto contiene una keyword configurada
+        o si el remitente contiene el email esperado/configurado.
         """
         if not self.is_configured():
             raise RuntimeError("PAYMENT_INBOX_* no está configurado")
@@ -80,10 +91,18 @@ class PaymentInboxClient:
 
                 subject_l = subject.lower()
                 from_l = from_header.lower()
+                expected_from_l = (expected_from or "").strip().lower()
 
-                if self.from_contains and self.from_contains not in from_l:
-                    continue
-                if self.subject_contains and self.subject_contains not in subject_l:
+                subject_match = (
+                    any(k in subject_l for k in self.subject_keywords) if self.subject_keywords else False
+                )
+                from_match = False
+                if expected_from_l:
+                    from_match = expected_from_l in from_l
+                elif self.from_keywords:
+                    from_match = any(k in from_l for k in self.from_keywords)
+
+                if not (subject_match or from_match):
                     continue
 
                 received_iso = None
@@ -117,4 +136,3 @@ def get_payment_inbox_client() -> PaymentInboxClient:
     if _payment_inbox_client is None:
         _payment_inbox_client = PaymentInboxClient()
     return _payment_inbox_client
-

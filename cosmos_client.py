@@ -4,7 +4,7 @@ Siguiendo las mejores prácticas de Azure Cosmos DB
 """
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import uuid
 import config
 
@@ -79,6 +79,96 @@ class ConversationStore:
         except exceptions.CosmosHttpResponseError as e:
             print(f"❌ Error guardando mensaje: {e.message}")
             raise
+
+    def create_booking_reminder(
+        self,
+        *,
+        user_id: str,
+        conversation_id: str,
+        reminder_at: str,
+        email: str,
+        booking: Dict[str, Any],
+        platform: str = "web",
+    ) -> Dict:
+        """
+        Guarda un recordatorio de reserva para envío diferido.
+        Se almacena en una partición dedicada para no interferir con conversaciones.
+        """
+        try:
+            reminder_id = str(uuid.uuid4())
+            document = {
+                "id": reminder_id,
+                "userId": "__reminders__",
+                "conversationId": f"reminder_{reminder_id}",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "role": "system",
+                "message": "",
+                "metadata": {
+                    "type": "booking_reminder",
+                    "status": "pending",
+                    "reminder_at": reminder_at,
+                    "email": email,
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "platform": platform,
+                    "booking": booking,
+                },
+                "ttl": -1,
+            }
+            return self.container.create_item(body=document)
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error guardando recordatorio: {e.message}")
+            raise
+
+    def fetch_due_reminders(self, now_iso: str, limit: int = 20) -> List[Dict]:
+        """
+        Obtiene recordatorios pendientes con fecha <= now_iso.
+        """
+        try:
+            query = """
+                SELECT * FROM c
+                WHERE c.userId = @partition
+                AND c.metadata.type = @type
+                AND c.metadata.status = @status
+                AND c.metadata.reminder_at <= @now
+                OFFSET 0 LIMIT @limit
+            """
+            parameters = [
+                {"name": "@partition", "value": "__reminders__"},
+                {"name": "@type", "value": "booking_reminder"},
+                {"name": "@status", "value": "pending"},
+                {"name": "@now", "value": now_iso},
+                {"name": "@limit", "value": limit},
+            ]
+            items = list(
+                self.container.query_items(
+                    query=query,
+                    parameters=parameters,
+                    partition_key="__reminders__",
+                    enable_cross_partition_query=False,
+                )
+            )
+            return items
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error obteniendo recordatorios: {e.message}")
+            return []
+
+    def update_reminder_status(self, reminder: Dict, *, status: str, error: Optional[str] = None) -> None:
+        """
+        Actualiza el estado de un recordatorio (pending/sent/error).
+        """
+        try:
+            metadata = reminder.get("metadata") or {}
+            metadata["status"] = status
+            metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
+            if status == "sent":
+                metadata["sent_at"] = metadata["updated_at"]
+            if error:
+                metadata["error"] = error
+            reminder["metadata"] = metadata
+            self.container.upsert_item(body=reminder)
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error actualizando recordatorio: {e.message}")
     
     def get_conversation_history(
         self, 

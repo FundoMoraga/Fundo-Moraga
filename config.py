@@ -46,7 +46,18 @@ PAYMENT_INBOX_USER = os.getenv("PAYMENT_INBOX_USER")  # ej: contacto@gmail.com
 PAYMENT_INBOX_PASSWORD = os.getenv("PAYMENT_INBOX_PASSWORD")  # ideal: App Password
 PAYMENT_INBOX_FOLDER = os.getenv("PAYMENT_INBOX_FOLDER", "INBOX")
 PAYMENT_EMAIL_FROM_CONTAINS = os.getenv("PAYMENT_EMAIL_FROM_CONTAINS", "Banco")
-PAYMENT_EMAIL_SUBJECT_CONTAINS = os.getenv("PAYMENT_EMAIL_SUBJECT_CONTAINS", "transfer")
+PAYMENT_EMAIL_SUBJECT_CONTAINS = os.getenv("PAYMENT_EMAIL_SUBJECT_CONTAINS", "transferencia")
+
+# Recordatorios de reserva (email)
+REMINDER_SCHEDULER_ENABLED = os.getenv("REMINDER_SCHEDULER_ENABLED", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+    "y",
+    "si",
+)
+REMINDER_POLL_SECONDS = int(os.getenv("REMINDER_POLL_SECONDS", "300"))
+REMINDER_SEND_HOUR = int(os.getenv("REMINDER_SEND_HOUR", "9"))
 
 # Validar configuración requerida
 def validate_config():

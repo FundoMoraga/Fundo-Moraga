@@ -1633,7 +1633,10 @@ class InstagramBot:
                         "Por ahora, envía el comprobante a `contacto@fundomoraga.com` y te confirmamos por ese medio."
                     )
 
-                check = self.payment_inbox.find_payment_email(since_iso=since_iso)
+                check = self.payment_inbox.find_payment_email(
+                    since_iso=since_iso,
+                    expected_from=(details.get("email") or "").strip() or None,
+                )
                 if not check.found:
                     return "Aún no me aparece el correo del banco. Dame 1–2 minutos y vuelve a escribirme “listo” para revisar de nuevo (dentro de los 10 minutos)."
 
@@ -1660,6 +1663,35 @@ class InstagramBot:
                     ),
                 )
 
+                confirmation_sent = False
+                reminder_scheduled = False
+                user_email = (details.get("email") or "").strip()
+                if user_email and self.resend_client.is_configured():
+                    confirm_result = self.resend_client.send_booking_confirmation_to_user(
+                        to_email=user_email,
+                        full_name=details.get("full_name", "Cliente"),
+                        visit_date=visit_date.isoformat() if visit_date else "por confirmar",
+                        visit_day=visit_day,
+                        arrival_time=details.get("arrival_time", "por confirmar"),
+                        cars_count=int(details.get("cars_count") or 0),
+                        motos_count=int(details.get("motos_count") or 0),
+                        people_count=int(details.get("people_count") or 0),
+                        price_clp=price_clp,
+                    )
+                    confirmation_sent = bool(confirm_result.get("success"))
+
+                if user_email:
+                    reminder_doc = self._schedule_booking_reminder(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        visit_date=visit_date,
+                        visit_day=visit_day,
+                        details=details,
+                        price_clp=price_clp,
+                        platform=platform,
+                    )
+                    reminder_scheduled = bool(reminder_doc)
+
                 calendar_ok = False
                 calendar_error = None
                 try:
@@ -1685,15 +1717,24 @@ class InstagramBot:
 
                 state["stage"] = "confirmed" if send_result.get("success") else "error"
                 state["confirmed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                state["confirmation_email_sent"] = confirmation_sent
+                state["reminder_scheduled"] = reminder_scheduled
                 self._save_booking_state(user_id, conversation_id, state, platform=platform)
 
                 if send_result.get("success"):
                     cal_msg = "y agendé Google Calendar" if calendar_ok else f"pero no pude agendar Calendar ({calendar_error})"
                     start_h, end_h = self._visit_hours_for_date(visit_date)
                     hours_txt = f"{start_h} a {end_h}"
+                    email_msg = ""
+                    if user_email and confirmation_sent:
+                        email_msg = f" Te envié un correo de confirmación a {user_email}."
+                    elif user_email and not confirmation_sent:
+                        email_msg = " Intenté enviar tu correo de confirmación, pero no se pudo."
+                    if reminder_scheduled:
+                        email_msg += " Además, recibirás un recordatorio un día antes."
                     return (
                         f"¡Listo! Recibí el correo del banco: tu reserva quedó confirmada para {visit_day} "
-                        f"de {hours_txt}. Ya envié el formulario a contacto@fundomoraga.com {cal_msg}."
+                        f"de {hours_txt}. Ya envié el formulario a contacto@fundomoraga.com {cal_msg}.{email_msg}"
                     )
 
                 return "Recibí el correo del banco, pero tuve un problema enviando el formulario. Intenta nuevamente en unos minutos."
@@ -2400,6 +2441,59 @@ class InstagramBot:
         except Exception:
             pass
         return start_dt.isoformat(), end_dt.isoformat()
+
+    def _schedule_booking_reminder(
+        self,
+        *,
+        user_id: str,
+        conversation_id: str,
+        visit_date: Optional[date],
+        visit_day: str,
+        details: Dict,
+        price_clp: int,
+        platform: str,
+    ) -> Optional[Dict]:
+        if not config.REMINDER_SCHEDULER_ENABLED:
+            return None
+        if not self.resend_client.is_configured():
+            return None
+        if not visit_date:
+            return None
+        email = (details.get("email") or "").strip()
+        if not email:
+            return None
+
+        tz = ZoneInfo(config.GOOGLE_CALENDAR_TIMEZONE)
+        reminder_date = visit_date - timedelta(days=1)
+        reminder_dt = datetime.combine(
+            reminder_date, time(config.REMINDER_SEND_HOUR, 0), tzinfo=tz
+        )
+        now_local = datetime.now(tz)
+        if reminder_dt <= now_local:
+            reminder_dt = now_local + timedelta(minutes=5)
+        reminder_at = reminder_dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        booking_payload = {
+            "full_name": details.get("full_name"),
+            "email": email,
+            "phone": details.get("phone"),
+            "visit_day": visit_day,
+            "visit_date": visit_date.isoformat(),
+            "arrival_time": details.get("arrival_time"),
+            "cars_count": int(details.get("cars_count") or 0),
+            "motos_count": int(details.get("motos_count") or 0),
+            "people_count": int(details.get("people_count") or 0),
+            "price_clp": int(price_clp or 0),
+        }
+
+        return self.conversation_store.create_booking_reminder(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            reminder_at=reminder_at,
+            email=email,
+            booking=booking_payload,
+            platform=platform,
+        )
 
     def _calendar_description(self, conversation_id: str, details: Dict, price_clp: int, payment_check) -> str:
         price_txt = f"${int(price_clp):,}".replace(",", ".")
