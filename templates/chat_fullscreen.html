@@ -25,6 +25,7 @@
             --header-avatar: 56px;
             --bot-avatar: 28px;
             --transition: 0.18s ease;
+            --vh: 1vh;
         }
 
         html, body {
@@ -36,8 +37,8 @@
         }
 
         #chatbox {
-            height: 100vh;
-            height: 100dvh;
+            height: calc(var(--vh, 1vh) * 100);
+            min-height: 100svh;
             width: 100%;
             max-width: none;
             display: flex;
@@ -487,6 +488,7 @@
                 align-items: flex-start;
                 gap: 0.6rem;
                 height: auto;
+                padding-top: calc(0.75rem + env(safe-area-inset-top));
             }
 
             .header-tag {
@@ -506,7 +508,7 @@
             }
 
             #input-area {
-                padding: 0.8rem 1rem 1rem;
+                padding: 0.8rem 1rem calc(1rem + env(safe-area-inset-bottom));
             }
         }
 
@@ -694,6 +696,17 @@
             if (!typingIndicator) return;
             typingIndicator.remove();
             typingIndicator = null;
+        }
+
+        function updateViewportHeight() {
+            const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            document.documentElement.style.setProperty('--vh', `${viewportHeight * 0.01}px`);
+        }
+
+        updateViewportHeight();
+        window.addEventListener('resize', updateViewportHeight);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateViewportHeight);
         }
 
         function hideIntroOverlay() {
