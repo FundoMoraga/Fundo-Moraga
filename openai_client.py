@@ -3,6 +3,7 @@ Cliente de OpenAI para generar respuestas del chatbot
 Con soporte para Function Calling (herramientas)
 """
 from openai import OpenAI
+import openai
 from typing import Any, Dict, List, Optional
 import config
 import json
@@ -19,6 +20,9 @@ class ChatbotAI:
         """Inicializa el cliente de OpenAI"""
         self.client = OpenAI(api_key=config.OPENAI_API_KEY)
         self.model = config.OPENAI_MODEL
+        # Si la cuenta queda sin cuota, evitamos golpear la API en cada mensaje (reduce latencia/ruido).
+        self._openai_disabled_until: Optional[datetime] = None
+        self._openai_disabled_reason: Optional[str] = None
         
         # Importar herramientas
         from hernando_tools import get_hernando_tools
@@ -195,7 +199,7 @@ La información capturada se enviará automáticamente a contacto@fundomoraga.co
 
 Si el usuario quiere **agendar/reservar**, debes:
 - Preguntar si desea agendar y pedir fecha (ideal `YYYY-MM-DD`) y hora de llegada (ideal `HH:MM`, dentro del horario informado). Si el usuario dice un día relativo ("mañana") o un día de semana ("viernes"), tú debes convertirlo a `YYYY-MM-DD` usando `today_date` y pedir confirmación; NUNCA le pidas convertirlo.
-- Recordar reglas: lunes a viernes (tarifa por auto/moto) y sábado (en general solo grupos: $200.000 el día). Domingo no se agenda. Excepción vigente: `special_open_saturday_date` abre 10:00–17:00 y aplica tarifa normal ($15.000 vehículo / $10.000 moto).
+- Recordar reglas: lunes a viernes (tarifa por auto/moto) y sábado (en general solo grupos: $200.000 el día). Domingo no se agenda, salvo la excepción vigente: `special_open_sunday_date` abre 10:00–17:00 y aplica tarifa normal ($15.000 vehículo / $10.000 moto).
 - Indicar que la **reserva solo es válida una vez realizada la transferencia bancaria** y entregar estos datos:
   - SOCIEDAD FUNDO MORAGA SpA
   - RUT: 78.178.465-6
@@ -234,7 +238,7 @@ nuestros canales oficiales."
 7) FECHAS (INTRANSABLE): Usa SIEMPRE `today_date` y `today_weekday_es` (zona horaria Chile) para interpretar "hoy/mañana/pasado mañana" y días de semana. Si el usuario pregunta la fecha de hoy, respóndela con `today_date`. Si el usuario dice "viernes", PROPÓN la fecha exacta (YYYY-MM-DD) y pide confirmación; NUNCA le pidas que convierta el día a fecha. Si hoy ya es ese día, ofrece 2 opciones: hoy (YYYY-MM-DD) vs próximo (YYYY-MM-DD).
 8) LEAD CONTEXT: Si `missing_contact=true`, pide correo o WhatsApp de forma suave para poder coordinar (“Si quieres que el equipo te contacte/lo dejemos agendado, ¿me dejas un correo o WhatsApp?”). Si `missing_name=true` y ya están coordinando, pregunta de forma natural (“¿Con qué nombre lo dejo?”). Solo 1 dato por vez.
 9) FORMATO: Responde en texto plano, sin Markdown. No uses asteriscos (ni `*` ni `**`) en ningún caso.
-10) EXCEPCIÓN SÁBADO (INTRANSABLE): Si la fecha propuesta/confirmada coincide con `special_open_saturday_date`, indica horario 10:00–17:00 y tarifa normal ($15.000 vehículo / $10.000 moto). Para otros sábados, mantiene regla de grupo ($200.000 el día).
+10) EXCEPCIÓN DOMINGO (INTRANSABLE): Si la fecha propuesta/confirmada coincide con `special_open_sunday_date`, indica horario 10:00–17:00 y tarifa normal ($15.000 vehículo / $10.000 moto). Para otros domingos, recuerda que no se agenda.
 11) EVITA MENÚS: No envíes menús numerados salvo que el usuario lo pida; guía con una sola pregunta concreta.
 
 SITUACIONES TÍPICAS (ANTI-BUCLES) — interpreta según tu ÚLTIMA pregunta:
@@ -280,13 +284,13 @@ J) Evita loops: nunca hagas la misma pregunta 2 veces seguidas; si faltan datos,
         context_lines.append(f"today_weekday_es={self._weekday_es(now_local)}")
         context_lines.append(f"timezone={getattr(config, 'GOOGLE_CALENDAR_TIMEZONE', 'America/Santiago')}")
 
-        # Excepción comercial: este sábado está abierto con tarifa normal (ver reglas).
-        days_ahead = (5 - now_local.weekday()) % 7  # Saturday=5
-        special_sat = now_local.date() + timedelta(days=days_ahead)
-        context_lines.append(f"special_open_saturday_date={special_sat.isoformat()}")
-        context_lines.append("special_open_saturday_hours=10:00-17:00")
-        context_lines.append("special_open_saturday_price_vehicle_clp=15000")
-        context_lines.append("special_open_saturday_price_moto_clp=10000")
+        # Excepción comercial: este domingo está abierto con tarifa normal (ver reglas).
+        days_ahead = (6 - now_local.weekday()) % 7  # Sunday=6
+        special_sun = now_local.date() + timedelta(days=days_ahead)
+        context_lines.append(f"special_open_sunday_date={special_sun.isoformat()}")
+        context_lines.append("special_open_sunday_hours=10:00-17:00")
+        context_lines.append("special_open_sunday_price_vehicle_clp=15000")
+        context_lines.append("special_open_sunday_price_moto_clp=10000")
         if conversation_id:
             context_lines.append(f"conversation_id={conversation_id}")
         if platform:
@@ -334,6 +338,78 @@ J) Evita loops: nunca hagas la misma pregunta 2 veces seguidas; si faltan datos,
 
         messages.append({"role": "user", "content": user_message})
         return messages
+
+    def _openai_now(self) -> datetime:
+        return datetime.now(timezone.utc)
+
+    def _openai_error_payload(self, exc: Exception) -> Dict[str, Any]:
+        """
+        Intenta extraer el payload estándar de errores de OpenAI:
+        {'error': {'message': ..., 'type': ..., 'code': ...}}
+        """
+        body = getattr(exc, "body", None)
+        if isinstance(body, dict):
+            err = body.get("error")
+            if isinstance(err, dict):
+                return err
+            # A veces `body` ya viene como dict con claves de error.
+            return body
+        return {}
+
+    def _classify_openai_exception(self, exc: Exception) -> Dict[str, Any]:
+        """
+        Clasifica errores para decidir si tiene sentido intentar modelos fallback.
+        """
+        payload = self._openai_error_payload(exc)
+        status_code = getattr(exc, "status_code", None)
+        code = (payload.get("code") or payload.get("type") or "").strip()
+        message = (payload.get("message") or "").strip()
+        text = (str(exc) or "").lower()
+
+        code_l = code.lower()
+        msg_l = message.lower()
+
+        # Caso típico: cuenta sin saldo/cuota. Probar otros modelos NO ayuda.
+        if (
+            "insufficient_quota" in code_l
+            or "insufficient_quota" in text
+            or "you exceeded your current quota" in msg_l
+            or "check your plan and billing details" in msg_l
+        ):
+            return {"type": "insufficient_quota", "status_code": status_code, "code": code, "message": message}
+
+        if isinstance(exc, openai.AuthenticationError):
+            return {"type": "auth_error", "status_code": status_code, "code": code, "message": message}
+
+        if isinstance(exc, openai.PermissionDeniedError):
+            return {"type": "permission_denied", "status_code": status_code, "code": code, "message": message}
+
+        # Rate limit real (no cuota): seguir con fallbacks no siempre ayuda, pero no bloquea.
+        if isinstance(exc, openai.RateLimitError) or status_code == 429:
+            return {"type": "rate_limited", "status_code": status_code, "code": code, "message": message}
+
+        if isinstance(exc, openai.BadRequestError):
+            return {"type": "bad_request", "status_code": status_code, "code": code, "message": message}
+
+        if isinstance(exc, openai.APIConnectionError):
+            return {"type": "connection_error", "status_code": status_code, "code": code, "message": message}
+
+        if isinstance(exc, openai.APIStatusError):
+            return {"type": "api_status_error", "status_code": status_code, "code": code, "message": message}
+
+        return {"type": "unknown", "status_code": status_code, "code": code, "message": message}
+
+    def _should_skip_openai(self) -> Optional[Dict[str, Any]]:
+        if not self._openai_disabled_until:
+            return None
+        if self._openai_now() >= self._openai_disabled_until:
+            self._openai_disabled_until = None
+            self._openai_disabled_reason = None
+            return None
+        return {
+            "type": self._openai_disabled_reason or "temporarily_disabled",
+            "disabled_until": self._openai_disabled_until.isoformat(),
+        }
 
     def _model_candidates(self) -> List[str]:
         """
@@ -464,6 +540,15 @@ J) Evita loops: nunca hagas la misma pregunta 2 veces seguidas; si faltan datos,
         Returns:
             Respuesta generada por el modelo
         """
+        skipped = self._should_skip_openai()
+        if skipped:
+            error_text = (
+                "Lo siento, hubo un problema al procesar tu mensaje. "
+                "Por favor, intenta nuevamente o contáctanos directamente en contacto@fundomoraga.com"
+            )
+            result = {"text": error_text, "events": [], "model_used": None, "error": skipped}
+            return result if return_events else error_text
+
         messages = self._build_messages(
             user_message=user_message,
             conversation_history=conversation_history,
@@ -475,6 +560,7 @@ J) Evita loops: nunca hagas la misma pregunta 2 veces seguidas; si faltan datos,
         )
 
         last_error: Optional[Exception] = None
+        last_error_info: Optional[Dict[str, Any]] = None
         for model in self._model_candidates():
             try:
                 if model != self.model:
@@ -482,17 +568,28 @@ J) Evita loops: nunca hagas la misma pregunta 2 veces seguidas; si faltan datos,
                 return self._generate_with_model(model=model, base_messages=messages, return_events=return_events)
             except Exception as e:
                 last_error = e
+                last_error_info = self._classify_openai_exception(e)
                 print(f"❌ Error generando respuesta con OpenAI (model={model}): {e}")
 
-        import traceback
-        if last_error:
+                # Si es un problema de cuota/auth/permisos, probar otros modelos no resolverá.
+                if (last_error_info or {}).get("type") in ("insufficient_quota", "auth_error", "permission_denied"):
+                    # Backoff suave para no saturar logs/latencia en cada webhook.
+                    cooldown_s = int(os.getenv("OPENAI_DISABLE_COOLDOWN_SECONDS", "600"))
+                    self._openai_disabled_until = self._openai_now() + timedelta(seconds=max(30, cooldown_s))
+                    self._openai_disabled_reason = (last_error_info or {}).get("type") or "disabled"
+                    break
+
+        # Evitar tracebacks largos en casos comunes (cuota agotada, auth, permisos).
+        if last_error and (last_error_info or {}).get("type") not in ("insufficient_quota", "auth_error", "permission_denied"):
+            import traceback
             traceback.print_exception(type(last_error), last_error, last_error.__traceback__)
 
         error_text = (
             "Lo siento, hubo un problema al procesar tu mensaje. "
             "Por favor, intenta nuevamente o contáctanos directamente en contacto@fundomoraga.com"
         )
-        return {"text": error_text, "events": [], "model_used": None} if return_events else error_text
+        error_meta = last_error_info or {"type": "unknown"}
+        return {"text": error_text, "events": [], "model_used": None, "error": error_meta} if return_events else error_text
     
     def generate_response_with_context(
         self, 

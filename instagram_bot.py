@@ -5,6 +5,7 @@ Integra Cosmos DB para memoria y OpenAI para respuestas
 import requests
 from typing import Dict, Optional
 from datetime import datetime, timezone, timedelta, date, time
+import os
 import config
 from cosmos_client import get_conversation_store
 from openai_client import get_chatbot_ai
@@ -31,6 +32,9 @@ class InstagramBot:
         # Instagram (opcional). Si no está configurado, el chat web sigue funcionando.
         self.access_token = config.INSTAGRAM_ACCESS_TOKEN
         self.page_id = config.INSTAGRAM_PAGE_ID
+        # Evita intentar envíos repetidos cuando Meta rechaza al destinatario (reduce latencia/ruido).
+        self._ig_send_blocked_until: dict[str, datetime] = {}
+        self._ig_send_blocked_reason: dict[str, str] = {}
 
     def is_instagram_configured(self) -> bool:
         return bool(self.access_token)
@@ -218,6 +222,34 @@ class InstagramBot:
                 )
                 return pricing_response
 
+            # 4.6 Respuesta determinística para preguntas frecuentes (baños/comida, etc.)
+            amenities_response = self._handle_amenities_questions(message_text)
+            if amenities_response:
+                amenities_response = self._sanitize_user_response(amenities_response)
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=amenities_response,
+                    conversation_id=conversation_id,
+                    metadata={"platform": platform_key, "source": "amenities_flow"},
+                )
+                self._maybe_auto_lead_capture(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    platform=platform,
+                    lead_context=lead_context,
+                )
+                self._maybe_finalize_after_reply(
+                    platform_key=platform_key,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    conversation_history=conversation_history,
+                    lead_context=lead_context,
+                    is_farewell=is_farewell,
+                )
+                return amenities_response
+
             # 4.7 Saludo determinístico (evita depender del modelo en el primer mensaje)
             greeting_response = self._handle_greeting(message_text)
             if greeting_response:
@@ -259,11 +291,12 @@ class InstagramBot:
             response_text = self._sanitize_user_response(response_text)
             events = ai_result.get("events", []) if isinstance(ai_result, dict) else []
             model_used = ai_result.get("model_used") if isinstance(ai_result, dict) else None
+            ai_error = ai_result.get("error") if isinstance(ai_result, dict) else None
             model_requested = config.OPENAI_MODEL
             model_to_store = model_used or model_requested
 
             # Si OpenAI falló y devolvió el mensaje genérico, entregamos un fallback útil y natural.
-            if response_text.strip().lower().startswith("lo siento, hubo un problema al procesar tu mensaje"):
+            if ai_error or response_text.strip().lower().startswith("lo siento, hubo un problema al procesar tu mensaje"):
                 fallback = self._fallback_when_ai_unavailable(message_text)
                 if fallback:
                     response_text = self._sanitize_user_response(fallback)
@@ -359,12 +392,12 @@ class InstagramBot:
         if not re.fullmatch(r"(hola+|hoo+la+|buenas+|buenos\s+d[ií]as+|buenas\s+tardes+|buenas\s+noches+|hello+|hi+|wena+s?)\b[.!?]*", t):
             return None
 
-        special_sat = self._special_open_saturday_date()
-        special_sat_txt = special_sat.isoformat() if special_sat else ""
+        special_sun = self._special_open_sunday_date()
+        special_sun_txt = special_sun.isoformat() if special_sun else ""
         return (
             "¡Hola! Soy Hernando, tu anfitrión virtual del Fundo Moraga.\n\n"
             "¿Qué quieres hacer? Puedo ayudarte a coordinar off-road (autos/motos), una visita/turismo rural, o un evento/producción.\n\n"
-            f"Tip: este sábado ({special_sat_txt}) tenemos cupo, de 10:00 a 17:00, con tarifa normal.\n\n"
+            f"Tip: este domingo ({special_sun_txt}) tenemos cupo, de 10:00 a 17:00, con tarifa normal.\n\n"
             "Cuéntame tu idea en una frase."
         )
 
@@ -374,7 +407,12 @@ class InstagramBot:
         Mantiene la conversación útil y orientada a concretar.
         """
         # Reusar flujos determinísticos si aplican.
-        for handler in (self._handle_public_pricing, self._handle_admin_coordination, self._handle_date_questions):
+        for handler in (
+            self._handle_public_pricing,
+            self._handle_admin_coordination,
+            self._handle_date_questions,
+            self._handle_amenities_questions,
+        ):
             try:
                 r = handler(message_text)
                 if r:
@@ -392,6 +430,46 @@ class InstagramBot:
             "Estoy con un problema técnico para generar la respuesta completa, pero igual puedo ayudarte.\n\n"
             "¿Buscas off-road (autos/motos), una visita/turismo rural, o un evento/producción?"
         )
+
+    def _handle_amenities_questions(self, message_text: str) -> Optional[str]:
+        """
+        Maneja preguntas frecuentes sobre infraestructura básica (baños / comida).
+        Importante: el Fundo es privado, por lo que no promete servicios "abiertos al público";
+        orienta y deriva si requiere confirmación formal.
+        """
+        t = (message_text or "").strip().lower()
+        if not t:
+            return None
+
+        asks_bathroom = bool(re.search(r"\b(bañ|baño|banos|baños|wc|toilet)\b", t))
+        asks_food = bool(
+            re.search(
+                r"\b(comer|comida|almuer|colaci[oó]n|picnic|restaur|cafe|caf[eé]|snack|asado)\b", t
+            )
+        )
+
+        if not (asks_bathroom or asks_food):
+            return None
+
+        parts = []
+        parts.append(
+            "Buena pregunta. Como el Fundo Moraga es un predio privado, el acceso es siempre coordinado "
+            "y la disponibilidad de infraestructura puede variar según la actividad y el día."
+        )
+        if asks_bathroom:
+            parts.append(
+                "Baños: en visitas/actividades coordinadas se coordinan alternativas de baño para los asistentes "
+                "(según actividad y día)."
+            )
+        if asks_food:
+            parts.append(
+                "Comida: no hay un restaurante abierto al público de forma permanente; lo más común es venir con colación/agua. "
+                "Si es un evento, se puede coordinar catering."
+            )
+
+        parts.append("Si me dices si vienes por off-road, visita/turismo o evento, y cuántos son, te oriento mejor.")
+        parts.append("Para confirmación formal: contacto@fundomoraga.com / WhatsApp +5694 1242609.")
+        return "\n\n".join(parts)
 
     def _maybe_finalize_after_reply(
         self,
@@ -481,26 +559,26 @@ class InstagramBot:
             return None
 
         if not looks_like_offroad:
-            special_sat = self._special_open_saturday_date()
-            special_sat_txt = special_sat.isoformat() if special_sat else ""
+            special_sun = self._special_open_sunday_date()
+            special_sun_txt = special_sun.isoformat() if special_sun else ""
             return (
                 "¿Te refieres a las actividades off-road (auto/moto) o a un evento/producción?\n\n"
                 "Si es off-road, las tarifas públicas son:\n"
                 "• Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.\n"
-                f"• Este sábado ({special_sat_txt}) hay cupo: 10:00 a 17:00, $15.000 por vehículo / $10.000 por moto.\n"
-                "• Otros sábados: solo grupos, $200.000 el día.\n"
-                "• Domingo: no se agenda.\n\n"
+                f"• Este domingo ({special_sun_txt}) hay cupo: 10:00 a 17:00, $15.000 por vehículo / $10.000 por moto.\n"
+                "• Sábado (grupos): $200.000 el día.\n"
+                "• Otros domingos: no se agenda.\n\n"
                 "¿Qué es lo que te gustaría hacer? (auto/moto off-road, evento, visita, producción)"
             )
 
-        special_sat = self._special_open_saturday_date()
-        special_sat_txt = special_sat.isoformat() if special_sat else ""
+        special_sun = self._special_open_sunday_date()
+        special_sun_txt = special_sun.isoformat() if special_sun else ""
         return (
             "¡Claro! Para las actividades off-road (Batuco Off Road) las tarifas públicas son:\n"
             "• Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.\n"
-            f"• Este sábado ({special_sat_txt}) hay cupo: 10:00 a 17:00, $15.000 por vehículo / $10.000 por moto.\n"
-            "• Otros sábados: solo grupos, $200.000 el día.\n"
-            "• Domingo: no se agenda.\n\n"
+            f"• Este domingo ({special_sun_txt}) hay cupo: 10:00 a 17:00, $15.000 por vehículo / $10.000 por moto.\n"
+            "• Sábado (grupos): $200.000 el día.\n"
+            "• Otros domingos: no se agenda.\n\n"
             "Si quieres, lo dejamos coordinado al tiro: ¿qué día y a qué hora te gustaría llegar? "
             "¿Vienes en auto o moto, y cuántos?\n\n"
             "Y si prefieres que el equipo te contacte para coordinar, déjame tu nombre y un correo o WhatsApp y lo derivo."
@@ -1106,7 +1184,7 @@ class InstagramBot:
         Reglas:
         - Se agenda de lunes a viernes (09:00–17:00) con tarifa por autos/motos.
         - Sábado es solo grupos: $200.000 el día.
-        - Domingo: no se agenda.
+        - Domingo: no se agenda, salvo la fecha especial (10:00–17:00 con tarifa normal).
         - La reserva se confirma (email + Google Calendar) solo tras recibir el correo del banco.
         - Si el usuario no transfiere en 10 minutos desde que confirma que transferirá, se cierra el chat.
         """
@@ -1214,8 +1292,12 @@ class InstagramBot:
                         f"Y para coordinar, ¿a qué hora te gustaría llegar? ({hours_txt})"
                     )
 
-                special_sat = self._special_open_saturday_date()
-                special_txt = f" Tip: este sábado ({special_sat.isoformat()}) hay cupo 10:00–17:00 con tarifa normal." if special_sat else ""
+                special_sun = self._special_open_sunday_date()
+                special_txt = (
+                    f" Tip: este domingo ({special_sun.isoformat()}) hay cupo 10:00–17:00 con tarifa normal."
+                    if special_sun
+                    else ""
+                )
                 return (
                     "¡Buenísimo! ¿Qué día te gustaría venir?"
                     " (ideal: YYYY-MM-DD, o dime por ejemplo “este viernes”)."
@@ -1223,7 +1305,7 @@ class InstagramBot:
                 )
 
             visit_day = self._day_name_es(visit_date)
-            if visit_day == "domingo":
+            if visit_day == "domingo" and not self._is_special_open_sunday(visit_date):
                 state["stage"] = "closed"
                 self._save_booking_state(user_id, conversation_id, state, platform=platform)
                 close_token = " [[CLOSE_CHAT]]" if (platform or "").lower() == "web" else ""
@@ -1401,7 +1483,7 @@ class InstagramBot:
             visit_date = self._parse_visit_date(message_text)
             if visit_date:
                 visit_day = self._day_name_es(visit_date)
-                if visit_day == "domingo":
+                if visit_day == "domingo" and not self._is_special_open_sunday(visit_date):
                     state["stage"] = "closed"
                     self._save_booking_state(user_id, conversation_id, state, platform=platform)
                     close_token = " [[CLOSE_CHAT]]" if (platform or "").lower() == "web" else ""
@@ -1490,8 +1572,12 @@ class InstagramBot:
 
             state = {"stage": "awaiting_day"}
             self._save_booking_state(user_id, conversation_id, state, platform=platform)
-            special_sat = self._special_open_saturday_date()
-            special_txt = f" Tip: este sábado ({special_sat.isoformat()}) hay cupo 10:00–17:00 con tarifa normal." if special_sat else ""
+            special_sun = self._special_open_sunday_date()
+            special_txt = (
+                f" Tip: este domingo ({special_sun.isoformat()}) hay cupo 10:00–17:00 con tarifa normal."
+                if special_sun
+                else ""
+            )
             return (
                 "¡Buenísimo! ¿Qué día te gustaría venir?"
                 " (ideal: YYYY-MM-DD, o dime por ejemplo “este viernes”)."
@@ -1736,25 +1822,25 @@ class InstagramBot:
             days_ahead = 7
         return today + timedelta(days=days_ahead)
 
-    def _special_open_saturday_date(self) -> Optional[date]:
+    def _special_open_sunday_date(self) -> Optional[date]:
         """
-        Excepción comercial: este sábado hay fecha libre y opera con tarifa normal.
-        Retorna la fecha del próximo sábado (incluye hoy si ya es sábado).
+        Excepción comercial: este domingo hay fecha libre y opera con tarifa normal.
+        Retorna la fecha del próximo domingo (incluye hoy si ya es domingo).
         """
-        return self._next_weekday_date("sábado", include_today=True)
+        return self._next_weekday_date("domingo", include_today=True)
 
-    def _is_special_open_saturday(self, visit_date: Optional[date]) -> bool:
+    def _is_special_open_sunday(self, visit_date: Optional[date]) -> bool:
         if not visit_date:
             return False
-        special = self._special_open_saturday_date()
+        special = self._special_open_sunday_date()
         return bool(special and visit_date == special)
 
     def _visit_hours_for_date(self, visit_date: Optional[date]) -> tuple[str, str]:
         """
         Horario normal: 09:00–17:00.
-        Excepción: este sábado (fecha libre) 10:00–17:00.
+        Excepción: este domingo (fecha libre) 10:00–17:00.
         """
-        if visit_date and self._is_special_open_saturday(visit_date):
+        if visit_date and self._is_special_open_sunday(visit_date):
             return ("10:00", "17:00")
         return ("09:00", "17:00")
 
@@ -1790,7 +1876,7 @@ class InstagramBot:
         return None
 
     def _calculate_price(self, visit_day: str, visit_date: Optional[date], cars_count: int, motos_count: int) -> int:
-        if visit_day == "sábado" and not self._is_special_open_saturday(visit_date):
+        if visit_day == "sábado":
             return 200000
         return int(cars_count) * 15000 + int(motos_count) * 10000
 
@@ -1946,7 +2032,7 @@ class InstagramBot:
         date_txt = visit_date.isoformat() if visit_date else "por confirmar"
         price_txt = f"${price_clp:,}".replace(",", ".")
         extra = ""
-        if visit_day == "sábado" and not self._is_special_open_saturday(visit_date):
+        if visit_day == "sábado":
             extra = " (sábado es tarifa por grupo)"
         arrival_time = (details or {}).get("arrival_time") or "por confirmar"
         start_h, end_h = self._visit_hours_for_date(visit_date)
@@ -2110,6 +2196,18 @@ class InstagramBot:
                 print("⚠️ Instagram no configurado: falta INSTAGRAM_ACCESS_TOKEN")
                 return False
 
+            now = datetime.now(timezone.utc)
+            blocked_until = self._ig_send_blocked_until.get(str(recipient_id))
+            if blocked_until:
+                if now < blocked_until:
+                    reason = self._ig_send_blocked_reason.get(str(recipient_id), "blocked")
+                    print(
+                        f"⚠️ Envío a {recipient_id} omitido ({reason}) hasta {blocked_until.isoformat()}"
+                    )
+                    return False
+                self._ig_send_blocked_until.pop(str(recipient_id), None)
+                self._ig_send_blocked_reason.pop(str(recipient_id), None)
+
             headers = {
                 "Content-Type": "application/json"
             }
@@ -2154,7 +2252,34 @@ class InstagramBot:
                 print(f"✅ Mensaje enviado a {recipient_id}")
                 return True
             else:
-                print(f"❌ Error enviando mensaje: {response.status_code} - {response.text}")
+                # Intentar dar un mensaje de error accionable (Meta suele responder JSON con `error_subcode`).
+                err = {}
+                try:
+                    data = response.json()
+                    if isinstance(data, dict):
+                        err = data.get("error") or {}
+                except Exception:
+                    err = {}
+
+                err_code = err.get("code")
+                err_subcode = err.get("error_subcode")
+                err_msg = (err.get("message") or response.text or "").strip()
+
+                # Caso típico en modo Dev o sin Advanced Access: no se puede responder a usuarios sin rol.
+                if response.status_code == 403 and err_code == 200 and err_subcode == 2534048:
+                    cooldown_s = int(os.getenv("IG_SEND_BLOCK_SECONDS", "600"))
+                    self._ig_send_blocked_until[str(recipient_id)] = now + timedelta(seconds=max(60, cooldown_s))
+                    self._ig_send_blocked_reason[str(recipient_id)] = "instagram_manage_messages_no_access"
+                    print(
+                        "❌ Meta rechazó el envío (falta Advanced Access a `instagram_manage_messages` "
+                        "o el destinatario no tiene rol en la app)."
+                    )
+                    print(
+                        "   Solución: en Meta Developers solicita Advanced Access/App Review y pon la app en Live, "
+                        "o agrega el usuario como Tester/Admin y acepta la invitación."
+                    )
+                else:
+                    print(f"❌ Error enviando mensaje: {response.status_code} - {response.text}")
                 return False
                 
         except Exception as e:

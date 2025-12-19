@@ -463,7 +463,7 @@ HORARIOS Y PRECIOS:
 📅 **Sábado (Grupos)**:
    💵 $200.000 el día (por grupo)
 
-📅 **Este sábado (fecha libre)**:
+📅 **Este domingo (fecha libre)**:
    🕙 10:00 AM - 5:00 PM
    💵 $15.000 por vehículo / $10.000 por moto
 
