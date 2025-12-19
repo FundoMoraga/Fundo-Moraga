@@ -1560,6 +1560,12 @@ class InstagramBot:
                         details.setdefault("vehicle_kind", "auto")
                     if awaiting_field == "motos_count":
                         details.setdefault("vehicle_kind", "moto")
+            elif awaiting_field == "full_name":
+                candidate = self._looks_like_full_name(raw)
+                if candidate:
+                    details["full_name"] = candidate
+                else:
+                    details.update(self._parse_booking_details(message_text))
             else:
                 details.update(self._parse_booking_details(message_text))
             state["details"] = details
@@ -2256,6 +2262,48 @@ class InstagramBot:
             return int(digits) if digits else None
         except Exception:
             return None
+
+    def _looks_like_full_name(self, raw: str) -> Optional[str]:
+        text = (raw or "").strip()
+        if not text:
+            return None
+        if re.search(r"[@\d]", text):
+            return None
+        if re.search(r"\bhttps?://|\bwww\.", text, re.IGNORECASE):
+            return None
+
+        normalized = re.sub(r"\s+", " ", text).strip(" .,!¿?;:")
+        tokens = normalized.split()
+        if not tokens or len(tokens) > 6:
+            return None
+
+        connectors = {"de", "del", "la", "las", "los", "y"}
+        stopwords = {
+            "auto", "autos", "moto", "motos", "vehiculo", "vehiculos", "vehículo", "vehículos",
+            "si", "sí", "no", "ok", "oka", "dale", "listo", "gracias", "hola", "buenas",
+            "hoy", "mañana", "tarde", "noche", "domingo", "sábado", "sabado",
+            "lunes", "martes", "miercoles", "miércoles", "jueves", "viernes",
+            "transferir", "transferencia", "reserva", "cotizar", "evento", "visita",
+            "puede", "puedo", "quiero", "necesito", "tengo", "hacer",
+        }
+        name_re = re.compile(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:[-'][A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?$")
+
+        name_tokens = []
+        for token in tokens:
+            t = token.strip(" .,!¿?;:").lower()
+            if t in connectors:
+                continue
+            if t in stopwords:
+                return None
+            if not name_re.fullmatch(token):
+                return None
+            name_tokens.append(token)
+
+        if not name_tokens:
+            return None
+        if len(name_tokens) == 1 and len(name_tokens[0]) < 3:
+            return None
+        return normalized
 
     def _infer_booking_awaiting_field(self, missing: list, details: Optional[Dict] = None) -> str:
         """
