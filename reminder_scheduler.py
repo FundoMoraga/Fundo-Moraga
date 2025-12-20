@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import config
@@ -18,6 +18,13 @@ _scheduler_thread: Optional[threading.Thread] = None
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _next_attempt_iso(attempts: int) -> str:
+    base = max(1, config.PENDING_EMAIL_RETRY_MINUTES)
+    cap = max(base, config.PENDING_EMAIL_RETRY_MAX_MINUTES)
+    delay = min(cap, base * max(1, attempts + 1))
+    return (datetime.now(timezone.utc) + timedelta(minutes=delay)).isoformat().replace("+00:00", "Z")
 
 
 def _run_once() -> None:
@@ -53,6 +60,31 @@ def _run_once() -> None:
         else:
             store.update_reminder_status(
                 reminder, status="error", error=send_result.get("error") or "send_failed"
+            )
+
+    pending_emails = store.fetch_due_pending_emails(now_iso=now_iso, limit=30)
+    for pending in pending_emails:
+        metadata = pending.get("metadata") or {}
+        email_type = metadata.get("email_type") or ""
+        payload = metadata.get("payload") or {}
+        attempts = int(metadata.get("attempts") or 0)
+
+        if email_type == "booking_request":
+            send_result = resend_client.send_booking_request(**payload)
+        elif email_type == "booking_confirmation":
+            send_result = resend_client.send_booking_confirmation_to_user(**payload)
+        else:
+            send_result = {"success": False, "error": "unknown_email_type"}
+
+        if send_result.get("success"):
+            store.update_pending_email_status(pending, status="sent")
+        else:
+            store.update_pending_email_status(
+                pending,
+                status="pending",
+                error=send_result.get("error") or "send_failed",
+                next_attempt_at=_next_attempt_iso(attempts),
+                attempts=attempts + 1,
             )
 
 

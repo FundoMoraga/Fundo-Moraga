@@ -169,6 +169,112 @@ class ConversationStore:
             self.container.upsert_item(body=reminder)
         except exceptions.CosmosHttpResponseError as e:
             print(f"❌ Error actualizando recordatorio: {e.message}")
+
+    def upsert_pending_email(
+        self,
+        *,
+        user_id: str,
+        conversation_id: str,
+        email_type: str,
+        payload: Dict[str, Any],
+        platform: str = "web",
+        booking_date: Optional[str] = None,
+        next_attempt_at: Optional[str] = None,
+    ) -> Dict:
+        """
+        Guarda o actualiza un correo pendiente para reintento.
+        """
+        try:
+            suffix = f"_{booking_date}" if booking_date else ""
+            pending_id = f"pending_{conversation_id}_{email_type}{suffix}"
+            now_iso = datetime.now(timezone.utc).isoformat()
+            document = {
+                "id": pending_id,
+                "userId": "__pending_emails__",
+                "conversationId": f"pending_{pending_id}",
+                "timestamp": now_iso,
+                "role": "system",
+                "message": "",
+                "metadata": {
+                    "type": "pending_email",
+                    "email_type": email_type,
+                    "status": "pending",
+                    "next_attempt_at": next_attempt_at or now_iso,
+                    "attempts": 0,
+                    "payload": payload,
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "platform": platform,
+                    "booking_date": booking_date,
+                },
+                "ttl": -1,
+            }
+            return self.container.upsert_item(body=document)
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error guardando correo pendiente: {e.message}")
+            raise
+
+    def fetch_due_pending_emails(self, now_iso: str, limit: int = 20) -> List[Dict]:
+        """
+        Obtiene correos pendientes con fecha <= now_iso.
+        """
+        try:
+            query = """
+                SELECT * FROM c
+                WHERE c.userId = @partition
+                AND c.metadata.type = @type
+                AND c.metadata.status = @status
+                AND c.metadata.next_attempt_at <= @now
+                OFFSET 0 LIMIT @limit
+            """
+            parameters = [
+                {"name": "@partition", "value": "__pending_emails__"},
+                {"name": "@type", "value": "pending_email"},
+                {"name": "@status", "value": "pending"},
+                {"name": "@now", "value": now_iso},
+                {"name": "@limit", "value": limit},
+            ]
+            items = list(
+                self.container.query_items(
+                    query=query,
+                    parameters=parameters,
+                    partition_key="__pending_emails__",
+                    enable_cross_partition_query=False,
+                )
+            )
+            return items
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error obteniendo correos pendientes: {e.message}")
+            return []
+
+    def update_pending_email_status(
+        self,
+        pending: Dict,
+        *,
+        status: str,
+        error: Optional[str] = None,
+        next_attempt_at: Optional[str] = None,
+        attempts: Optional[int] = None,
+    ) -> None:
+        """
+        Actualiza el estado de un correo pendiente (pending/sent/error).
+        """
+        try:
+            metadata = pending.get("metadata") or {}
+            metadata["status"] = status
+            metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
+            if status == "sent":
+                metadata["sent_at"] = metadata["updated_at"]
+            if error:
+                metadata["error"] = error
+            if next_attempt_at:
+                metadata["next_attempt_at"] = next_attempt_at
+            if attempts is not None:
+                metadata["attempts"] = attempts
+            pending["metadata"] = metadata
+            self.container.upsert_item(body=pending)
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error actualizando correo pendiente: {e.message}")
     
     def get_conversation_history(
         self, 

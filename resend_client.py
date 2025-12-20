@@ -1,12 +1,18 @@
 """
-Cliente de Resend para envío de emails
-Maneja el envío de resúmenes de conversación al equipo de ventas
+Cliente de email (SMTP o Resend) para envío de mensajes.
+Maneja el envío de resúmenes de conversación y reservas.
 """
 
 import os
 import re
+import smtplib
 from dotenv import load_dotenv
-import resend
+try:
+    import resend
+except Exception:
+    resend = None
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from html import escape
 from datetime import datetime
 from typing import Dict, Optional
@@ -15,7 +21,7 @@ from typing import Dict, Optional
 load_dotenv()
 
 class ResendClient:
-    """Cliente singleton para gestionar envíos de email con Resend"""
+    """Cliente singleton para gestionar envíos de email (SMTP o Resend)"""
     
     _instance = None
     
@@ -30,18 +36,80 @@ class ResendClient:
             return
             
         self.api_key = os.getenv('RESEND_API_KEY')
-        self.from_email = os.getenv('RESEND_FROM_EMAIL', 'hernando@fundomoraga.com')
+        self.smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        self.smtp_user = os.getenv("SMTP_USER")
+        self.smtp_password = os.getenv("SMTP_PASSWORD")
+        self.smtp_use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in (
+            "1",
+            "true",
+            "yes",
+            "y",
+            "si",
+        )
+        self.smtp_use_ssl = os.getenv("SMTP_USE_SSL", "").lower() in (
+            "1",
+            "true",
+            "yes",
+            "y",
+            "si",
+        )
+        if self.smtp_port == 465 and not os.getenv("SMTP_USE_SSL"):
+            self.smtp_use_ssl = True
+
+        self.from_email = (
+            os.getenv("SMTP_FROM_EMAIL")
+            or os.getenv("RESEND_FROM_EMAIL")
+            or self.smtp_user
+            or "hernando@fundomoraga.com"
+        )
         self.to_email = os.getenv('RESEND_TO_EMAIL', 'contacto@fundomoraga.com')
         self.to_emails = self._parse_to_emails()
+        self.use_smtp = bool(self.smtp_user and self.smtp_password)
 
         # Resend es opcional en deploy: si falta la API key, el bot debe poder arrancar
         # y solo fallar al intentar enviar correos.
-        if self.api_key:
+        if self.api_key and resend is not None:
             resend.api_key = self.api_key
         self._initialized = True
 
     def is_configured(self) -> bool:
-        return bool(self.api_key)
+        return bool(self.use_smtp or self.api_key)
+
+    def _send_email(self, *, to: list[str], subject: str, html: str) -> Dict:
+        if self.use_smtp:
+            try:
+                msg = MIMEMultipart("alternative")
+                msg["From"] = self.from_email
+                msg["To"] = ", ".join(to)
+                msg["Subject"] = subject
+                msg.attach(MIMEText(html, "html", "utf-8"))
+
+                if self.smtp_use_ssl:
+                    server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
+                else:
+                    server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                with server:
+                    if self.smtp_use_tls and not self.smtp_use_ssl:
+                        server.starttls()
+                    server.login(self.smtp_user, self.smtp_password)
+                    server.sendmail(self.from_email, to, msg.as_string())
+
+                return {"success": True, "provider": "smtp", "timestamp": datetime.now().isoformat()}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
+        if not self.api_key or resend is None:
+            return {"success": False, "error": "Email no configurado (SMTP/Resend)"}
+
+        params = {"from": self.from_email, "to": to, "subject": subject, "html": html}
+        response = resend.Emails.send(params)
+        return {
+            "success": True,
+            "provider": "resend",
+            "message_id": response.get("id"),
+            "timestamp": datetime.now().isoformat(),
+        }
 
     def _parse_to_emails(self) -> list[str]:
         raw = os.getenv("RESEND_TO_EMAILS", "").strip()
@@ -96,7 +164,7 @@ class ResendClient:
         """
         try:
             if not self.is_configured():
-                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+                return {"success": False, "error": "Email no configurado (SMTP/Resend)"}
 
             # Construir el email
             subject = f"Nuevo Lead de {platform} - {user_name}"
@@ -147,24 +215,14 @@ class ResendClient:
             </html>
             """
             
-            # Enviar email
-            params = {
-                "from": self.from_email,
-                "to": self.to_emails,
-                "subject": subject,
-                "html": html_content,
-            }
-            
-            response = resend.Emails.send(params)
-            
-            return {
-                "success": True,
-                "message_id": response.get('id'),
-                "timestamp": datetime.now().isoformat()
-            }
+            return self._send_email(
+                to=self.to_emails,
+                subject=subject,
+                html=html_content,
+            )
             
         except Exception as e:
-            print(f"Error enviando email con Resend: {str(e)}")
+            print(f"Error enviando email: {str(e)}")
             return {
                 "success": False,
                 "error": str(e)
@@ -190,7 +248,7 @@ class ResendClient:
         """
         try:
             if not self.is_configured():
-                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+                return {"success": False, "error": "Email no configurado (SMTP/Resend)"}
 
             subject = f"Solicitud de agendamiento ({visit_day} {visit_date}) - {full_name}"
             price_formatted = f"{int(price_clp):,}".replace(",", ".")
@@ -248,22 +306,13 @@ class ResendClient:
             </html>
             """
 
-            params = {
-                "from": self.from_email,
-                "to": self.to_emails,
-                "subject": subject,
-                "html": html_content,
-            }
-
-            response = resend.Emails.send(params)
-
-            return {
-                "success": True,
-                "message_id": response.get("id"),
-                "timestamp": datetime.now().isoformat(),
-            }
+            return self._send_email(
+                to=self.to_emails,
+                subject=subject,
+                html=html_content,
+            )
         except Exception as e:
-            print(f"Error enviando solicitud de agendamiento con Resend: {str(e)}")
+            print(f"Error enviando solicitud de agendamiento: {str(e)}")
             return {"success": False, "error": str(e)}
 
     def send_booking_confirmation_to_user(
@@ -284,7 +333,7 @@ class ResendClient:
         """
         try:
             if not self.is_configured():
-                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+                return {"success": False, "error": "Email no configurado (SMTP/Resend)"}
             if not to_email:
                 return {"success": False, "error": "Email de usuario no proporcionado"}
 
@@ -331,16 +380,13 @@ class ResendClient:
             </html>
             """
 
-            params = {
-                "from": self.from_email,
-                "to": [to_email],
-                "subject": subject,
-                "html": html_content,
-            }
-            response = resend.Emails.send(params)
-            return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
+            return self._send_email(
+                to=[to_email],
+                subject=subject,
+                html=html_content,
+            )
         except Exception as e:
-            print(f"Error enviando confirmación al usuario con Resend: {str(e)}")
+            print(f"Error enviando confirmación al usuario: {str(e)}")
             return {"success": False, "error": str(e)}
 
     def send_booking_reminder_to_user(
@@ -361,7 +407,7 @@ class ResendClient:
         """
         try:
             if not self.is_configured():
-                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+                return {"success": False, "error": "Email no configurado (SMTP/Resend)"}
             if not to_email:
                 return {"success": False, "error": "Email de usuario no proporcionado"}
 
@@ -407,16 +453,13 @@ class ResendClient:
             </html>
             """
 
-            params = {
-                "from": self.from_email,
-                "to": [to_email],
-                "subject": subject,
-                "html": html_content,
-            }
-            response = resend.Emails.send(params)
-            return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
+            return self._send_email(
+                to=[to_email],
+                subject=subject,
+                html=html_content,
+            )
         except Exception as e:
-            print(f"Error enviando recordatorio al usuario con Resend: {str(e)}")
+            print(f"Error enviando recordatorio al usuario: {str(e)}")
             return {"success": False, "error": str(e)}
     
     def send_error_notification(self, error_message: str, conversation_id: str):
@@ -444,14 +487,11 @@ class ResendClient:
             </html>
             """
             
-            params = {
-                "from": self.from_email,
-                "to": self.to_emails,
-                "subject": subject,
-                "html": html_content,
-            }
-            
-            resend.Emails.send(params)
+            self._send_email(
+                to=self.to_emails,
+                subject=subject,
+                html=html_content,
+            )
             
         except Exception as e:
             print(f"Error enviando notificación de error: {str(e)}")
@@ -470,7 +510,7 @@ class ResendClient:
         """
         try:
             if not self.is_configured():
-                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+                return {"success": False, "error": "Email no configurado (SMTP/Resend)"}
 
             html_content = f"""
             <html>
@@ -504,16 +544,13 @@ class ResendClient:
             </html>
             """
 
-            params = {
-                "from": self.from_email,
-                "to": self.to_emails,
-                "subject": subject,
-                "html": html_content,
-            }
-            response = resend.Emails.send(params)
-            return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
+            return self._send_email(
+                to=self.to_emails,
+                subject=subject,
+                html=html_content,
+            )
         except Exception as e:
-            print(f"Error enviando resumen final con Resend: {str(e)}")
+            print(f"Error enviando resumen final: {str(e)}")
             return {"success": False, "error": str(e)}
 
     def send_contact_sheet(
@@ -532,7 +569,7 @@ class ResendClient:
         """
         try:
             if not self.is_configured():
-                return {"success": False, "error": "RESEND_API_KEY no configurada"}
+                return {"success": False, "error": "Email no configurado (SMTP/Resend)"}
 
             name_txt = escape(user_name or "No identificado")
             contact_txt = escape(user_contact or "No identificado")
@@ -611,16 +648,13 @@ class ResendClient:
             </html>
             """
 
-            params = {
-                "from": self.from_email,
-                "to": self.to_emails,
-                "subject": subject,
-                "html": html_content,
-            }
-            response = resend.Emails.send(params)
-            return {"success": True, "message_id": response.get("id"), "timestamp": datetime.now().isoformat()}
+            return self._send_email(
+                to=self.to_emails,
+                subject=subject,
+                html=html_content,
+            )
         except Exception as e:
-            print(f"Error enviando ficha de contacto con Resend: {str(e)}")
+            print(f"Error enviando ficha de contacto: {str(e)}")
             return {"success": False, "error": str(e)}
 
 
@@ -628,7 +662,7 @@ class ResendClient:
 _resend_client_instance = None
 
 def get_resend_client() -> ResendClient:
-    """Obtiene la instancia singleton del cliente de Resend"""
+    """Obtiene la instancia singleton del cliente de email"""
     global _resend_client_instance
     if _resend_client_instance is None:
         _resend_client_instance = ResendClient()

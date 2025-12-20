@@ -1691,39 +1691,60 @@ class InstagramBot:
                     if auto_confirm_active
                     else f"Pago verificado por inbox. From: {check.from_email} Subject: {check.subject}"
                 )
-                send_result = self.resend_client.send_booking_request(
-                    visit_date=(visit_date.isoformat() if visit_date else "por confirmar"),
-                    visit_day=visit_day,
-                    full_name=details.get("full_name", "No proporcionado"),
-                    phone=details.get("phone", "No proporcionado"),
-                    email=details.get("email", "No proporcionado"),
-                    cars_count=int(details.get("cars_count") or 0),
-                    motos_count=int(details.get("motos_count") or 0),
-                    people_count=int(details.get("people_count") or 0),
-                    price_clp=price_clp,
-                    conversation_id=conversation_id,
-                    platform=platform,
-                    additional_notes=(
+                visit_date_str = visit_date.isoformat() if visit_date else "por confirmar"
+                booking_request_payload = {
+                    "visit_date": visit_date_str,
+                    "visit_day": visit_day,
+                    "full_name": details.get("full_name", "No proporcionado"),
+                    "phone": details.get("phone", "No proporcionado"),
+                    "email": details.get("email", "No proporcionado"),
+                    "cars_count": int(details.get("cars_count") or 0),
+                    "motos_count": int(details.get("motos_count") or 0),
+                    "people_count": int(details.get("people_count") or 0),
+                    "price_clp": price_clp,
+                    "conversation_id": conversation_id,
+                    "platform": platform,
+                    "additional_notes": (
                         f"Hora llegada: {details.get('arrival_time')}. {payment_note}"
                     ),
-                )
+                }
+                send_result = self.resend_client.send_booking_request(**booking_request_payload)
+                if not send_result.get("success"):
+                    self._queue_pending_email(
+                        email_type="booking_request",
+                        payload=booking_request_payload,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        platform=platform,
+                        visit_date=visit_date,
+                    )
 
                 confirmation_sent = False
                 reminder_scheduled = False
                 user_email = (details.get("email") or "").strip()
                 if user_email and self.resend_client.is_configured():
-                    confirm_result = self.resend_client.send_booking_confirmation_to_user(
-                        to_email=user_email,
-                        full_name=details.get("full_name", "Cliente"),
-                        visit_date=visit_date.isoformat() if visit_date else "por confirmar",
-                        visit_day=visit_day,
-                        arrival_time=details.get("arrival_time", "por confirmar"),
-                        cars_count=int(details.get("cars_count") or 0),
-                        motos_count=int(details.get("motos_count") or 0),
-                        people_count=int(details.get("people_count") or 0),
-                        price_clp=price_clp,
-                    )
+                    confirm_payload = {
+                        "to_email": user_email,
+                        "full_name": details.get("full_name", "Cliente"),
+                        "visit_date": visit_date_str,
+                        "visit_day": visit_day,
+                        "arrival_time": details.get("arrival_time", "por confirmar"),
+                        "cars_count": int(details.get("cars_count") or 0),
+                        "motos_count": int(details.get("motos_count") or 0),
+                        "people_count": int(details.get("people_count") or 0),
+                        "price_clp": price_clp,
+                    }
+                    confirm_result = self.resend_client.send_booking_confirmation_to_user(**confirm_payload)
                     confirmation_sent = bool(confirm_result.get("success"))
+                    if user_email and not confirmation_sent:
+                        self._queue_pending_email(
+                            email_type="booking_confirmation",
+                            payload=confirm_payload,
+                            user_id=user_id,
+                            conversation_id=conversation_id,
+                            platform=platform,
+                            visit_date=visit_date,
+                        )
 
                 if user_email:
                     reminder_doc = self._schedule_booking_reminder(
@@ -2599,6 +2620,28 @@ class InstagramBot:
             email=email,
             booking=booking_payload,
             platform=platform,
+        )
+
+    def _queue_pending_email(
+        self,
+        *,
+        email_type: str,
+        payload: Dict,
+        user_id: str,
+        conversation_id: str,
+        platform: str,
+        visit_date: Optional[date],
+    ) -> Optional[Dict]:
+        if not self.resend_client.is_configured():
+            return None
+        booking_date = visit_date.isoformat() if visit_date else None
+        return self.conversation_store.upsert_pending_email(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            email_type=email_type,
+            payload=payload,
+            platform=platform,
+            booking_date=booking_date,
         )
 
     def _calendar_description(self, conversation_id: str, details: Dict, price_clp: int, payment_check) -> str:

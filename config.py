@@ -61,6 +61,10 @@ REMINDER_SCHEDULER_ENABLED = os.getenv("REMINDER_SCHEDULER_ENABLED", "true").low
 REMINDER_POLL_SECONDS = int(os.getenv("REMINDER_POLL_SECONDS", "300"))
 REMINDER_SEND_HOUR = int(os.getenv("REMINDER_SEND_HOUR", "9"))
 
+# Reintentos de correos pendientes (Resend)
+PENDING_EMAIL_RETRY_MINUTES = int(os.getenv("PENDING_EMAIL_RETRY_MINUTES", "10"))
+PENDING_EMAIL_RETRY_MAX_MINUTES = int(os.getenv("PENDING_EMAIL_RETRY_MAX_MINUTES", "60"))
+
 # Validar configuración requerida
 def validate_config():
     """Valida que todas las variables de entorno requeridas estén configuradas"""
