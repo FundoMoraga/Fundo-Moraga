@@ -90,8 +90,10 @@ class ResendClient:
                 else:
                     server = smtplib.SMTP(self.smtp_host, self.smtp_port)
                 with server:
+                    server.ehlo()
                     if self.smtp_use_tls and not self.smtp_use_ssl:
                         server.starttls()
+                        server.ehlo()
                     server.login(self.smtp_user, self.smtp_password)
                     server.sendmail(self.from_email, to, msg.as_string())
 

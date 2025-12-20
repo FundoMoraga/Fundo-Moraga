@@ -596,6 +596,7 @@
         let quickChipsShown = false;
         let typingIndicator = null;
         const userId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        let hasUserMessage = false;
 
         function endConversation(reason) {
             try {
@@ -749,6 +750,7 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
+            hasUserMessage = true;
             clearQuickChips();
             addMessage(message, true);
             messageInput.value = '';
@@ -792,7 +794,11 @@
 
         setTimeout(() => messageInput.focus(), 0);
 
-        window.addEventListener('beforeunload', () => endConversation('beforeunload'));
+        window.addEventListener('beforeunload', () => {
+            if (hasUserMessage) {
+                endConversation('beforeunload');
+            }
+        });
 
         (async function initChat() {
             try {

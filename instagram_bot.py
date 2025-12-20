@@ -1167,6 +1167,37 @@ class InstagramBot:
             # Evitar duplicados
             if any((m.get("metadata") or {}).get("type") == "conversation_summary" for m in (history or [])):
                 return
+            
+            user_messages = [
+                m
+                for m in (history or [])
+                if m.get("role") == "user" and str(m.get("message") or "").strip()
+            ]
+            if not user_messages:
+                print(
+                    "INFO: Skipping conversation summary without user messages "
+                    f"(reason={reason}, conversation_id={conversation_id})"
+                )
+                return
+
+            contact_payload = self._compile_contact_sheet_payload(history, reason=reason)
+            name_clean = self._clean_identity_value(contact_payload.get("name"))
+            contact_clean = self._clean_identity_value(contact_payload.get("contact"))
+            if not (name_clean or contact_clean):
+                print(
+                    "INFO: Skipping conversation summary without identity "
+                    f"(reason={reason}, conversation_id={conversation_id})"
+                )
+                return
+
+            booking_state = self._get_booking_state(history, conversation_id) or {}
+            if booking_state and not booking_state.get("payment_verified"):
+                stage = booking_state.get("stage") or "N/A"
+                print(
+                    "INFO: Skipping conversation summary until payment verified "
+                    f"(stage={stage}, conversation_id={conversation_id})"
+                )
+                return
 
             summary = self._compile_conversation_summary(
                 user_id=user_id, conversation_id=conversation_id, history=history, reason=reason
@@ -1180,8 +1211,22 @@ class InstagramBot:
                 user_id=user_id,
                 platform=platform,
             )
+            if not send_result.get("success"):
+                self._queue_pending_email(
+                    email_type="conversation_summary",
+                    payload={
+                        "subject": subject,
+                        "summary_text": summary,
+                        "conversation_id": conversation_id,
+                        "user_id": user_id,
+                        "platform": platform,
+                    },
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    platform=platform,
+                    visit_date=None,
+                )
 
-            contact_payload = self._compile_contact_sheet_payload(history, reason=reason)
             sheet_result = self.resend_client.send_contact_sheet(
                 user_name=contact_payload.get("name") or "No identificado",
                 user_contact=contact_payload.get("contact") or "No identificado",
@@ -1191,6 +1236,23 @@ class InstagramBot:
                 booking_details=contact_payload.get("booking"),
                 notes=contact_payload.get("notes"),
             )
+            if not sheet_result.get("success"):
+                self._queue_pending_email(
+                    email_type="contact_sheet",
+                    payload={
+                        "user_name": contact_payload.get("name") or "No identificado",
+                        "user_contact": contact_payload.get("contact") or "No identificado",
+                        "user_interest": contact_payload.get("interest") or "No identificado",
+                        "conversation_id": conversation_id,
+                        "platform": platform,
+                        "booking_details": contact_payload.get("booking"),
+                        "notes": contact_payload.get("notes"),
+                    },
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    platform=platform,
+                    visit_date=None,
+                )
 
             self.conversation_store.save_message(
                 user_id=user_id,
@@ -2632,8 +2694,6 @@ class InstagramBot:
         platform: str,
         visit_date: Optional[date],
     ) -> Optional[Dict]:
-        if not self.resend_client.is_configured():
-            return None
         booking_date = visit_date.isoformat() if visit_date else None
         return self.conversation_store.upsert_pending_email(
             user_id=user_id,
@@ -2661,6 +2721,16 @@ class InstagramBot:
             f"From: {getattr(payment_check, 'from_email', '')}\n"
             f"Subject: {getattr(payment_check, 'subject', '')}\n"
         )
+
+    def _clean_identity_value(self, value: Optional[str]) -> str:
+        if value is None:
+            return ""
+        text = str(value).strip()
+        if not text:
+            return ""
+        if text.lower() in ("no proporcionado", "no identificado", "no especificado", "n/a"):
+            return ""
+        return text
     
     def _send_lead_email(
         self,
@@ -2742,20 +2812,35 @@ class InstagramBot:
                                 contacto = phone.strip()
                             else:
                                 contacto += f" / {phone.strip()}"
+
+            name_clean = self._clean_identity_value(nombre)
+            contact_clean = self._clean_identity_value(contacto)
+            if not (name_clean or contact_clean):
+                print(f"INFO: Omitiendo email de lead sin nombre/contacto ({conversation_id})")
+                return
             
             # Enviar email con Resend
-            result = self.resend_client.send_conversation_summary(
-                user_name=nombre,
-                user_interest=interes,
-                user_contact=contacto,
-                conversation_id=conversation_id,
-                platform=platform
-            )
+            lead_payload = {
+                "user_name": nombre,
+                "user_interest": interes,
+                "user_contact": contacto,
+                "conversation_id": conversation_id,
+                "platform": platform,
+            }
+            result = self.resend_client.send_conversation_summary(**lead_payload)
             
             if result["success"]:
                 print(f"✅ Email de lead enviado exitosamente para {conversation_id}")
             else:
                 print(f"⚠️ Error enviando email de lead: {result.get('error')}")
+                self._queue_pending_email(
+                    email_type="lead_summary",
+                    payload=lead_payload,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    platform=platform,
+                    visit_date=None,
+                )
                 
         except Exception as e:
             print(f"❌ Error en _send_lead_email: {str(e)}")

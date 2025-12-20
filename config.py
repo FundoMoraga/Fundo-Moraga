@@ -45,6 +45,7 @@ PAYMENT_INBOX_HOST = os.getenv("PAYMENT_INBOX_HOST", "imap.gmail.com")
 PAYMENT_INBOX_USER = os.getenv("PAYMENT_INBOX_USER")  # ej: contacto@gmail.com
 PAYMENT_INBOX_PASSWORD = os.getenv("PAYMENT_INBOX_PASSWORD")  # ideal: App Password
 PAYMENT_INBOX_FOLDER = os.getenv("PAYMENT_INBOX_FOLDER", "INBOX")
+PAYMENT_INBOX_MAX_SCAN = int(os.getenv("PAYMENT_INBOX_MAX_SCAN", "50"))
 PAYMENT_EMAIL_FROM_CONTAINS = os.getenv("PAYMENT_EMAIL_FROM_CONTAINS", "Banco")
 PAYMENT_EMAIL_SUBJECT_CONTAINS = os.getenv("PAYMENT_EMAIL_SUBJECT_CONTAINS", "transferencia")
 # Auto-confirmación temporal de transferencias (ISO8601, ej: 2025-12-20T12:00:00-03:00)

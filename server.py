@@ -40,8 +40,9 @@ def _config_status() -> Tuple[bool, list[str], list[str]]:
     if not os.getenv("OPENAI_API_KEY"):
         missing_required.append("OPENAI_API_KEY")
 
-    if not os.getenv("RESEND_API_KEY"):
-        warnings.append("RESEND_API_KEY (emails/booking)")
+    has_smtp = bool(os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"))
+    if not (has_smtp or os.getenv("RESEND_API_KEY")):
+        warnings.append("SMTP_USER/SMTP_PASSWORD o RESEND_API_KEY (emails)")
     if not os.getenv("GOOGLE_CALENDAR_ID"):
         warnings.append("GOOGLE_CALENDAR_ID (calendar)")
     if not (os.getenv("PAYMENT_INBOX_USER") and os.getenv("PAYMENT_INBOX_PASSWORD")):

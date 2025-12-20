@@ -73,6 +73,12 @@ def _run_once() -> None:
             send_result = resend_client.send_booking_request(**payload)
         elif email_type == "booking_confirmation":
             send_result = resend_client.send_booking_confirmation_to_user(**payload)
+        elif email_type == "lead_summary":
+            send_result = resend_client.send_conversation_summary(**payload)
+        elif email_type == "conversation_summary":
+            send_result = resend_client.send_conversation_end_summary(**payload)
+        elif email_type == "contact_sheet":
+            send_result = resend_client.send_contact_sheet(**payload)
         else:
             send_result = {"success": False, "error": "unknown_email_type"}
 
