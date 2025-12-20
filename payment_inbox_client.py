@@ -17,8 +17,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, List
 import email
+from email.header import decode_header
 import imaplib
 import re
+import unicodedata
 
 import config
 
@@ -42,11 +44,32 @@ class PaymentInboxClient:
         self.from_keywords = self._split_keywords(config.PAYMENT_EMAIL_FROM_CONTAINS)
         self.subject_keywords = self._split_keywords(config.PAYMENT_EMAIL_SUBJECT_CONTAINS)
 
+    def _normalize_text(self, text: str) -> str:
+        if not text:
+            return ""
+        lowered = text.lower()
+        normalized = unicodedata.normalize("NFKD", lowered)
+        return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+    def _decode_header_value(self, value: Optional[str]) -> str:
+        if not value:
+            return ""
+        decoded_parts = []
+        for part, enc in decode_header(value):
+            if isinstance(part, bytes):
+                try:
+                    decoded_parts.append(part.decode(enc or "utf-8", errors="ignore"))
+                except Exception:
+                    decoded_parts.append(part.decode("utf-8", errors="ignore"))
+            else:
+                decoded_parts.append(str(part))
+        return "".join(decoded_parts)
+
     def _split_keywords(self, raw: Optional[str]) -> List[str]:
         if not raw:
             return []
         parts = re.split(r"[|,]", raw)
-        return [p.strip().lower() for p in parts if p and p.strip()]
+        return [self._normalize_text(p.strip()) for p in parts if p and p.strip()]
 
     def _split_folders(self, raw: Optional[str]) -> List[str]:
         if not raw:
@@ -119,13 +142,13 @@ class PaymentInboxClient:
 
                     raw = msg_data[0][1]
                     msg = email.message_from_bytes(raw)
-                    subject = (msg.get("Subject") or "").strip()
-                    from_header = (msg.get("From") or "").strip()
+                    subject = self._decode_header_value(msg.get("Subject")).strip()
+                    from_header = self._decode_header_value(msg.get("From")).strip()
                     date_header = (msg.get("Date") or "").strip()
 
-                    subject_l = subject.lower()
-                    from_l = from_header.lower()
-                    expected_from_l = (expected_from or "").strip().lower()
+                    subject_l = self._normalize_text(subject)
+                    from_l = self._normalize_text(from_header)
+                    expected_from_l = self._normalize_text((expected_from or "").strip())
 
                     subject_match = (
                         any(k in subject_l for k in self.subject_keywords) if self.subject_keywords else False
@@ -133,7 +156,7 @@ class PaymentInboxClient:
                     from_match = False
                     if expected_from_l:
                         from_match = expected_from_l in from_l
-                    elif self.from_keywords:
+                    if not from_match and self.from_keywords:
                         from_match = any(k in from_l for k in self.from_keywords)
 
                     if not (subject_match or from_match):

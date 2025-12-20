@@ -1452,6 +1452,229 @@ class InstagramBot:
 
     # ============= BOOKING FLOW (WEB) =============
 
+    def _is_payment_claim_message(self, message_text: str) -> bool:
+        t = (message_text or "").lower()
+        if not t:
+            return False
+        triggers = (
+            "listo",
+            "listos",
+            "listo ya",
+            "transfer",
+            "transferí",
+            "transferi",
+            "transferido",
+            "transferida",
+            "transferencia",
+            "transferencia hecha",
+            "transferencia lista",
+            "ya transferí",
+            "ya transferi",
+            "pagado",
+            "pagada",
+            "pagué",
+            "pague",
+            "ya pagué",
+            "ya pague",
+            "he pagado",
+            "hecha",
+            "hecho",
+            "enviado",
+            "envié",
+            "envie",
+            "estamos",
+            "estamos listos",
+            "estamos ok",
+        )
+        return any(x in t for x in triggers)
+
+    def _confirm_payment_and_finalize(
+        self,
+        *,
+        user_id: str,
+        conversation_id: str,
+        platform: str,
+        state: Dict,
+    ) -> str:
+        since_iso = (
+            state.get("transfer_started_at")
+            or state.get("payment_claimed_at")
+            or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        )
+        details = state.get("details") or {}
+        auto_confirm_active, auto_confirm_until = self._temp_transfer_auto_confirm_active()
+        if not auto_confirm_active and not self.payment_inbox.is_configured():
+            return (
+                "Estoy listo para confirmar, pero aún no tengo acceso configurado a la bandeja de pagos. "
+                "Por ahora, envía el comprobante a `contacto@fundomoraga.com` y te confirmamos por ese medio."
+            )
+
+        if auto_confirm_active:
+            check = PaymentCheckResult(
+                found=False,
+                subject="auto-confirmacion",
+                from_email="cliente",
+                received_at="pendiente",
+            )
+        else:
+            check = self.payment_inbox.find_payment_email(
+                since_iso=since_iso,
+                expected_from=(details.get("email") or "").strip() or None,
+            )
+            if not check.found:
+                return (
+                    "Aún no me aparece el correo del banco. Dame 1–2 minutos y vuelve a escribirme "
+                    "“listo” para revisar de nuevo (dentro de los 10 minutos)."
+                )
+
+        visit_day = state.get("visit_day") or "por confirmar"
+        visit_date = self._safe_date_from_iso(state.get("visit_date"))
+        cars_count = int(details.get("cars_count") or 0)
+        motos_count = int(details.get("motos_count") or 0)
+        price_clp = int(state.get("price_clp") or self._calculate_price(visit_day, visit_date, cars_count, motos_count))
+        state["price_clp"] = price_clp
+
+        payment_note = (
+            "Pago marcado como recibido por el cliente (auto-confirmación temporal, sin verificación de inbox)."
+            if auto_confirm_active
+            else f"Pago verificado por inbox. From: {check.from_email} Subject: {check.subject}"
+        )
+        visit_date_str = visit_date.isoformat() if visit_date else "por confirmar"
+        booking_request_payload = {
+            "visit_date": visit_date_str,
+            "visit_day": visit_day,
+            "full_name": details.get("full_name", "No proporcionado"),
+            "phone": details.get("phone", "No proporcionado"),
+            "email": details.get("email", "No proporcionado"),
+            "cars_count": cars_count,
+            "motos_count": motos_count,
+            "people_count": int(details.get("people_count") or 0),
+            "price_clp": price_clp,
+            "conversation_id": conversation_id,
+            "platform": platform,
+            "additional_notes": f"Hora llegada: {details.get('arrival_time')}. {payment_note}",
+        }
+        send_result = self.resend_client.send_booking_request(**booking_request_payload)
+        if not send_result.get("success"):
+            self._queue_pending_email(
+                email_type="booking_request",
+                payload=booking_request_payload,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                platform=platform,
+                visit_date=visit_date,
+            )
+
+        confirmation_sent = False
+        reminder_scheduled = False
+        user_email = (details.get("email") or "").strip()
+        if user_email and self.resend_client.is_configured():
+            confirm_payload = {
+                "to_email": user_email,
+                "full_name": details.get("full_name", "Cliente"),
+                "visit_date": visit_date_str,
+                "visit_day": visit_day,
+                "arrival_time": details.get("arrival_time", "por confirmar"),
+                "cars_count": cars_count,
+                "motos_count": motos_count,
+                "people_count": int(details.get("people_count") or 0),
+                "price_clp": price_clp,
+            }
+            confirm_result = self.resend_client.send_booking_confirmation_to_user(**confirm_payload)
+            confirmation_sent = bool(confirm_result.get("success"))
+            if user_email and not confirmation_sent:
+                self._queue_pending_email(
+                    email_type="booking_confirmation",
+                    payload=confirm_payload,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    platform=platform,
+                    visit_date=visit_date,
+                )
+
+        if user_email:
+            reminder_doc = self._schedule_booking_reminder(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                visit_date=visit_date,
+                visit_day=visit_day,
+                details=details,
+                price_clp=price_clp,
+                platform=platform,
+            )
+            reminder_scheduled = bool(reminder_doc)
+
+        calendar_ok = False
+        calendar_error = None
+        try:
+            if visit_date:
+                start_iso, end_iso = self._event_times(visit_date)
+                description = self._calendar_description(conversation_id, details, price_clp, check)
+                req = CalendarEventRequest(
+                    summary=f"Reserva Fundo Moraga ({visit_day}) - {details.get('full_name','')}".strip(),
+                    description=description,
+                    start_iso=start_iso,
+                    end_iso=end_iso,
+                    timezone=config.GOOGLE_CALENDAR_TIMEZONE,
+                    attendees=[
+                        "efrainantoniomoraga@gmail.com",
+                        "pierinabertoni@gmail.com",
+                        "contacto@fundomoraga.com",
+                    ],
+                )
+                self.calendar_client.create_event(req)
+                calendar_ok = True
+        except Exception as e:
+            calendar_error = str(e)
+
+        state["stage"] = "confirmed"
+        state["confirmed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        state["confirmation_email_sent"] = confirmation_sent
+        state["reminder_scheduled"] = reminder_scheduled
+        state["payment_verified"] = bool(check.found)
+        if auto_confirm_active and auto_confirm_until:
+            state["auto_confirm_until"] = auto_confirm_until.isoformat()
+        self._save_booking_state(user_id, conversation_id, state, platform=platform)
+
+        cal_msg = "y agendé Google Calendar" if calendar_ok else f"pero no pude agendar Calendar ({calendar_error})"
+        start_h, end_h = self._visit_hours_for_date(visit_date)
+        hours_txt = f"{start_h} a {end_h}"
+        email_msg = ""
+        if user_email and confirmation_sent:
+            email_msg = f" Te envié un correo de confirmación a {user_email}."
+        elif user_email and not confirmation_sent:
+            email_msg = " Te enviaré el correo de confirmación apenas se renueve la cuota."
+        if reminder_scheduled:
+            email_msg += " Además, recibirás un recordatorio un día antes."
+
+        if auto_confirm_active:
+            until_msg = ""
+            if auto_confirm_until:
+                until_local = auto_confirm_until.astimezone(self._local_timezone())
+                today = self._today_local_date()
+                if until_local.date() == today:
+                    label = f"hoy a las {until_local.strftime('%H:%M')}"
+                elif until_local.date() == (today + timedelta(days=1)):
+                    label = f"mañana a las {until_local.strftime('%H:%M')}"
+                else:
+                    label = until_local.strftime("%Y-%m-%d %H:%M")
+                until_msg = f" Validaremos la transferencia {label}."
+            form_msg = ""
+            if not send_result.get("success"):
+                form_msg = " El correo al equipo no pudo enviarse ahora."
+            return (
+                f"¡Listo! Dejé tu reserva confirmada de forma temporal para {visit_day} de {hours_txt}."
+                f"{until_msg} Ya registré tu solicitud {cal_msg}.{form_msg}{email_msg}"
+            )
+
+        form_msg = ""
+        if not send_result.get("success"):
+            form_msg = " (no pude enviar el formulario ahora, pero tu reserva quedó registrada)."
+        return (
+            f"¡Listo! Recibí el correo del banco: tu reserva quedó confirmada para {visit_day} "
+            f"de {hours_txt}. Ya envié el formulario a contacto@fundomoraga.com {cal_msg}.{form_msg}{email_msg}"
+        )
+
     def _handle_booking_flow(
         self,
         user_id: str,
@@ -1611,6 +1834,9 @@ class InstagramBot:
             awaiting_field = (state.get("awaiting_field") or "").strip()
             raw = (message_text or "").strip()
 
+            if self._is_payment_claim_message(message_text) and not state.get("payment_claimed_at"):
+                state["payment_claimed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
             # Si acabamos de preguntar por una cantidad específica (autos/motos),
             # una respuesta tipo "2" debe interpretarse como cantidad, no como hora.
             if awaiting_field in ("cars_count", "motos_count") and re.fullmatch(r"\d{1,3}", raw):
@@ -1661,14 +1887,40 @@ class InstagramBot:
             motos_count = int(details.get("motos_count") or 0)
             price_clp = self._calculate_price(visit_day, visit_date, cars_count, motos_count)
             state["price_clp"] = price_clp
-            state["stage"] = "confirm_transfer"
             state.pop("awaiting_field", None)
-            self._save_booking_state(user_id, conversation_id, state, platform=platform)
+            if state.get("payment_claimed_at"):
+                now = datetime.now(timezone.utc)
+                state["stage"] = "awaiting_transfer"
+                state["transfer_started_at"] = state.get("payment_claimed_at")
+                state["transfer_deadline"] = (now + timedelta(minutes=10)).isoformat().replace("+00:00", "Z")
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
+                return self._confirm_payment_and_finalize(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    platform=platform,
+                    state=state,
+                )
 
+            state["stage"] = "confirm_transfer"
+            self._save_booking_state(user_id, conversation_id, state, platform=platform)
             return self._transfer_prompt(visit_day, visit_date, price_clp, details)
 
         if stage == "confirm_transfer":
             t = (message_text or "").strip().lower()
+            if self._is_payment_claim_message(message_text):
+                now = datetime.now(timezone.utc)
+                if not state.get("payment_claimed_at"):
+                    state["payment_claimed_at"] = now.isoformat().replace("+00:00", "Z")
+                state["stage"] = "awaiting_transfer"
+                state["transfer_started_at"] = state.get("payment_claimed_at")
+                state["transfer_deadline"] = (now + timedelta(minutes=10)).isoformat().replace("+00:00", "Z")
+                self._save_booking_state(user_id, conversation_id, state, platform=platform)
+                return self._confirm_payment_and_finalize(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    platform=platform,
+                    state=state,
+                )
             if any(x in t for x in ("sí", "si", "dale", "ok", "haré", "hare", "voy a", "ya")):
                 now = datetime.now(timezone.utc)
                 state["stage"] = "awaiting_transfer"
@@ -1686,209 +1938,12 @@ class InstagramBot:
             return "¿Harás la transferencia ahora? Responde “sí” o “no”, por favor."
 
         if stage == "awaiting_transfer":
-            t = (message_text or "").lower()
-            if any(
-                x in t
-                for x in (
-                    "listo",
-                    "listos",
-                    "listo ya",
-                    "transfer",
-                    "transferí",
-                    "transferi",
-                    "transferido",
-                    "transferida",
-                    "transferencia",
-                    "transferencia hecha",
-                    "transferencia lista",
-                    "ya transferí",
-                    "ya transferi",
-                    "pagado",
-                    "pagada",
-                    "pagué",
-                    "pague",
-                    "ya pagué",
-                    "ya pague",
-                    "he pagado",
-                    "hecha",
-                    "hecho",
-                    "enviado",
-                    "envié",
-                    "envie",
-                    "estamos",
-                    "estamos listos",
-                    "estamos ok",
-                )
-            ):
-                since_iso = state.get("transfer_started_at") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-                details = state.get("details") or {}
-                auto_confirm_active, auto_confirm_until = self._temp_transfer_auto_confirm_active()
-                if not auto_confirm_active and not self.payment_inbox.is_configured():
-                    return (
-                        "Estoy listo para confirmar, pero aún no tengo acceso configurado a la bandeja de pagos. "
-                        "Por ahora, envía el comprobante a `contacto@fundomoraga.com` y te confirmamos por ese medio."
-                    )
-
-                if auto_confirm_active:
-                    check = PaymentCheckResult(
-                        found=False,
-                        subject="auto-confirmacion",
-                        from_email="cliente",
-                        received_at="pendiente",
-                    )
-                else:
-                    check = self.payment_inbox.find_payment_email(
-                        since_iso=since_iso,
-                        expected_from=(details.get("email") or "").strip() or None,
-                    )
-                    if not check.found:
-                        return "Aún no me aparece el correo del banco. Dame 1–2 minutos y vuelve a escribirme “listo” para revisar de nuevo (dentro de los 10 minutos)."
-
-                visit_day = state.get("visit_day") or "por confirmar"
-                visit_date = self._safe_date_from_iso(state.get("visit_date"))
-                price_clp = int(state.get("price_clp") or 0)
-
-                payment_note = (
-                    "Pago marcado como recibido por el cliente (auto-confirmación temporal, sin verificación de inbox)."
-                    if auto_confirm_active
-                    else f"Pago verificado por inbox. From: {check.from_email} Subject: {check.subject}"
-                )
-                visit_date_str = visit_date.isoformat() if visit_date else "por confirmar"
-                booking_request_payload = {
-                    "visit_date": visit_date_str,
-                    "visit_day": visit_day,
-                    "full_name": details.get("full_name", "No proporcionado"),
-                    "phone": details.get("phone", "No proporcionado"),
-                    "email": details.get("email", "No proporcionado"),
-                    "cars_count": int(details.get("cars_count") or 0),
-                    "motos_count": int(details.get("motos_count") or 0),
-                    "people_count": int(details.get("people_count") or 0),
-                    "price_clp": price_clp,
-                    "conversation_id": conversation_id,
-                    "platform": platform,
-                    "additional_notes": (
-                        f"Hora llegada: {details.get('arrival_time')}. {payment_note}"
-                    ),
-                }
-                send_result = self.resend_client.send_booking_request(**booking_request_payload)
-                if not send_result.get("success"):
-                    self._queue_pending_email(
-                        email_type="booking_request",
-                        payload=booking_request_payload,
-                        user_id=user_id,
-                        conversation_id=conversation_id,
-                        platform=platform,
-                        visit_date=visit_date,
-                    )
-
-                confirmation_sent = False
-                reminder_scheduled = False
-                user_email = (details.get("email") or "").strip()
-                if user_email and self.resend_client.is_configured():
-                    confirm_payload = {
-                        "to_email": user_email,
-                        "full_name": details.get("full_name", "Cliente"),
-                        "visit_date": visit_date_str,
-                        "visit_day": visit_day,
-                        "arrival_time": details.get("arrival_time", "por confirmar"),
-                        "cars_count": int(details.get("cars_count") or 0),
-                        "motos_count": int(details.get("motos_count") or 0),
-                        "people_count": int(details.get("people_count") or 0),
-                        "price_clp": price_clp,
-                    }
-                    confirm_result = self.resend_client.send_booking_confirmation_to_user(**confirm_payload)
-                    confirmation_sent = bool(confirm_result.get("success"))
-                    if user_email and not confirmation_sent:
-                        self._queue_pending_email(
-                            email_type="booking_confirmation",
-                            payload=confirm_payload,
-                            user_id=user_id,
-                            conversation_id=conversation_id,
-                            platform=platform,
-                            visit_date=visit_date,
-                        )
-
-                if user_email:
-                    reminder_doc = self._schedule_booking_reminder(
-                        user_id=user_id,
-                        conversation_id=conversation_id,
-                        visit_date=visit_date,
-                        visit_day=visit_day,
-                        details=details,
-                        price_clp=price_clp,
-                        platform=platform,
-                    )
-                    reminder_scheduled = bool(reminder_doc)
-
-                calendar_ok = False
-                calendar_error = None
-                try:
-                    if visit_date:
-                        start_iso, end_iso = self._event_times(visit_date)
-                        description = self._calendar_description(conversation_id, details, price_clp, check)
-                        req = CalendarEventRequest(
-                            summary=f"Reserva Fundo Moraga ({visit_day}) - {details.get('full_name','')}".strip(),
-                            description=description,
-                            start_iso=start_iso,
-                            end_iso=end_iso,
-                            timezone=config.GOOGLE_CALENDAR_TIMEZONE,
-                            attendees=[
-                                "efrainantoniomoraga@gmail.com",
-                                "pierinabertoni@gmail.com",
-                                "contacto@fundomoraga.com",
-                            ],
-                        )
-                        self.calendar_client.create_event(req)
-                        calendar_ok = True
-                except Exception as e:
-                    calendar_error = str(e)
-
-                state["stage"] = "confirmed"
-                state["confirmed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-                state["confirmation_email_sent"] = confirmation_sent
-                state["reminder_scheduled"] = reminder_scheduled
-                state["payment_verified"] = bool(check.found)
-                if auto_confirm_active and auto_confirm_until:
-                    state["auto_confirm_until"] = auto_confirm_until.isoformat()
-                self._save_booking_state(user_id, conversation_id, state, platform=platform)
-
-                cal_msg = "y agendé Google Calendar" if calendar_ok else f"pero no pude agendar Calendar ({calendar_error})"
-                start_h, end_h = self._visit_hours_for_date(visit_date)
-                hours_txt = f"{start_h} a {end_h}"
-                email_msg = ""
-                if user_email and confirmation_sent:
-                    email_msg = f" Te envié un correo de confirmación a {user_email}."
-                elif user_email and not confirmation_sent:
-                    email_msg = " Te enviaré el correo de confirmación apenas se renueve la cuota."
-                if reminder_scheduled:
-                    email_msg += " Además, recibirás un recordatorio un día antes."
-
-                if auto_confirm_active:
-                    until_msg = ""
-                    if auto_confirm_until:
-                        until_local = auto_confirm_until.astimezone(self._local_timezone())
-                        today = self._today_local_date()
-                        if until_local.date() == today:
-                            label = f"hoy a las {until_local.strftime('%H:%M')}"
-                        elif until_local.date() == (today + timedelta(days=1)):
-                            label = f"mañana a las {until_local.strftime('%H:%M')}"
-                        else:
-                            label = until_local.strftime("%Y-%m-%d %H:%M")
-                        until_msg = f" Validaremos la transferencia {label}."
-                    form_msg = ""
-                    if not send_result.get("success"):
-                        form_msg = " El correo al equipo no pudo enviarse ahora."
-                    return (
-                        f"¡Listo! Dejé tu reserva confirmada de forma temporal para {visit_day} de {hours_txt}."
-                        f"{until_msg} Ya registré tu solicitud {cal_msg}.{form_msg}{email_msg}"
-                    )
-
-                form_msg = ""
-                if not send_result.get("success"):
-                    form_msg = " (no pude enviar el formulario ahora, pero tu reserva quedó registrada)."
-                return (
-                    f"¡Listo! Recibí el correo del banco: tu reserva quedó confirmada para {visit_day} "
-                    f"de {hours_txt}. Ya envié el formulario a contacto@fundomoraga.com {cal_msg}.{form_msg}{email_msg}"
+            if self._is_payment_claim_message(message_text):
+                return self._confirm_payment_and_finalize(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    platform=platform,
+                    state=state,
                 )
 
             return "Quedo atento: cuando completes la transferencia, dime “listo, transferí” y reviso el correo del banco."
