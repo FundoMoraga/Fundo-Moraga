@@ -91,6 +91,7 @@ Las actividades off-road son operadas EXCLUSIVAMENTE por Batuco Off Road:
 - Fin de semana (grupos): $200.000 el día
 - Eventos privados/corporativos: Valores y condiciones personalizadas
 - Rutas 4x4
+- La ruta trazada más larga es de aprox. 3 km; se puede extender hasta 7 km durante el día (campo a disposición para descubrirlo).
 - Enduro
 - Experiencias todoterreno
 - Eventos de aventura motorizada

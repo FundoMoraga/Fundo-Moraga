@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 from html import escape
 
 from google_calendar_client import CalendarEventRequest, get_google_calendar_client
-from payment_inbox_client import get_payment_inbox_client
+from payment_inbox_client import get_payment_inbox_client, PaymentCheckResult
 
 
 class InstagramBot:
@@ -1625,26 +1625,72 @@ class InstagramBot:
 
         if stage == "awaiting_transfer":
             t = (message_text or "").lower()
-            if any(x in t for x in ("listo", "transfer", "hecho", "pagado", "enviado")):
+            if any(
+                x in t
+                for x in (
+                    "listo",
+                    "listos",
+                    "listo ya",
+                    "transfer",
+                    "transferí",
+                    "transferi",
+                    "transferido",
+                    "transferida",
+                    "transferencia",
+                    "transferencia hecha",
+                    "transferencia lista",
+                    "ya transferí",
+                    "ya transferi",
+                    "pagado",
+                    "pagada",
+                    "pagué",
+                    "pague",
+                    "ya pagué",
+                    "ya pague",
+                    "he pagado",
+                    "hecha",
+                    "hecho",
+                    "enviado",
+                    "envié",
+                    "envie",
+                    "estamos",
+                    "estamos listos",
+                    "estamos ok",
+                )
+            ):
                 since_iso = state.get("transfer_started_at") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
                 details = state.get("details") or {}
-                if not self.payment_inbox.is_configured():
+                auto_confirm_active, auto_confirm_until = self._temp_transfer_auto_confirm_active()
+                if not auto_confirm_active and not self.payment_inbox.is_configured():
                     return (
                         "Estoy listo para confirmar, pero aún no tengo acceso configurado a la bandeja de pagos. "
                         "Por ahora, envía el comprobante a `contacto@fundomoraga.com` y te confirmamos por ese medio."
                     )
 
-                check = self.payment_inbox.find_payment_email(
-                    since_iso=since_iso,
-                    expected_from=(details.get("email") or "").strip() or None,
-                )
-                if not check.found:
-                    return "Aún no me aparece el correo del banco. Dame 1–2 minutos y vuelve a escribirme “listo” para revisar de nuevo (dentro de los 10 minutos)."
+                if auto_confirm_active:
+                    check = PaymentCheckResult(
+                        found=False,
+                        subject="auto-confirmacion",
+                        from_email="cliente",
+                        received_at="pendiente",
+                    )
+                else:
+                    check = self.payment_inbox.find_payment_email(
+                        since_iso=since_iso,
+                        expected_from=(details.get("email") or "").strip() or None,
+                    )
+                    if not check.found:
+                        return "Aún no me aparece el correo del banco. Dame 1–2 minutos y vuelve a escribirme “listo” para revisar de nuevo (dentro de los 10 minutos)."
 
                 visit_day = state.get("visit_day") or "por confirmar"
                 visit_date = self._safe_date_from_iso(state.get("visit_date"))
                 price_clp = int(state.get("price_clp") or 0)
 
+                payment_note = (
+                    "Pago marcado como recibido por el cliente (auto-confirmación temporal, sin verificación de inbox)."
+                    if auto_confirm_active
+                    else f"Pago verificado por inbox. From: {check.from_email} Subject: {check.subject}"
+                )
                 send_result = self.resend_client.send_booking_request(
                     visit_date=(visit_date.isoformat() if visit_date else "por confirmar"),
                     visit_day=visit_day,
@@ -1658,8 +1704,7 @@ class InstagramBot:
                     conversation_id=conversation_id,
                     platform=platform,
                     additional_notes=(
-                        f"Hora llegada: {details.get('arrival_time')}. "
-                        f"Pago verificado por inbox. From: {check.from_email} Subject: {check.subject}"
+                        f"Hora llegada: {details.get('arrival_time')}. {payment_note}"
                     ),
                 )
 
@@ -1715,29 +1760,53 @@ class InstagramBot:
                 except Exception as e:
                     calendar_error = str(e)
 
-                state["stage"] = "confirmed" if send_result.get("success") else "error"
+                state["stage"] = "confirmed"
                 state["confirmed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
                 state["confirmation_email_sent"] = confirmation_sent
                 state["reminder_scheduled"] = reminder_scheduled
+                state["payment_verified"] = bool(check.found)
+                if auto_confirm_active and auto_confirm_until:
+                    state["auto_confirm_until"] = auto_confirm_until.isoformat()
                 self._save_booking_state(user_id, conversation_id, state, platform=platform)
 
-                if send_result.get("success"):
-                    cal_msg = "y agendé Google Calendar" if calendar_ok else f"pero no pude agendar Calendar ({calendar_error})"
-                    start_h, end_h = self._visit_hours_for_date(visit_date)
-                    hours_txt = f"{start_h} a {end_h}"
-                    email_msg = ""
-                    if user_email and confirmation_sent:
-                        email_msg = f" Te envié un correo de confirmación a {user_email}."
-                    elif user_email and not confirmation_sent:
-                        email_msg = " Intenté enviar tu correo de confirmación, pero no se pudo."
-                    if reminder_scheduled:
-                        email_msg += " Además, recibirás un recordatorio un día antes."
+                cal_msg = "y agendé Google Calendar" if calendar_ok else f"pero no pude agendar Calendar ({calendar_error})"
+                start_h, end_h = self._visit_hours_for_date(visit_date)
+                hours_txt = f"{start_h} a {end_h}"
+                email_msg = ""
+                if user_email and confirmation_sent:
+                    email_msg = f" Te envié un correo de confirmación a {user_email}."
+                elif user_email and not confirmation_sent:
+                    email_msg = " Te enviaré el correo de confirmación apenas se renueve la cuota."
+                if reminder_scheduled:
+                    email_msg += " Además, recibirás un recordatorio un día antes."
+
+                if auto_confirm_active:
+                    until_msg = ""
+                    if auto_confirm_until:
+                        until_local = auto_confirm_until.astimezone(self._local_timezone())
+                        today = self._today_local_date()
+                        if until_local.date() == today:
+                            label = f"hoy a las {until_local.strftime('%H:%M')}"
+                        elif until_local.date() == (today + timedelta(days=1)):
+                            label = f"mañana a las {until_local.strftime('%H:%M')}"
+                        else:
+                            label = until_local.strftime("%Y-%m-%d %H:%M")
+                        until_msg = f" Validaremos la transferencia {label}."
+                    form_msg = ""
+                    if not send_result.get("success"):
+                        form_msg = " El correo al equipo no pudo enviarse ahora."
                     return (
-                        f"¡Listo! Recibí el correo del banco: tu reserva quedó confirmada para {visit_day} "
-                        f"de {hours_txt}. Ya envié el formulario a contacto@fundomoraga.com {cal_msg}.{email_msg}"
+                        f"¡Listo! Dejé tu reserva confirmada de forma temporal para {visit_day} de {hours_txt}."
+                        f"{until_msg} Ya registré tu solicitud {cal_msg}.{form_msg}{email_msg}"
                     )
 
-                return "Recibí el correo del banco, pero tuve un problema enviando el formulario. Intenta nuevamente en unos minutos."
+                form_msg = ""
+                if not send_result.get("success"):
+                    form_msg = " (no pude enviar el formulario ahora, pero tu reserva quedó registrada)."
+                return (
+                    f"¡Listo! Recibí el correo del banco: tu reserva quedó confirmada para {visit_day} "
+                    f"de {hours_txt}. Ya envié el formulario a contacto@fundomoraga.com {cal_msg}.{form_msg}{email_msg}"
+                )
 
             return "Quedo atento: cuando completes la transferencia, dime “listo, transferí” y reviso el correo del banco."
 
@@ -2144,6 +2213,43 @@ class InstagramBot:
         except Exception:
             tz = timezone.utc
         return datetime.now(tz).date()
+
+    def _local_timezone(self):
+        tz_name = getattr(config, "GOOGLE_CALENDAR_TIMEZONE", None) or "America/Santiago"
+        try:
+            return ZoneInfo(tz_name)
+        except Exception:
+            return timezone.utc
+
+    def _parse_local_datetime(self, raw: str) -> Optional[datetime]:
+        if not raw:
+            return None
+        raw = str(raw).strip()
+        if not raw:
+            return None
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except Exception:
+            try:
+                parsed = datetime.strptime(raw, "%Y-%m-%d %H:%M")
+            except Exception:
+                return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=self._local_timezone())
+        return parsed
+
+    def _temp_transfer_auto_confirm_until(self) -> Optional[datetime]:
+        raw = getattr(config, "TEMP_TRANSFER_AUTO_CONFIRM_UNTIL", None)
+        if not raw:
+            return None
+        return self._parse_local_datetime(raw)
+
+    def _temp_transfer_auto_confirm_active(self) -> tuple[bool, Optional[datetime]]:
+        until = self._temp_transfer_auto_confirm_until()
+        if not until:
+            return False, None
+        now = datetime.now(until.tzinfo or self._local_timezone())
+        return now <= until, until
 
     def _next_weekday_date(
         self, weekday_es: str, *, base_date: Optional[date] = None, include_today: bool = False
