@@ -1125,6 +1125,9 @@ class InstagramBot:
             if not interest:
                 interest = "No especificado"
 
+            if not self._should_send_contact_email(known_name, known_contact, interest):
+                return
+
             send_result = self.resend_client.send_conversation_summary(
                 user_name=known_name,
                 user_interest=interest,
@@ -1181,21 +1184,14 @@ class InstagramBot:
                 return
 
             contact_payload = self._compile_contact_sheet_payload(history, reason=reason)
-            name_clean = self._clean_identity_value(contact_payload.get("name"))
-            contact_clean = self._clean_identity_value(contact_payload.get("contact"))
-            if not (name_clean or contact_clean):
+            if not self._should_send_contact_email(
+                contact_payload.get("name") or "",
+                contact_payload.get("contact") or "",
+                contact_payload.get("interest") or "",
+            ):
                 print(
-                    "INFO: Skipping conversation summary without identity "
+                    "INFO: Skipping conversation summary without required data "
                     f"(reason={reason}, conversation_id={conversation_id})"
-                )
-                return
-
-            booking_state = self._get_booking_state(history, conversation_id) or {}
-            if booking_state and not booking_state.get("payment_verified"):
-                stage = booking_state.get("stage") or "N/A"
-                print(
-                    "INFO: Skipping conversation summary until payment verified "
-                    f"(stage={stage}, conversation_id={conversation_id})"
                 )
                 return
 
@@ -2786,6 +2782,47 @@ class InstagramBot:
         if text.lower() in ("no proporcionado", "no identificado", "no especificado", "n/a"):
             return ""
         return text
+
+    def _clean_interest_value(self, value: Optional[str]) -> str:
+        if value is None:
+            return ""
+        text = str(value).strip()
+        if not text:
+            return ""
+        if text.lower() in ("no especificado", "no identificado", "n/a"):
+            return ""
+        return text
+
+    def _name_has_surname(self, name: str) -> bool:
+        if not name:
+            return False
+        normalized = re.sub(r"\s+", " ", name).strip(" .,!¿?;:")
+        candidate = self._looks_like_full_name(normalized)
+        if not candidate:
+            return False
+        connectors = {"de", "del", "la", "las", "los", "y"}
+        tokens = [t for t in candidate.split() if t.lower() not in connectors]
+        return len(tokens) >= 2
+
+    def _contact_has_email_or_phone(self, contact: str) -> bool:
+        if not contact:
+            return False
+        text = contact.strip()
+        email_match = re.search(r"([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", text, re.IGNORECASE)
+        phone_match = re.search(r"(\+?\d[\d\s\-()]{7,}\d)", text)
+        return bool(email_match or phone_match)
+
+    def _should_send_contact_email(self, name: str, contact: str, interest: str) -> bool:
+        name_clean = self._clean_identity_value(name)
+        contact_clean = self._clean_identity_value(contact)
+        interest_clean = self._clean_interest_value(interest)
+        if not self._name_has_surname(name_clean):
+            return False
+        if not self._contact_has_email_or_phone(contact_clean):
+            return False
+        if len(interest_clean) < 8:
+            return False
+        return True
     
     def _send_lead_email(
         self,
@@ -2868,10 +2905,8 @@ class InstagramBot:
                             else:
                                 contacto += f" / {phone.strip()}"
 
-            name_clean = self._clean_identity_value(nombre)
-            contact_clean = self._clean_identity_value(contacto)
-            if not (name_clean or contact_clean):
-                print(f"INFO: Omitiendo email de lead sin nombre/contacto ({conversation_id})")
+            if not self._should_send_contact_email(nombre, contacto, interes):
+                print(f"INFO: Omitiendo email de lead sin datos completos ({conversation_id})")
                 return
             
             # Enviar email con Resend
