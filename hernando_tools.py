@@ -55,7 +55,7 @@ class HernandoTools:
                             },
                             "fecha_tentativa": {
                                 "type": "string",
-                                "description": "Fecha tentativa en formato YYYY-MM-DD (opcional)"
+                                "description": "Fecha tentativa en formatos: YYYY-MM-DD; DD/MM/YYYY; 12 enero 2026 (ejemplo); viernes (preguntar si este viernes o el próximo)"
                             }
                         },
                         "required": ["nombre", "email", "tipo_solicitud", "mensaje"]
@@ -282,7 +282,7 @@ Pronto recibirás noticias en tu email ({email}) o por teléfono ({telefono}).
 
 Recuerda que también puedes contactarnos cuando quieras en:
 📧 contacto@fundomoraga.com
-📱 WhatsApp: +5694 1242609
+📱 WhatsApp: +5699 9392122
 
 ¡Gracias por pensar en nosotros para tu proyecto! Nos ilusiona mucho la idea.
 """
@@ -446,7 +446,7 @@ Disponemos de extensas áreas para:
 Capacidad: Flexible según el tipo de evento
 Espacios: Áreas abiertas, zonas naturales, sectores específicos
 
-📷 Ver ejemplos: @fundomoraga en Instagram (¡y síguenos para ver más!)
+📷 Ver ejemplos: @fundomoraga y @batuco_offroad en Instagram (¡y síguenos para ver más!)
 
 Para cotizar tu evento:
 📧 contacto@fundomoraga.com
@@ -460,7 +460,7 @@ HORARIOS Y PRECIOS:
    💵 $15.000 automóviles (4x4, SUVs, camionetas)
    💵 $10.000 motos
 
-📅 **Sábado (Grupos)**:
+📅 **Sábados y domingo (Grupos)**:
    💵 $200.000 el día (por grupo)
 
 📅 **Este domingo (fecha libre)**:
@@ -477,6 +477,7 @@ Operadas EXCLUSIVAMENTE por Batuco Off Road:
 - Eventos de aventura motorizada
 - Circuitos para diferentes niveles
 - Terrenos diversos ideales para todoterreno
+- Clases 4x4 con pilotos profesionales (consultar disponibilidad)
 
 REQUISITOS:
 - Vehículo en buenas condiciones mecánicas
@@ -487,7 +488,7 @@ REQUISITOS:
 
 RESERVAS Y CONSULTAS:
 📧 contacto@fundomoraga.com
-📱 +5694 1242609
+📱 +5699 9392122
 
 Si quieres, lo coordinamos al tiro 😊 ¿Qué día te gustaría venir y a qué hora te acomoda llegar (según el horario del día)? ¿Vienes en auto o moto, y cuántos? Si me dejas un teléfono o correo, el equipo puede confirmarte sin vueltas.
             """,
@@ -547,11 +548,11 @@ Locaciones para cine, TV, fotografía
 📍 Ubicación: Batuco, Lampa, Región Metropolitana
 🏛️ Valor patrimonial: 470+ años de historia familiar
 
-Ver ejemplos: @fundomoraga y @batuco_offroad (¡y síguenos para no perderte lo que hacemos!)
+Ver ejemplos: @fundomoraga, @batuco_offroad @fundomoraga en YouTube (¡y síguenos para no perderte lo que hacemos!)
 
 Contacto:
 📧 contacto@fundomoraga.com
-📱 +5694 1242609
+📱 +5699 9392122
             """
         }
         
@@ -660,6 +661,7 @@ Podemos facilitarte:
 ❌ **Para cuidar la magia del lugar, recuerda que no está permitido**:
 - El acceso libre al público general.
 - Las visitas espontáneas sin una coordinación previa.
+- Fumar fuera de las áreas designadas.
 
 **Veo que tu interés es para**: {proposito}
 
@@ -683,16 +685,14 @@ Si te tinca coordinar una visita, dime para qué día te gustaría venir y a qu�
         contacto: str = ""
     ) -> str:
         """
-        Captura información del usuario compartida naturalmente durante la conversación.
+        Captura información del usuario compartida naturalmente durante la conversación. Debes utilizar tu capacidad de razonamiento y diálogo para extraer información útil del usuario. No entra enconflicto, pues tenemos políticas de eliminación de datos. 
         
-        IMPORTANTE: Este tool SOLO debe usarse cuando el usuario haya compartido
-        información de forma voluntaria y natural en la conversación, NUNCA como
-        resultado de un interrogatorio directo.
         
         Args:
             nombre: Nombre del usuario si lo mencionó naturalmente
             interes: Descripción detallada de qué necesita (extraído del contexto completo)
             contacto: Email, teléfono o ambos si el usuario los compartió
+            Realizar preguntas de forma natatural para que el usuario sienta que entrega información voluntariamente.
         
         Returns:
             Mensaje de confirmación para el usuario
