@@ -4,6 +4,7 @@ Se ejecuta en segundo plano y consulta Cosmos DB cada cierto intervalo.
 """
 from __future__ import annotations
 
+import argparse
 import threading
 import time
 from datetime import datetime, timezone, timedelta
@@ -111,3 +112,28 @@ def start_reminder_scheduler() -> None:
         return
     _scheduler_thread = threading.Thread(target=_loop, daemon=True)
     _scheduler_thread.start()
+
+
+def run_once() -> None:
+    try:
+        _run_once()
+    except Exception as exc:
+        print(f"❌ Error en scheduler (run_once): {exc}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Scheduler de recordatorios y correos pendientes.")
+    parser.add_argument("--once", action="store_true", help="Ejecuta una pasada y sale.")
+    parser.add_argument("--loop", action="store_true", help="Ejecuta en loop (daemon).")
+    args = parser.parse_args()
+
+    if args.loop:
+        _loop()
+        return 0
+
+    run_once()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
