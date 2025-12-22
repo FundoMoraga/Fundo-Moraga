@@ -14,8 +14,9 @@ def _clean_env(value: str | None) -> str | None:
     return cleaned or None
 
 # Azure Cosmos DB
-COSMOS_ENDPOINT = os.getenv("COSMOS_ENDPOINT")
-COSMOS_KEY = os.getenv("COSMOS_KEY")
+# Limpia posibles comillas en variables de entorno provenientes de Railway/ENV
+COSMOS_ENDPOINT = _clean_env(os.getenv("COSMOS_ENDPOINT"))
+COSMOS_KEY = _clean_env(os.getenv("COSMOS_KEY"))
 COSMOS_DATABASE = os.getenv("COSMOS_DATABASE", "chatbot")
 COSMOS_CONTAINER = os.getenv("COSMOS_CONTAINER", "conversations")
 COSMOS_PROMPTS_DB = os.getenv("COSMOS_PROMPTS_DB", "Entrenamiento")
