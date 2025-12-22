@@ -9,6 +9,7 @@ import os
 import config
 from cosmos_client import get_conversation_store
 from openai_client import get_chatbot_ai
+from cosmos_client import get_memory_store
 from resend_client import get_resend_client
 import json
 import re
@@ -29,6 +30,7 @@ class InstagramBot:
         self.resend_client = get_resend_client()
         self.calendar_client = get_google_calendar_client()
         self.payment_inbox = get_payment_inbox_client()
+        self.memory_store = get_memory_store()
         # Instagram (opcional). Si no está configurado, el chat web sigue funcionando.
         self.access_token = config.INSTAGRAM_ACCESS_TOKEN
         self.page_id = config.INSTAGRAM_PAGE_ID
@@ -308,6 +310,7 @@ class InstagramBot:
                 user_message=message_text,
                 conversation_history=conversation_history,
                 conversation_id=conversation_id,
+                user_id=user_id,
                 platform=prompt_platform,
                 already_welcomed=already_welcomed,
                 lead_capture_already_sent=lead_capture_already_sent,
@@ -341,6 +344,23 @@ class InstagramBot:
                     "model_requested": model_requested,
                 }
             )
+
+            # Guardar resumen corto en Memoria para reutilizar contexto
+            try:
+                short_summary = self._build_short_summary(
+                    user_message=message_text,
+                    assistant_reply=response_text,
+                    lead_context=lead_context,
+                )
+                if short_summary:
+                    self.memory_store.save_conversation_summary(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        summary=short_summary,
+                        topics=["conversacion"],
+                    )
+            except Exception as e:
+                print(f"⚠️ No se pudo guardar el resumen en Memoria: {e}")
 
             # 7. Si el modelo ejecutó herramientas de captura/formulario, enviar email y marcar conversación
             lead_handled = False
@@ -379,6 +399,34 @@ class InstagramBot:
         except Exception as e:
             print(f"❌ Error procesando mensaje: {e}")
             return "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente."
+
+    def _build_short_summary(self, user_message: str, assistant_reply: str, lead_context: dict | None = None) -> str:
+        """Crea un resumen breve de la interacción para Memoria."""
+        parts = []
+        msg = (user_message or "").strip()
+        ans = (assistant_reply or "").strip()
+        if msg:
+            parts.append(f"Usuario: {msg}")
+        if ans:
+            parts.append(f"Bot: {ans}")
+        if lead_context:
+            lc = []
+            nombre = lead_context.get("nombre") or lead_context.get("name")
+            contacto = lead_context.get("contacto") or lead_context.get("contact")
+            interes = lead_context.get("interes") or lead_context.get("interest")
+            if nombre:
+                lc.append(f"nombre={nombre}")
+            if contacto:
+                lc.append(f"contacto={contacto}")
+            if interes:
+                lc.append(f"interes={interes}")
+            if lc:
+                parts.append("Lead: " + ", ".join(lc))
+        summary = " | ".join(parts)
+        # Limitar a ~500 caracteres para no inflar Memoria
+        if len(summary) > 500:
+            summary = summary[:500] + "…"
+        return summary
 
     def _is_farewell_message(self, message_text: str) -> bool:
         t = (message_text or "").strip().lower()

@@ -11,6 +11,7 @@ import os
 import re
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
+from cosmos_client import get_memory_store
 
 
 class ChatbotAI:
@@ -20,6 +21,7 @@ class ChatbotAI:
         """Inicializa el cliente de OpenAI y carga prompts dinámicamente desde Cosmos DB."""
         self.client = OpenAI(api_key=config.OPENAI_API_KEY)
         self.model = config.OPENAI_MODEL
+        self.memory_store = get_memory_store()
         # Si la cuenta queda sin cuota, evitamos golpear la API en cada mensaje (reduce latencia/ruido).
         self._openai_disabled_until: Optional[datetime] = None
         self._openai_disabled_reason: Optional[str] = None
@@ -67,6 +69,7 @@ class ChatbotAI:
         user_message: str,
         conversation_history: Optional[List[Dict]] = None,
         conversation_id: Optional[str] = None,
+        user_id: Optional[str] = None,
         platform: Optional[str] = None,
         already_welcomed: Optional[bool] = None,
         lead_capture_already_sent: Optional[bool] = None,
@@ -110,6 +113,42 @@ class ChatbotAI:
                 if len(value) > 400:
                     value = value[:400] + "…"
                 context_lines.append(f"{key}={value}")
+
+        if user_id:
+            # Inyectar memoria: hechos, precios y resúmenes recientes.
+            memory_lines: List[str] = []
+            facts = self.memory_store.list_facts(limit=5)
+            for f in facts:
+                key = f.get("key")
+                val = f.get("value")
+                scope = f.get("scope") or "global"
+                if key and val:
+                    memory_lines.append(f"fact[{scope}]: {key}={val}")
+                    if len(memory_lines) >= 5:
+                        break
+
+            prices = self.memory_store.list_prices(limit=5)
+            for p in prices:
+                prod = p.get("product")
+                price = p.get("price")
+                curr = p.get("currency") or "CLP"
+                if prod and price is not None:
+                    memory_lines.append(f"price: {prod}={price} {curr}")
+                    if len(memory_lines) >= 10:
+                        break
+
+            summaries = self.memory_store.get_conversation_summaries(user_id=user_id, limit=3)
+            for s in summaries:
+                cid = s.get("conversationId")
+                summary = s.get("summary")
+                if summary:
+                    memory_lines.append(f"summary[{cid}]: {summary}")
+                    if len(memory_lines) >= 13:
+                        break
+
+            if memory_lines:
+                context_lines.append("MEMORIA")
+                context_lines.extend(memory_lines)
 
         if context_lines:
             messages.append({"role": "system", "content": "CONTEXTO\n" + "\n".join(context_lines)})
@@ -321,6 +360,7 @@ class ChatbotAI:
         *,
         conversation_id: Optional[str] = None,
         platform: Optional[str] = None,
+        user_id: Optional[str] = None,
         already_welcomed: Optional[bool] = None,
         lead_capture_already_sent: Optional[bool] = None,
         extra_context: Optional[Dict[str, Any]] = None,
@@ -349,6 +389,7 @@ class ChatbotAI:
             user_message=user_message,
             conversation_history=conversation_history,
             conversation_id=conversation_id,
+            user_id=user_id,
             platform=platform,
             already_welcomed=already_welcomed,
             lead_capture_already_sent=lead_capture_already_sent,

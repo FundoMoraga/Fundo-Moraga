@@ -423,3 +423,261 @@ def get_conversation_store() -> ConversationStore:
     if _conversation_store is None:
         _conversation_store = ConversationStore()
     return _conversation_store
+
+
+class MemoryStore:
+    """Almacenamiento de 'Memoria' (precios, hechos, resúmenes) en Cosmos DB"""
+
+    def __init__(self):
+        try:
+            self.client = CosmosClient(config.COSMOS_ENDPOINT, config.COSMOS_KEY)
+            self.database = self.client.get_database_client(config.COSMOS_DATABASE)
+            self.container = self.database.get_container_client(config.COSMOS_MEMORY_CONTAINER)
+            self._pk_field = (config.COSMOS_MEMORY_PK_PATH or "/Categoria").lstrip("/")
+            print(f"✅ Conectado a Cosmos DB Memoria: {config.COSMOS_DATABASE}/{config.COSMOS_MEMORY_CONTAINER}")
+        except Exception as e:
+            print(f"❌ Error conectando a Cosmos DB (Memoria): {e}")
+            raise
+
+    def _with_pk(self, doc: Dict, pk_value: str) -> Dict:
+        doc[self._pk_field] = pk_value
+        return doc
+
+    # --------- Precios ---------
+    def upsert_price(self, *, product: str, price: float, currency: str = "CLP", source: str | None = None,
+                     effective_from: Optional[str] = None, tags: Optional[list[str]] = None) -> Dict:
+        """Guarda/actualiza el precio de un producto."""
+        now_iso = datetime.now(timezone.utc).isoformat()
+        doc = {
+            "id": f"price:{product}",
+            "type": "price",
+            "product": product,
+            "price": price,
+            "currency": currency,
+            "source": source,
+            "effective_from": effective_from or now_iso,
+            "updated_at": now_iso,
+            "tags": tags or [],
+        }
+        doc = self._with_pk(doc, "price")
+        return self.container.upsert_item(doc)
+
+    def get_price(self, product: str) -> Optional[Dict]:
+        try:
+            query = """
+                SELECT TOP 1 * FROM c
+                WHERE c.{pk} = @categoria AND c.type = @type AND c.id = @id
+                ORDER BY c.updated_at DESC
+            """.replace("{pk}", self._pk_field)
+            params = [
+                {"name": "@categoria", "value": "price"},
+                {"name": "@type", "value": "price"},
+                {"name": "@id", "value": f"price:{product}"},
+            ]
+            items = list(self.container.query_items(
+                query=query,
+                parameters=params,
+                enable_cross_partition_query=True,
+            ))
+            return items[0] if items else None
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error consultando precio: {e.message}")
+            return None
+
+    # --------- Hechos (facts) ---------
+    def upsert_fact(self, *, key: str, value: Any, scope: str = "global", tags: Optional[list[str]] = None,
+                    expires_at: Optional[str] = None) -> Dict:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        doc = {
+            "id": f"fact:{scope}:{key}",
+            "type": "fact",
+            "scope": scope,
+            "key": key,
+            "value": value,
+            "updated_at": now_iso,
+            "expires_at": expires_at,
+            "tags": tags or [],
+        }
+        doc = self._with_pk(doc, "fact")
+        return self.container.upsert_item(doc)
+
+    def get_fact(self, *, key: str, scope: str = "global") -> Optional[Dict]:
+        try:
+            query = """
+                SELECT TOP 1 * FROM c
+                WHERE c.{pk} = @categoria AND c.type = @type AND c.id = @id
+            """.replace("{pk}", self._pk_field)
+                    try:
+                        query = """
+                            SELECT TOP 1 * FROM c
+                            WHERE c.{pk} = @categoria AND c.type = @type AND c.id = @id
+                        """.replace("{pk}", self._pk_field)
+                        params = [
+                            {"name": "@categoria", "value": "fact"},
+                            {"name": "@type", "value": "fact"},
+                            {"name": "@id", "value": f"fact:{scope}:{key}"},
+                        ]
+                        items = list(self.container.query_items(
+                            query=query,
+                            parameters=params,
+                            enable_cross_partition_query=True,
+                        ))
+                        return items[0] if items else None
+                    except exceptions.CosmosHttpResponseError as e:
+                        print(f"❌ Error consultando hecho: {e.message}")
+                        return None
+
+                def list_facts(self, *, scope: Optional[str] = None, limit: int = 20) -> List[Dict]:
+                    try:
+                        if scope:
+                            query = """
+                                SELECT * FROM c
+                                WHERE c.{pk} = @categoria AND c.type = @type AND c.scope = @scope
+                                ORDER BY c.updated_at DESC OFFSET 0 LIMIT @limit
+                            """.replace("{pk}", self._pk_field)
+                            params = [
+                                {"name": "@categoria", "value": "fact"},
+                                {"name": "@type", "value": "fact"},
+                                {"name": "@scope", "value": scope},
+                                {"name": "@limit", "value": limit},
+                            ]
+                        else:
+                            query = """
+                                SELECT * FROM c
+                                WHERE c.{pk} = @categoria AND c.type = @type
+                                ORDER BY c.updated_at DESC OFFSET 0 LIMIT @limit
+                            """.replace("{pk}", self._pk_field)
+                            params = [
+                                {"name": "@categoria", "value": "fact"},
+                                {"name": "@type", "value": "fact"},
+                                {"name": "@limit", "value": limit},
+                            ]
+                        items = list(
+                            self.container.query_items(
+                                query=query,
+                                parameters=params,
+                                enable_cross_partition_query=True,
+                            )
+                        )
+                        return items
+                    except exceptions.CosmosHttpResponseError as e:
+                        print(f"❌ Error listando hechos: {e.message}")
+                        return []
+                    try:
+                        query = """
+                            SELECT TOP 1 * FROM c
+                            WHERE c.{pk} = @categoria AND c.type = @type AND c.id = @id
+                        """.replace("{pk}", self._pk_field)
+                        params = [
+                            {"name": "@categoria", "value": "price"},
+                            {"name": "@type", "value": "price"},
+                            {"name": "@id", "value": f"price:{product}"},
+                        ]
+                        items = list(self.container.query_items(
+                            query=query,
+                            parameters=params,
+                            enable_cross_partition_query=True,
+                        ))
+                        return items[0] if items else None
+                    except exceptions.CosmosHttpResponseError as e:
+                        print(f"❌ Error consultando precio: {e.message}")
+                        return None
+
+                def list_prices(self, *, limit: int = 20) -> List[Dict]:
+                    try:
+                        query = """
+                            SELECT * FROM c
+                            WHERE c.{pk} = @categoria AND c.type = @type
+                            ORDER BY c.updated_at DESC OFFSET 0 LIMIT @limit
+                        """.replace("{pk}", self._pk_field)
+                        params = [
+                            {"name": "@categoria", "value": "price"},
+                            {"name": "@type", "value": "price"},
+                            {"name": "@limit", "value": limit},
+                        ]
+                        items = list(
+                            self.container.query_items(
+                                query=query,
+                                parameters=params,
+                                enable_cross_partition_query=True,
+                            )
+                        )
+                        return items
+                    except exceptions.CosmosHttpResponseError as e:
+                        print(f"❌ Error listando precios: {e.message}")
+                        return []
+            params = [
+                {"name": "@categoria", "value": "fact"},
+                {"name": "@type", "value": "fact"},
+                {"name": "@id", "value": f"fact:{scope}:{key}"},
+            ]
+            items = list(self.container.query_items(
+                query=query,
+                parameters=params,
+                enable_cross_partition_query=True,
+            ))
+            return items[0] if items else None
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error consultando hecho: {e.message}")
+            return None
+
+    # --------- Resúmenes de conversación ---------
+    def save_conversation_summary(self, *, user_id: str, conversation_id: str, summary: str,
+                                  topics: Optional[list[str]] = None, score: Optional[float] = None) -> Dict:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        doc = {
+            "id": f"summary:{conversation_id}",
+            "type": "conversation_summary",
+            "userId": user_id,
+            "conversationId": conversation_id,
+            "summary": summary,
+            "topics": topics or [],
+            "score": score,
+            "created_at": now_iso,
+        }
+        doc = self._with_pk(doc, "summary")
+        return self.container.upsert_item(doc)
+
+    def get_conversation_summaries(self, *, user_id: Optional[str] = None, limit: int = 20) -> List[Dict]:
+        try:
+            if user_id:
+                query = """
+                    SELECT * FROM c
+                    WHERE c.{pk} = @categoria AND c.type = @type AND c.userId = @userId
+                    ORDER BY c.created_at DESC OFFSET 0 LIMIT @limit
+                """.replace("{pk}", self._pk_field)
+                params = [
+                    {"name": "@categoria", "value": "summary"},
+                    {"name": "@type", "value": "conversation_summary"},
+                    {"name": "@userId", "value": user_id},
+                    {"name": "@limit", "value": limit},
+                ]
+            else:
+                query = """
+                    SELECT * FROM c
+                    WHERE c.{pk} = @categoria AND c.type = @type
+                    ORDER BY c.created_at DESC OFFSET 0 LIMIT @limit
+                """.replace("{pk}", self._pk_field)
+                params = [
+                    {"name": "@categoria", "value": "summary"},
+                    {"name": "@type", "value": "conversation_summary"},
+                    {"name": "@limit", "value": limit},
+                ]
+            items = list(self.container.query_items(
+                query=query,
+                parameters=params,
+                enable_cross_partition_query=True,
+            ))
+            return items
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"❌ Error consultando resúmenes: {e.message}")
+            return []
+
+
+_memory_store = None
+
+def get_memory_store() -> MemoryStore:
+    global _memory_store
+    if _memory_store is None:
+        _memory_store = MemoryStore()
+    return _memory_store

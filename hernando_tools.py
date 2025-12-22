@@ -15,6 +15,7 @@ class HernandoTools:
     def __init__(self):
         """Inicializa las herramientas"""
         self.tools = self._define_tools()
+        self.memory_store = get_memory_store()
     
     def _define_tools(self) -> List[Dict]:
         """
@@ -177,6 +178,43 @@ class HernandoTools:
                     }
                 }
             }
+            {
+                "type": "function",
+                "function": {
+                    "name": "guardar_precio",
+                    "description": "Guarda o actualiza el precio de un producto o servicio en la memoria.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "producto": {"type": "string", "description": "Nombre del producto o servicio"},
+                            "precio": {"type": "number", "description": "Precio en la moneda indicada"},
+                            "moneda": {"type": "string", "description": "Moneda (ej: CLP, USD)", "default": "CLP"},
+                            "fuente": {"type": "string", "description": "Origen del precio (ej: lista_oficial, promo)"},
+                            "vigente_desde": {"type": "string", "description": "ISO8601 de vigencia (opcional)"},
+                            "etiquetas": {"type": "array", "items": {"type": "string"}, "description": "Tags opcionales"}
+                        },
+                        "required": ["producto", "precio"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "guardar_hecho",
+                    "description": "Guarda o actualiza un hecho/dato relevante en la memoria.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "clave": {"type": "string", "description": "Identificador del hecho"},
+                            "valor": {"type": "string", "description": "Contenido del hecho"},
+                            "alcance": {"type": "string", "description": "Ámbito: global o por segmento", "default": "global"},
+                            "etiquetas": {"type": "array", "items": {"type": "string"}, "description": "Tags opcionales"},
+                            "expira_en": {"type": "string", "description": "ISO8601 de expiración (opcional)"}
+                        },
+                        "required": ["clave", "valor"]
+                    }
+                }
+            }
         ]
     
     def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
@@ -198,6 +236,8 @@ class HernandoTools:
             "obtener_contactos_oficiales": self.obtener_contactos_oficiales,
             "verificar_acceso_fundo": self.verificar_acceso_fundo,
             "capturar_informacion_usuario": self.capturar_informacion_usuario
+            "guardar_precio": self.guardar_precio,
+            "guardar_hecho": self.guardar_hecho,
         }
         
         if tool_name not in tool_methods:
@@ -276,6 +316,43 @@ class HernandoTools:
         print(f"📧 Formulario recibido: {json.dumps(formulario, indent=2)}")
         
         return f"""¡Perfecto! He enviado tu solicitud con éxito.
+
+    # ----- Memoria: precios y hechos -----
+    def guardar_precio(
+        self,
+        producto: str,
+        precio: float,
+        moneda: str = "CLP",
+        fuente: str | None = None,
+        vigente_desde: str | None = None,
+        etiquetas: list[str] | None = None,
+    ) -> Dict[str, Any]:
+        saved = self.memory_store.upsert_price(
+            product=producto,
+            price=precio,
+            currency=moneda,
+            source=fuente,
+            effective_from=vigente_desde,
+            tags=etiquetas,
+        )
+        return {"status": "ok", "saved": saved}
+
+    def guardar_hecho(
+        self,
+        clave: str,
+        valor: str,
+        alcance: str = "global",
+        etiquetas: list[str] | None = None,
+        expira_en: str | None = None,
+    ) -> Dict[str, Any]:
+        saved = self.memory_store.upsert_fact(
+            key=clave,
+            value=valor,
+            scope=alcance,
+            tags=etiquetas,
+            expires_at=expira_en,
+        )
+        return {"status": "ok", "saved": saved}
 
 Tu consulta sobre {tipo_solicitud} ya está en las mejores manos: las del equipo del Fundo Moraga. 
 Pronto recibirás noticias en tu email ({email}) o por teléfono ({telefono}).

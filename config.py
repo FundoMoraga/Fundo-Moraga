@@ -6,6 +6,12 @@ from dotenv import load_dotenv
 
 # Cargar variables de entorno
 load_dotenv()
+# Utilidad para limpiar variables de entorno con comillas
+def _clean_env(value: str | None) -> str | None:
+    if not value:
+        return None
+    cleaned = value.strip().strip('"').strip("'")
+    return cleaned or None
 
 # Azure Cosmos DB
 COSMOS_ENDPOINT = os.getenv("COSMOS_ENDPOINT")
@@ -15,6 +21,11 @@ COSMOS_CONTAINER = os.getenv("COSMOS_CONTAINER", "conversations")
 COSMOS_PROMPTS_DB = os.getenv("COSMOS_PROMPTS_DB", "Entrenamiento")
 COSMOS_PROMPTS_CONTAINER = os.getenv("COSMOS_PROMPTS_CONTAINER", "Hernando")
 COSMOS_PROMPTS_PERSONA = os.getenv("COSMOS_PROMPTS_PERSONA", "Hernando")
+
+# Cosmos DB - Memoria
+COSMOS_MEMORY_CONTAINER = os.getenv("COSMOS_MEMORY_CONTAINER", "Memoria")
+# Ruta del PK del contenedor Memoria (ej: /Categoria, /type, /tenantId)
+COSMOS_MEMORY_PK_PATH = os.getenv("COSMOS_MEMORY_PK_PATH", "/Categoria")
 
 # OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -26,6 +37,12 @@ AZURE_TRANSLATOR_ENDPOINT = os.getenv(
 )
 AZURE_TRANSLATOR_KEY = os.getenv("AZURE_TRANSLATOR_KEY")
 AZURE_TRANSLATOR_REGION = os.getenv("AZURE_TRANSLATOR_REGION", "southcentralus")
+
+# Azure AI Language (Text Analytics)
+AZURE_LANGUAGE_ENDPOINT = _clean_env(
+    os.getenv("AZURE_LANGUAGE_ENDPOINT", "https://hernando.cognitiveservices.azure.com/")
+)
+AZURE_LANGUAGE_KEY = _clean_env(os.getenv("AZURE_LANGUAGE_KEY"))
 
 # Instagram
 def _clean_token(value: str | None) -> str | None:
