@@ -51,6 +51,14 @@
    INSTAGRAM_PAGE_ID=tu-page-id
    ```
 
+   Para el **Worker de traducción** en un servicio separado:
+   ```
+   AZURE_TRANSLATOR_KEY=tu-key-aqui
+   AZURE_TRANSLATOR_REGION=southcentralus
+   AZURE_TRANSLATOR_ENDPOINT=https://hernando.cognitiveservices.azure.com/
+   START_COMMAND=python translate_worker.py
+   ```
+
 4. **Desplegar**:
    - Railway desplegará automáticamente
    - Espera a que termine el build

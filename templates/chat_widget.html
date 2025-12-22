@@ -426,6 +426,17 @@
             box-shadow: 0 8px 20px rgba(47, 93, 67, 0.12);
         }
 
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .icon-btn--mic.is-listening {
+            background: rgba(193, 137, 84, 0.18);
+            border-color: rgba(193, 137, 84, 0.55);
+            box-shadow: 0 0 0 4px rgba(193, 137, 84, 0.18);
+        }
+
         #message-input {
             flex: 1;
             padding: 0.75rem 1.1rem;
@@ -595,6 +606,14 @@
                         <path d="M21.44 11.05l-8.49 8.49a5 5 0 01-7.07-7.07l9.9-9.9a3.5 3.5 0 014.95 4.95l-9.9 9.9a2 2 0 11-2.83-2.83l8.49-8.49" />
                     </svg>
                 </button>
+                <button id="mic-btn" class="icon-btn icon-btn--mic" type="button" aria-label="Audio" title="Enviar audio">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 00-3 3v7a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                        <path d="M19 10a7 7 0 01-14 0" />
+                        <path d="M12 19v4" />
+                        <path d="M8 23h8" />
+                    </svg>
+                </button>
                 <input type="text" id="message-input" placeholder="Cuéntame qué quieres hacer en el Fundo Moraga...">
                 <button id="send-btn" aria-label="Enviar" type="button">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -616,6 +635,7 @@
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
+        const micBtn = document.getElementById('mic-btn');
         const BOT_AVATAR_SRC = '/static/hernando.jpg';
         const introOverlay = document.getElementById('intro-overlay');
         const introVideo = document.getElementById('intro-video');
@@ -636,6 +656,8 @@
         let typingIndicator = null;
         const userId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         let hasUserMessage = false;
+        let speechRecognition = null;
+        let isListening = false;
 
         function endConversation(reason) {
             try {
@@ -785,6 +807,57 @@
             }
         }
 
+        function setMicState(active) {
+            isListening = active;
+            if (micBtn) {
+                micBtn.classList.toggle('is-listening', active);
+            }
+        }
+
+        function setupSpeechRecognition() {
+            if (!micBtn) return;
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                micBtn.disabled = true;
+                micBtn.title = 'Audio no soportado en este navegador';
+                return;
+            }
+
+            speechRecognition = new SpeechRecognition();
+            speechRecognition.lang = 'es-CL';
+            speechRecognition.interimResults = false;
+            speechRecognition.maxAlternatives = 1;
+
+            speechRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript || '';
+                if (!transcript.trim()) return;
+                messageInput.value = transcript.trim();
+                sendMessage();
+            };
+
+            speechRecognition.onerror = () => {
+                setMicState(false);
+            };
+
+            speechRecognition.onend = () => {
+                setMicState(false);
+            };
+
+            micBtn.addEventListener('click', () => {
+                if (!speechRecognition) return;
+                if (isListening) {
+                    speechRecognition.stop();
+                    return;
+                }
+                try {
+                    setMicState(true);
+                    speechRecognition.start();
+                } catch (e) {
+                    setMicState(false);
+                }
+            });
+        }
+
         async function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
@@ -835,6 +908,7 @@
         });
 
         setTimeout(() => messageInput.focus(), 0);
+        setupSpeechRecognition();
 
         window.addEventListener('beforeunload', () => {
             if (hasUserMessage) {

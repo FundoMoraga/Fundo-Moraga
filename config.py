@@ -17,6 +17,13 @@ COSMOS_CONTAINER = os.getenv("COSMOS_CONTAINER", "conversations")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")
 
+# Azure Translator (Text Translation)
+AZURE_TRANSLATOR_ENDPOINT = os.getenv(
+    "AZURE_TRANSLATOR_ENDPOINT", "https://hernando.cognitiveservices.azure.com/"
+)
+AZURE_TRANSLATOR_KEY = os.getenv("AZURE_TRANSLATOR_KEY")
+AZURE_TRANSLATOR_REGION = os.getenv("AZURE_TRANSLATOR_REGION", "southcentralus")
+
 # Instagram
 def _clean_token(value: str | None) -> str | None:
     if not value:

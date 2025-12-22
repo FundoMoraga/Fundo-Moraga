@@ -64,6 +64,14 @@ MAX_CONVERSATION_HISTORY=10
 
 **IMPORTANTE**: No incluyas `INSTAGRAM_ACCESS_TOKEN` ni `INSTAGRAM_PAGE_ID` todavía (las agregaremos después).
 
+Para el **Worker de traducción** en un servicio separado agrega además:
+```
+AZURE_TRANSLATOR_KEY=tu-key-aqui
+AZURE_TRANSLATOR_REGION=southcentralus
+AZURE_TRANSLATOR_ENDPOINT=https://hernando.cognitiveservices.azure.com/
+START_COMMAND=python translate_worker.py
+```
+
 ### 5. Verificar el Deploy
 
 1. Railway mostrará los logs del deploy en tiempo real
