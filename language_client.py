@@ -1,8 +1,9 @@
 """
 Cliente para Azure AI Language (Text Analytics) - Análisis de sentimiento y extracción.
-Usa el SDK directamente para menor latencia.
+Usa el servicio HTTP de Railway si está disponible, o el SDK directo como fallback.
 """
 import config
+import requests
 from typing import Optional, Dict, Any
 
 try:
@@ -15,8 +16,13 @@ except ImportError:
     AzureKeyCredential = None
 
 
-def _get_client() -> Optional[Any]:
-    """Obtiene cliente de Text Analytics si está configurado."""
+def _use_http_service() -> bool:
+    """Verifica si debe usar el servicio HTTP de Railway."""
+    return bool(getattr(config, "LANGUAGE_SERVICE_URL", None))
+
+
+def _get_sdk_client() -> Optional[Any]:
+    """Obtiene cliente de Text Analytics SDK si está configurado."""
     if not _SDK_AVAILABLE:
         return None
     endpoint = getattr(config, "AZURE_LANGUAGE_ENDPOINT", None)
@@ -34,7 +40,27 @@ def analyze_sentiment(text: str) -> Optional[Dict[str, Any]]:
         Dict con 'sentiment' (positive/neutral/negative), 'scores' {positive, neutral, negative}
         None si no está disponible o hay error
     """
-    client = _get_client()
+    # Intenta servicio HTTP primero
+    if _use_http_service():
+        try:
+            url = f"http://{config.LANGUAGE_SERVICE_URL}/classify"
+            resp = requests.post(url, json={"text": text}, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                sentiment_info = data.get("sentiment")
+                if sentiment_info:
+                    scores = sentiment_info.get("scores", {})
+                    return {
+                        "sentiment": sentiment_info.get("overall"),
+                        "positive": scores.get("positive", 0.0),
+                        "neutral": scores.get("neutral", 0.0),
+                        "negative": scores.get("negative", 0.0),
+                    }
+        except Exception as e:
+            print(f"⚠️ Error llamando servicio Language HTTP, usando SDK: {e}")
+    
+    # Fallback a SDK directo
+    client = _get_sdk_client()
     if not client:
         return None
     
@@ -58,7 +84,25 @@ def analyze_sentiment(text: str) -> Optional[Dict[str, Any]]:
 
 def detect_language(text: str) -> Optional[Dict[str, Any]]:
     """Detecta el idioma de un texto."""
-    client = _get_client()
+    # Intenta servicio HTTP primero
+    if _use_http_service():
+        try:
+            url = f"http://{config.LANGUAGE_SERVICE_URL}/classify"
+            resp = requests.post(url, json={"text": text}, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                lang_info = data.get("language")
+                if lang_info:
+                    return {
+                        "name": lang_info.get("name"),
+                        "iso": lang_info.get("iso6391Name"),
+                        "confidence": lang_info.get("confidenceScore", 0.0),
+                    }
+        except Exception as e:
+            print(f"⚠️ Error llamando servicio Language HTTP: {e}")
+    
+    # Fallback a SDK
+    client = _get_sdk_client()
     if not client:
         return None
     
@@ -80,7 +124,19 @@ def detect_language(text: str) -> Optional[Dict[str, Any]]:
 
 def extract_key_phrases(text: str) -> Optional[list]:
     """Extrae frases clave de un texto."""
-    client = _get_client()
+    # Intenta servicio HTTP primero
+    if _use_http_service():
+        try:
+            url = f"http://{config.LANGUAGE_SERVICE_URL}/extract"
+            resp = requests.post(url, json={"text": text, "tasks": ["key_phrases"]}, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("keyPhrases")
+        except Exception as e:
+            print(f"⚠️ Error llamando servicio Language HTTP: {e}")
+    
+    # Fallback a SDK
+    client = _get_sdk_client()
     if not client:
         return None
     
