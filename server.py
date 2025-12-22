@@ -33,10 +33,12 @@ def _config_status() -> Tuple[bool, list[str], list[str]]:
     missing_required = []
     warnings = []
 
-    if not os.getenv("COSMOS_ENDPOINT"):
-        missing_required.append("COSMOS_ENDPOINT")
-    if not os.getenv("COSMOS_KEY"):
-        missing_required.append("COSMOS_KEY")
+    # Cosmos: aceptar connection string o endpoint+key
+    cosmos_cs = os.getenv("COSMOS_CONNECTION_STRING")
+    cosmos_ep = os.getenv("COSMOS_ENDPOINT")
+    cosmos_key = os.getenv("COSMOS_KEY")
+    if not (cosmos_cs or (cosmos_ep and cosmos_key)):
+        missing_required.append("COSMOS_CONNECTION_STRING o COSMOS_ENDPOINT+COSMOS_KEY")
     if not os.getenv("OPENAI_API_KEY"):
         missing_required.append("OPENAI_API_KEY")
 

@@ -102,14 +102,14 @@ PENDING_EMAIL_RETRY_MAX_MINUTES = int(os.getenv("PENDING_EMAIL_RETRY_MAX_MINUTES
 # Validar configuración requerida
 def validate_config():
     """Valida que todas las variables de entorno requeridas estén configuradas"""
-    required_vars = {
-        "COSMOS_ENDPOINT": COSMOS_ENDPOINT,
-        "COSMOS_KEY": COSMOS_KEY,
-        "OPENAI_API_KEY": OPENAI_API_KEY,
-    }
-    
-    missing = [key for key, value in required_vars.items() if not value]
-    
+    # Cosmos puede venir por connection string o endpoint+key
+    cosmos_ok = bool(COSMOS_CONNECTION_STRING) or bool(COSMOS_ENDPOINT and COSMOS_KEY)
+    missing = []
+    if not cosmos_ok:
+        missing.append("COSMOS_CONNECTION_STRING o COSMOS_ENDPOINT+COSMOS_KEY")
+    if not OPENAI_API_KEY:
+        missing.append("OPENAI_API_KEY")
+
     if missing:
         raise ValueError(
             f"Faltan las siguientes variables de entorno: {', '.join(missing)}\n"
