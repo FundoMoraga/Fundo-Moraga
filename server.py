@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
 import config
-from instagram_bot import InstagramBot
+from instagram_bot_enhanced import InstagramBotEnhanced as InstagramBot
 from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
 import json
