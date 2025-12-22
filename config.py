@@ -64,7 +64,7 @@ INSTAGRAM_PAGE_ID = os.getenv("INSTAGRAM_PAGE_ID")
 
 # Bot Configuration
 BOT_NAME = os.getenv("BOT_NAME", "Fundo Moraga Bot")
-MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "10"))
+MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "50"))
 
 # Google Calendar (opcional, para agendamientos)
 GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
