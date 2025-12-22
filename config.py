@@ -47,8 +47,8 @@ AZURE_LANGUAGE_ENDPOINT = _clean_env(
 AZURE_LANGUAGE_KEY = _clean_env(os.getenv("AZURE_LANGUAGE_KEY"))
 
 # Language Service URL (Railway internal)
-LANGUAGE_SERVICE_URL = os.getenv("LANGUAGE_SERVICE_URL")
-TRANSLATOR_SERVICE_URL = os.getenv("TRANSLATOR_SERVICE_URL")
+LANGUAGE_SERVICE_URL = _clean_env(os.getenv("LANGUAGE_SERVICE_URL"))
+TRANSLATOR_SERVICE_URL = _clean_env(os.getenv("TRANSLATOR_SERVICE_URL"))
 
 # Instagram
 def _clean_token(value: str | None) -> str | None:
