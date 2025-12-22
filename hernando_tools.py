@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 import requests
 import inspect
+from cosmos_client import get_memory_store
 
 
 class HernandoTools:
