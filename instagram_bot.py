@@ -11,6 +11,7 @@ from cosmos_client import get_conversation_store
 from openai_client import get_chatbot_ai
 from cosmos_client import get_memory_store
 from resend_client import get_resend_client
+from language_client import analyze_sentiment
 import json
 import re
 from zoneinfo import ZoneInfo
@@ -78,6 +79,13 @@ class InstagramBot:
             platform_label = "Instagram" if platform_key == "instagram" else "Web"
             print(f"📥 Mensaje de {user_id} ({platform_label}): {message_text}")
             
+            # Análisis de sentimiento del mensaje del usuario
+            sentiment_data = analyze_sentiment(message_text)
+            if sentiment_data:
+                sentiment_label = sentiment_data.get("sentiment", "unknown")
+                sentiment_score = sentiment_data.get(sentiment_label, 0.0)
+                print(f"🎭 Sentimiento: {sentiment_label} ({sentiment_score:.2f})")
+            
             # 1. Obtener ID de conversación actual o crear nueva
             conversation_id = self.conversation_store.get_latest_conversation_id(user_id)
             if not conversation_id:
@@ -87,6 +95,13 @@ class InstagramBot:
             user_metadata = {"platform": platform_key, "source": source}
             if message_id and platform_key == "instagram":
                 user_metadata["ig_mid"] = str(message_id)
+            if sentiment_data:
+                user_metadata["sentiment"] = sentiment_data.get("sentiment")
+                user_metadata["sentiment_scores"] = {
+                    "positive": sentiment_data.get("positive", 0.0),
+                    "neutral": sentiment_data.get("neutral", 0.0),
+                    "negative": sentiment_data.get("negative", 0.0),
+                }
             self.conversation_store.save_message(
                 user_id=user_id,
                 role="user",
