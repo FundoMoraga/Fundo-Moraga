@@ -7,7 +7,7 @@ Endpoints:
 - POST /extract: frases clave, entidades y PII (opcional)
 """
 from flask import Flask, jsonify, request
-import config
+import os
 
 try:
     from azure.ai.textanalytics import TextAnalyticsClient
@@ -19,12 +19,16 @@ except Exception:
 
 app = Flask(__name__)
 
+# Variables de entorno locales (no importar config para evitar dependencias de Cosmos)
+AZURE_LANGUAGE_ENDPOINT = os.getenv("AZURE_LANGUAGE_ENDPOINT", "").rstrip("/")
+AZURE_LANGUAGE_KEY = os.getenv("AZURE_LANGUAGE_KEY")
+
 
 def _missing_config():
     missing = []
-    if not getattr(config, "AZURE_LANGUAGE_ENDPOINT", None):
+    if not AZURE_LANGUAGE_ENDPOINT:
         missing.append("AZURE_LANGUAGE_ENDPOINT")
-    if not getattr(config, "AZURE_LANGUAGE_KEY", None):
+    if not AZURE_LANGUAGE_KEY:
         missing.append("AZURE_LANGUAGE_KEY")
     # Dependencias del paquete
     if TextAnalyticsClient is None or AzureKeyCredential is None:
@@ -33,8 +37,8 @@ def _missing_config():
 
 
 def _get_client():
-    endpoint = (config.AZURE_LANGUAGE_ENDPOINT or "").rstrip("/")
-    key = config.AZURE_LANGUAGE_KEY
+    endpoint = AZURE_LANGUAGE_ENDPOINT
+    key = AZURE_LANGUAGE_KEY
     if not endpoint or not key or TextAnalyticsClient is None or AzureKeyCredential is None:
         return None
     return TextAnalyticsClient(endpoint=endpoint, credential=AzureKeyCredential(key))
