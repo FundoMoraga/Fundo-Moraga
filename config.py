@@ -12,6 +12,9 @@ COSMOS_ENDPOINT = os.getenv("COSMOS_ENDPOINT")
 COSMOS_KEY = os.getenv("COSMOS_KEY")
 COSMOS_DATABASE = os.getenv("COSMOS_DATABASE", "chatbot")
 COSMOS_CONTAINER = os.getenv("COSMOS_CONTAINER", "conversations")
+COSMOS_PROMPTS_DB = os.getenv("COSMOS_PROMPTS_DB", "Entrenamiento")
+COSMOS_PROMPTS_CONTAINER = os.getenv("COSMOS_PROMPTS_CONTAINER", "Hernando")
+COSMOS_PROMPTS_PERSONA = os.getenv("COSMOS_PROMPTS_PERSONA", "Hernando")
 
 # OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
