@@ -177,7 +177,7 @@ class HernandoTools:
                         "required": []
                     }
                 }
-            }
+            },
             {
                 "type": "function",
                 "function": {
@@ -235,7 +235,7 @@ class HernandoTools:
             "informar_actividades_disponibles": self.informar_actividades_disponibles,
             "obtener_contactos_oficiales": self.obtener_contactos_oficiales,
             "verificar_acceso_fundo": self.verificar_acceso_fundo,
-            "capturar_informacion_usuario": self.capturar_informacion_usuario
+            "capturar_informacion_usuario": self.capturar_informacion_usuario,
             "guardar_precio": self.guardar_precio,
             "guardar_hecho": self.guardar_hecho,
         }
