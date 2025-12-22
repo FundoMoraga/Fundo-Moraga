@@ -21,6 +21,15 @@ def _use_http_service() -> bool:
     return bool(getattr(config, "LANGUAGE_SERVICE_URL", None))
 
 
+def _build_service_url(path: str) -> str:
+    """Construye la URL del servicio HTTP con puerto 8080 si no está especificado."""
+    service_url = config.LANGUAGE_SERVICE_URL
+    # Railway services listen on port 8080
+    if ":" not in service_url:
+        service_url = f"{service_url}:8080"
+    return f"http://{service_url}{path}"
+
+
 def _get_sdk_client() -> Optional[Any]:
     """Obtiene cliente de Text Analytics SDK si está configurado."""
     if not _SDK_AVAILABLE:
@@ -43,7 +52,7 @@ def analyze_sentiment(text: str) -> Optional[Dict[str, Any]]:
     # Intenta servicio HTTP primero
     if _use_http_service():
         try:
-            url = f"http://{config.LANGUAGE_SERVICE_URL}/classify"
+            url = _build_service_url("/classify")
             resp = requests.post(url, json={"text": text}, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
@@ -87,7 +96,7 @@ def detect_language(text: str) -> Optional[Dict[str, Any]]:
     # Intenta servicio HTTP primero
     if _use_http_service():
         try:
-            url = f"http://{config.LANGUAGE_SERVICE_URL}/classify"
+            url = _build_service_url("/classify")
             resp = requests.post(url, json={"text": text}, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
@@ -127,7 +136,7 @@ def extract_key_phrases(text: str) -> Optional[list]:
     # Intenta servicio HTTP primero
     if _use_http_service():
         try:
-            url = f"http://{config.LANGUAGE_SERVICE_URL}/extract"
+            url = _build_service_url("/extract")
             resp = requests.post(url, json={"text": text, "tasks": ["key_phrases"]}, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
