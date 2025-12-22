@@ -39,7 +39,7 @@ def _config_status() -> Tuple[bool, list[str], list[str]]:
     cosmos_key = os.getenv("COSMOS_KEY")
     if not (cosmos_cs or (cosmos_ep and cosmos_key)):
         missing_required.append("COSMOS_CONNECTION_STRING o COSMOS_ENDPOINT+COSMOS_KEY")
-    if not os.getenv("OPENAI_API_KEY"):
+    if not config.OPENAI_API_KEY:
         missing_required.append("OPENAI_API_KEY")
 
     has_smtp = bool(os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"))
