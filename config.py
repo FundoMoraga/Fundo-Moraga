@@ -17,6 +17,7 @@ def _clean_env(value: str | None) -> str | None:
 # Limpia posibles comillas en variables de entorno provenientes de Railway/ENV
 COSMOS_ENDPOINT = _clean_env(os.getenv("COSMOS_ENDPOINT"))
 COSMOS_KEY = _clean_env(os.getenv("COSMOS_KEY"))
+COSMOS_CONNECTION_STRING = _clean_env(os.getenv("COSMOS_CONNECTION_STRING"))
 COSMOS_DATABASE = os.getenv("COSMOS_DATABASE", "chatbot")
 COSMOS_CONTAINER = os.getenv("COSMOS_CONTAINER", "conversations")
 COSMOS_PROMPTS_DB = os.getenv("COSMOS_PROMPTS_DB", "Entrenamiento")

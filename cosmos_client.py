@@ -16,10 +16,7 @@ class ConversationStore:
         """Inicializa la conexión a Cosmos DB (singleton pattern)"""
         try:
             # Crear cliente reutilizable (best practice)
-            self.client = CosmosClient(
-                config.COSMOS_ENDPOINT, 
-                config.COSMOS_KEY
-            )
+            self.client = _create_cosmos_client()
             
             # Obtener database y container
             self.database = self.client.get_database_client(config.COSMOS_DATABASE)
@@ -425,12 +422,24 @@ def get_conversation_store() -> ConversationStore:
     return _conversation_store
 
 
+def _create_cosmos_client() -> CosmosClient:
+    """Crea un CosmosClient soportando connection string o endpoint+key."""
+    cs = getattr(config, "COSMOS_CONNECTION_STRING", None)
+    if cs:
+        return CosmosClient.from_connection_string(cs)
+    endpoint = getattr(config, "COSMOS_ENDPOINT", None)
+    key = getattr(config, "COSMOS_KEY", None)
+    if not endpoint or not key:
+        raise RuntimeError("Credenciales de Cosmos incompletas: define COSMOS_CONNECTION_STRING o COSMOS_ENDPOINT + COSMOS_KEY.")
+    return CosmosClient(endpoint, credential=key)
+
+
 class MemoryStore:
     """Almacenamiento de 'Memoria' (precios, hechos, resúmenes) en Cosmos DB"""
 
     def __init__(self):
         try:
-            self.client = CosmosClient(config.COSMOS_ENDPOINT, config.COSMOS_KEY)
+            self.client = _create_cosmos_client()
             self.database = self.client.get_database_client(config.COSMOS_DATABASE)
             self.container = self.database.get_container_client(config.COSMOS_MEMORY_CONTAINER)
             self._pk_field = (config.COSMOS_MEMORY_PK_PATH or "/Categoria").lstrip("/")
