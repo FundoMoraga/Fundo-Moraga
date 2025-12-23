@@ -66,6 +66,8 @@ class RecommendationEngine:
     }
     
     def __init__(self):
+        # Alias para compatibilidad
+        self.activity_catalog = self.ACTIVITIES_CATALOG
         self.client = None
         if _OPENAI_AVAILABLE and config.OPENAI_API_KEY:
             self.client = OpenAI(api_key=config.OPENAI_API_KEY)

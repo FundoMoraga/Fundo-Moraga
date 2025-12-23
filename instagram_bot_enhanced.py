@@ -150,10 +150,12 @@ class InstagramBotEnhanced(InstagramBot):
                 
                 self.ai_integration.log_interaction_result(
                     user_id=user_id,
+                    message=message_text,
+                    bot_response=response,
                     intent=ai_enrichment['intent']['intent'],
-                    was_successful=(satisfaction_score > 0.5),
-                    satisfaction_score=satisfaction_score,
-                    response_generated=bool(response and len(response) > 10)
+                    sentiment=sentiment_data.get('sentiment') if sentiment_data else None,
+                    response_time_ms=0,
+                    user_satisfaction=int(satisfaction_score * 10) if satisfaction_score else None
                 )
                 print(f"📊 Interacción registrada (satisfacción: {satisfaction_score:.0%})")
             except Exception as e:
