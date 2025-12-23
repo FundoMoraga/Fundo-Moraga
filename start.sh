@@ -6,4 +6,11 @@ if [ -n "${START_COMMAND:-}" ]; then
   exec /bin/sh -lc "$START_COMMAND"
 fi
 
-exec gunicorn --bind 0.0.0.0:${PORT:-8080} server:app
+# Gunicorn con logs a stdout/stderr para que Railway los muestre
+exec gunicorn \
+  --bind 0.0.0.0:${PORT:-8080} \
+  --access-logfile - \
+  --error-logfile - \
+  --capture-output \
+  --log-level info \
+  server:app
