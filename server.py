@@ -158,15 +158,15 @@ def instagram_webhook():
         challenge = request.args.get('hub.challenge')
 
         if mode == 'subscribe' and token == VERIFY_TOKEN:
-            print("✅ Webhook de Instagram verificado")
+            print("[OK] Webhook de Instagram verificado")
             return challenge, 200
 
-        print("❌ Webhook de Instagram falló verificación")
+        print("[ERROR] Webhook de Instagram fallo verificacion")
         return 'Forbidden', 403
 
     # POST
     data = request.get_json(silent=True) or {}
-    print(f"📥 Webhook recibido de Instagram: {data}")
+    print(f"[WEBHOOK] Webhook recibido de Instagram: {data}")
 
     try:
         bot = get_bot()
@@ -177,7 +177,7 @@ def instagram_webhook():
         bot.handle_webhook_message(data)
         return jsonify({"status": "ok"}), 200
     except Exception as e:
-        print(f"❌ Error procesando webhook: {e}")
+        print(f"[ERROR] Error procesando webhook: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -240,7 +240,7 @@ def web_chat():
             try:
                 bot.finalize_conversation(user_id=user_id, reason="close_chat", platform="Web")
             except Exception as e:
-                print(f"⚠️ Error enviando resumen final: {e}")
+                print(f"[WARNING] Error enviando resumen final: {e}")
         
         from datetime import datetime, timezone
         
@@ -252,7 +252,7 @@ def web_chat():
         }), 200
         
     except Exception as e:
-        print(f"❌ Error en web chat: {e}")
+        print(f"[ERROR] Error en web chat: {e}")
         return jsonify({
             "error": "Error interno del servidor",
             "message": str(e)
@@ -291,7 +291,7 @@ def web_chat_init():
             "bot": "Hernando"
         }), 200
     except Exception as e:
-        print(f"❌ Error en web chat init: {e}")
+        print(f"[ERROR] Error en web chat init: {e}")
         return jsonify({
             "error": "Error interno del servidor",
             "message": str(e)
@@ -323,7 +323,7 @@ def web_chat_end():
         bot.finalize_conversation(user_id=user_id, reason=reason)
         return jsonify({"ok": True}), 200
     except Exception as e:
-        print(f"❌ Error en web chat end: {e}")
+        print(f"[ERROR] Error en web chat end: {e}")
         return jsonify({"error": "Error interno del servidor", "message": str(e)}), 500
 
 
@@ -373,7 +373,7 @@ def chat_history():
         }), 200
         
     except Exception as e:
-        print(f"❌ Error obteniendo historial: {e}")
+        print(f"[ERROR] Error obteniendo historial: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -464,23 +464,23 @@ if __name__ == '__main__':
     # Validar configuración
     try:
         config.validate_config()
-        print(f"\n🤖 Hernando - Asistente Virtual de Fundo Moraga")
+        print(f"\n[BOT] Hernando - Asistente Virtual de Fundo Moraga")
         print("=" * 60)
-        print(f"✅ Configuración válida")
-        print(f"📍 Cosmos DB: {config.COSMOS_DATABASE}/{config.COSMOS_CONTAINER}")
-        print(f"🤖 Modelo: {config.OPENAI_MODEL}")
+        print(f"[OK] Configuracion valida")
+        print(f"[DB] Cosmos DB: {config.COSMOS_DATABASE}/{config.COSMOS_CONTAINER}")
+        print(f"[AI] Modelo: {config.OPENAI_MODEL}")
         print("=" * 60)
         
     except Exception as e:
-        print(f"❌ Error en configuración: {e}")
+        print(f"[ERROR] Error en configuracion: {e}")
         exit(1)
     
     # Puerto para Railway (usa la variable de entorno PORT)
     port = int(os.getenv('PORT', 5000))
     
-    print(f"\n🚀 Servidor iniciando en puerto {port}")
-    print(f"📱 Instagram webhook: /webhook/instagram")
-    print(f"💬 Web chat API: /api/chat")
-    print(f"📖 Documentación: /api/docs\n")
+    print(f"\n[STARTUP] Servidor iniciando en puerto {port}")
+    print(f"[API] Instagram webhook: /webhook/instagram")
+    print(f"[API] Web chat API: /api/chat")
+    print(f"[DOCS] Documentacion: /api/docs\n")
     
     app.run(host='0.0.0.0', port=port, debug=False)
