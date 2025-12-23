@@ -94,7 +94,7 @@ Responde SOLO con un JSON (sin código markdown, sin explicaciones):
                 model=config.OPENAI_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                max_tokens=300
+                max_completion_tokens=300
             )
             
             response_text = response.choices[0].message.content.strip()

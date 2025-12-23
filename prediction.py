@@ -82,7 +82,7 @@ Responde con un JSON (sin markdown):
                 model=config.OPENAI_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.4,
-                max_tokens=400
+                max_completion_tokens=400
             )
             
             import json

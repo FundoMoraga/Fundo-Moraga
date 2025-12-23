@@ -8,6 +8,7 @@ from redis_cache import get_redis_cache
 from sentiment_recommendations import get_sentiment_recommender
 from contact_timing_prediction import get_contact_timing_predictor
 from satisfaction_detector import get_satisfaction_detector
+from fecha_libre_validator import validate_response_for_fecha_libre
 from typing import Optional
 import config
 
@@ -224,6 +225,9 @@ class InstagramBotEnhanced(InstagramBot):
                 print(f"📊 Interacción registrada (sentimiento: {sentiment_score:.0%})")
             except Exception as e:
                 print(f"⚠️ Error registrando interacción: {e}")
+        
+        # Validar que no mencione Fecha Libre si no está anunciada
+        response = validate_response_for_fecha_libre(response)
         
         return response
     

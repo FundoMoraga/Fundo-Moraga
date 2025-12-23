@@ -448,6 +448,26 @@ class MemoryStore:
             print(f"❌ Error conectando a Cosmos DB (Memoria): {e}")
             raise
 
+    def upsert_item(self, item: Dict) -> Dict:
+        """Guarda o actualiza un documento genérico"""
+        try:
+            return self.container.upsert_item(item)
+        except Exception as e:
+            print(f"⚠️ Error en upsert_item: {e}")
+            raise
+
+    def query_items(self, query: str, limit: int = 100) -> List[Dict]:
+        """Ejecuta una consulta genérica contra el contenedor"""
+        try:
+            items = list(self.container.query_items(
+                query=query,
+                enable_cross_partition_query=True,
+            ))
+            return items[:limit] if limit else items
+        except Exception as e:
+            print(f"⚠️ Error en query_items: {e}")
+            return []
+
     def _with_pk(self, doc: Dict, pk_value: str) -> Dict:
         doc[self._pk_field] = pk_value
         return doc

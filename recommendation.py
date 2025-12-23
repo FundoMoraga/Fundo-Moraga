@@ -144,7 +144,7 @@ Responde con JSON (sin markdown):
                 model=config.OPENAI_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.5,
-                max_tokens=500
+                max_completion_tokens=500
             )
             
             import json

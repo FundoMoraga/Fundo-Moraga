@@ -81,6 +81,12 @@ SENTIMENT_RECOMMENDATIONS_ENABLED = os.getenv("SENTIMENT_RECOMMENDATIONS_ENABLED
 CONTACT_TIMING_PREDICTION_ENABLED = os.getenv("CONTACT_TIMING_PREDICTION_ENABLED", "true").lower() in ("1", "true", "yes")
 SATISFACTION_DETECTION_ENABLED = os.getenv("SATISFACTION_DETECTION_ENABLED", "true").lower() in ("1", "true", "yes")
 
+# Fechas Libres Activas (solo si se han anunciado en Instagram @Batuco_OffRoad)
+# Formato: lista de fechas en YYYY-MM-DD que están abiertas con tarifa normal ($15k auto, $10k moto)
+# IMPORTANTE: Solo agregar aquí cuando se anuncia en Instagram, NO antes
+ACTIVE_FECHA_LIBRE_DATES = os.getenv("ACTIVE_FECHA_LIBRE_DATES", "").split(",") if os.getenv("ACTIVE_FECHA_LIBRE_DATES") else []
+# Ejemplo: ACTIVE_FECHA_LIBRE_DATES = ["2025-12-28", "2026-01-04"]
+
 # Google Calendar (opcional, para agendamientos)
 GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
 GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
