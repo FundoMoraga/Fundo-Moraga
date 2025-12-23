@@ -66,6 +66,21 @@ INSTAGRAM_PAGE_ID = os.getenv("INSTAGRAM_PAGE_ID")
 BOT_NAME = os.getenv("BOT_NAME", "Fundo Moraga Bot")
 MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "50"))
 
+# Redis Cache Configuration
+REDIS_ENABLED = os.getenv("REDIS_ENABLED", "true").lower() in ("1", "true", "yes", "y", "si")
+REDIS_URL = _clean_env(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+
+# Cache TTL (Time To Live)
+REDIS_CACHE_TTL_PROMPTS_HOURS = int(os.getenv("REDIS_CACHE_TTL_PROMPTS_HOURS", "1"))
+REDIS_CACHE_TTL_FAQ_DAYS = int(os.getenv("REDIS_CACHE_TTL_FAQ_DAYS", "30"))
+REDIS_CACHE_TTL_PRICES_DAYS = int(os.getenv("REDIS_CACHE_TTL_PRICES_DAYS", "7"))
+REDIS_CACHE_TTL_USER_CONTEXT_MINUTES = int(os.getenv("REDIS_CACHE_TTL_USER_CONTEXT_MINUTES", "60"))
+
+# Advanced AI Features
+SENTIMENT_RECOMMENDATIONS_ENABLED = os.getenv("SENTIMENT_RECOMMENDATIONS_ENABLED", "true").lower() in ("1", "true", "yes")
+CONTACT_TIMING_PREDICTION_ENABLED = os.getenv("CONTACT_TIMING_PREDICTION_ENABLED", "true").lower() in ("1", "true", "yes")
+SATISFACTION_DETECTION_ENABLED = os.getenv("SATISFACTION_DETECTION_ENABLED", "true").lower() in ("1", "true", "yes")
+
 # Google Calendar (opcional, para agendamientos)
 GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
 GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
