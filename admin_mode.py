@@ -7,7 +7,7 @@ from typing import Optional, Dict, Any, List
 import json
 import re
 from cosmos_client import get_memory_store, get_conversation_store
-from prompts_loader import load_prompts_from_cosmos
+from prompts_loader import get_prompts_loader
 
 # Clave secreta para activar/desactivar
 ADMIN_KEY = "Ve88967788@"
@@ -148,14 +148,16 @@ class AdminMode:
                 return f"📅 **Fechas Libres Activas:**\n" + "\n".join(f"• {d}" for d in dates)
             
             elif categoria == "prompts":
-                prompts = load_prompts_from_cosmos()
+                loader = get_prompts_loader()
+                prompts = loader.get_prompts(persona="Hernando")
                 if not prompts:
                     return "❌ No se encontraron prompts en Cosmos DB."
                 
                 result = "📝 **Prompts de Sistema:**\n\n"
                 for key, value in prompts.items():
-                    preview = value[:100] + "..." if len(value) > 100 else value
-                    result += f"**{key}:**\n{preview}\n\n"
+                    if isinstance(value, str):
+                        preview = value[:100] + "..." if len(value) > 100 else value
+                        result += f"**{key}:**\n{preview}\n\n"
                 return result
             
             elif categoria == "memoria":
@@ -274,7 +276,8 @@ class AdminMode:
         
         if len(parts) == 1:
             # Solo listar
-            prompts = load_prompts_from_cosmos()
+            loader = get_prompts_loader()
+            prompts = loader.get_prompts(persona="Hernando")
             result = "📝 **Prompts disponibles:**\n\n"
             for key in prompts.keys():
                 result += f"• `{key}`\n"
@@ -284,10 +287,15 @@ class AdminMode:
         elif len(parts) == 2:
             # Ver contenido completo
             prompt_name = parts[1]
-            prompts = load_prompts_from_cosmos()
+            loader = get_prompts_loader()
+            prompts = loader.get_prompts(persona="Hernando")
             if prompt_name not in prompts:
                 return f"❌ Prompt no encontrado: `{prompt_name}`"
-            return f"**{prompt_name}:**\n\n{prompts[prompt_name]}"
+            content = prompts[prompt_name]
+            if isinstance(content, str):
+                return f"**{prompt_name}:**\n\n{content}"
+            else:
+                return f"**{prompt_name}:**\n\n{str(content)}"
         
         else:
             # Editar prompt
