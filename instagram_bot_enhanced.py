@@ -1,6 +1,6 @@
 """
 Wrapper mejorado para InstagramBot que integra capacidades de IA avanzada
-Incluye: Cache Redis, Recomendaciones por Sentimiento, Timing de Contacto, Detección de Insatisfacción
+Incluye: Cache Redis, Recomendaciones por Sentimiento, Timing de Contacto, Detección de Insatisfacción, Modo Admin
 """
 from instagram_bot import InstagramBot
 from advanced_ai_integration import get_advanced_ai_integration
@@ -9,6 +9,7 @@ from sentiment_recommendations import get_sentiment_recommender
 from contact_timing_prediction import get_contact_timing_predictor
 from satisfaction_detector import get_satisfaction_detector
 from fecha_libre_validator import validate_response_for_fecha_libre
+from admin_mode import get_admin_mode
 from typing import Optional
 import config
 
@@ -40,11 +41,15 @@ class InstagramBotEnhanced(InstagramBot):
         self.contact_predictor = get_contact_timing_predictor() if config.CONTACT_TIMING_PREDICTION_ENABLED else None
         self.satisfaction_detector = get_satisfaction_detector() if config.SATISFACTION_DETECTION_ENABLED else None
         
+        # Inicializar modo administrador
+        self.admin_mode = get_admin_mode()
+        
         print("🚀 Bot mejorado inicializado con IA avanzada")
         print(f"   ✅ Cache Redis: {self._status_icon(self.cache)}")
         print(f"   ✅ Sentimiento: {self._status_icon(self.sentiment_recommender)}")
         print(f"   ✅ Timing: {self._status_icon(self.contact_predictor)}")
         print(f"   ✅ Satisfacción: {self._status_icon(self.satisfaction_detector)}")
+        print(f"   🔐 Modo Admin: Disponible")
     
     def _status_icon(self, module) -> str:
         """Icono de estado del módulo"""
@@ -63,6 +68,7 @@ class InstagramBotEnhanced(InstagramBot):
         Procesa un mensaje con todas las capacidades de IA avanzada.
         
         Flujo completo:
+        0. Admin Mode: Detectar comandos de administrador 🔐
         1. Cache: Buscar respuesta cacheada (45ms)
         2. Sentimiento: Análisis emocional del usuario
         3. Satisfacción: Detectar insatisfacción temprana ⚠️
@@ -72,6 +78,18 @@ class InstagramBotEnhanced(InstagramBot):
         7. Respuesta: Procesar con bot normal
         8. Aprendizaje: Guardar interacción completa
         """
+        
+        # PASO 0: Verificar modo administrador
+        # Detectar clave de activación/desactivación
+        if self.admin_mode.is_admin_key(message_text):
+            is_active, response = self.admin_mode.toggle_mode(user_id, platform)
+            return response
+        
+        # Si está activo, procesar como comando admin
+        if self.admin_mode.is_active(user_id):
+            admin_response = self.admin_mode.process_admin_command(user_id, message_text)
+            if admin_response:
+                return admin_response
         
         # PASO 1: Intentar obtener de cache
         if self.cache:

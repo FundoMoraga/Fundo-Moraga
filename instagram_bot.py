@@ -484,12 +484,16 @@ class InstagramBot:
             return None
 
         special_sun = self._special_open_sunday_date()
-        special_sun_txt = special_sun.isoformat() if special_sun else ""
+        special_tip = (
+            f"Dato: este domingo ({special_sun.isoformat()}) abrimos 10:00 a 17:00 con tarifa normal.\n\n"
+            if special_sun
+            else ""
+        )
         return (
             "¡Hola! Soy Hernando, tu anfitrión virtual del Fundo Moraga.\n\n"
-            "¿Qué quieres hacer? Puedo ayudarte a coordinar off-road (autos/motos), una visita/turismo rural, o un evento/producción.\n\n"
-            f"Tip: este domingo ({special_sun_txt}) tenemos cupo, de 10:00 a 17:00, con tarifa normal.\n\n"
-            "Cuéntame tu idea en una frase."
+            "Te ayudo con off-road (autos/motos), turismo rural o eventos/producciones.\n\n"
+            + special_tip
+            + "Cuéntame fecha/idea y cuántas personas para avanzar al tiro."
         )
 
     def _fallback_when_ai_unavailable(self, message_text: str) -> str:
@@ -745,28 +749,36 @@ class InstagramBot:
 
         if not looks_like_offroad:
             special_sun = self._special_open_sunday_date()
-            special_sun_txt = special_sun.isoformat() if special_sun else ""
+            sunday_line = (
+                f"• Este domingo ({special_sun.isoformat()}) abrimos 10:00 a 17:00 con tarifa de semana ($15.000 auto / $10.000 moto).\n"
+                if special_sun
+                else "• Domingos solo cuando anunciamos 'Fecha Libre' en Instagram (@Batuco_OffRoad).\n"
+            )
             return (
                 "¿Te refieres a las actividades off-road (auto/moto) o a un evento/producción?\n\n"
                 "Si es off-road, las tarifas públicas son:\n"
                 "• Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.\n"
-                f"• Este domingo ({special_sun_txt}) hay cupo: 10:00 a 17:00, $15.000 por vehículo / $10.000 por moto.\n"
-                "• Sábado (grupos): $200.000 el día.\n"
-                "• Otros domingos: no se agenda.\n\n"
-                "¿Qué es lo que te gustaría hacer? (auto/moto off-road, evento, visita, producción)"
+                + sunday_line
+                + "• Sábado (grupos): $200.000 el día.\n"
+                + "• Otros domingos: no se agenda.\n\n"
+                + "¿Qué es lo que te gustaría hacer? (auto/moto off-road, evento, visita, producción)"
             )
 
         special_sun = self._special_open_sunday_date()
-        special_sun_txt = special_sun.isoformat() if special_sun else ""
+        sunday_line = (
+            f"• Este domingo ({special_sun.isoformat()}) abrimos 10:00 a 17:00 con tarifa de semana ($15.000 auto / $10.000 moto).\n"
+            if special_sun
+            else "• Domingos solo cuando anunciamos 'Fecha Libre' en Instagram (@Batuco_OffRoad).\n"
+        )
         return (
             "¡Claro! Para las actividades off-road (Batuco Off Road) las tarifas públicas son:\n"
             "• Lunes a viernes (09:00 a 17:00): $15.000 automóviles / $10.000 motos.\n"
-            f"• Este domingo ({special_sun_txt}) hay cupo: 10:00 a 17:00, $15.000 por vehículo / $10.000 por moto.\n"
-            "• Sábado (grupos): $200.000 el día.\n"
-            "• Otros domingos: no se agenda.\n\n"
-            "Si quieres, lo dejamos coordinado al tiro: ¿qué día y a qué hora te gustaría llegar? "
-            "¿Vienes en auto o moto, y cuántos?\n\n"
-            "Y si prefieres que el equipo te contacte para coordinar, déjame tu nombre y un correo o WhatsApp y lo derivo."
+            + sunday_line
+            + "• Sábado (grupos): $200.000 el día.\n"
+            + "• Otros domingos: no se agenda.\n\n"
+            + "Si quieres, lo dejamos coordinado al tiro: ¿qué día y a qué hora te gustaría llegar? "
+            + "¿Vienes en auto o moto, y cuántos?\n\n"
+            + "Y si prefieres que el equipo te contacte para coordinar, déjame tu nombre y un correo o WhatsApp y lo derivo."
         )
 
     def _handle_date_questions(self, message_text: str) -> Optional[str]:
@@ -2463,10 +2475,27 @@ class InstagramBot:
 
     def _special_open_sunday_date(self) -> Optional[date]:
         """
-        Excepción comercial: este domingo hay fecha libre y opera con tarifa normal.
-        Retorna la fecha del próximo domingo (incluye hoy si ya es domingo).
+        Excepción comercial: solo cuando hay Fecha Libre anunciada en Instagram.
+        Retorna la próxima fecha libre activa (>= hoy) declarada en config.ACTIVE_FECHA_LIBRE_DATES.
         """
-        return self._next_weekday_date("domingo", include_today=True)
+        active = getattr(config, "ACTIVE_FECHA_LIBRE_DATES", []) or []
+        if not active:
+            return None
+
+        today = self._today_local_date()
+        candidates: list[date] = []
+        for raw in active:
+            try:
+                d = date.fromisoformat(raw.strip())
+            except Exception:
+                continue
+            if d >= today:
+                candidates.append(d)
+
+        if not candidates:
+            return None
+
+        return min(candidates)
 
     def _is_special_open_sunday(self, visit_date: Optional[date]) -> bool:
         if not visit_date:
