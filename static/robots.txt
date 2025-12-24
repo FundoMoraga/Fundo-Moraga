@@ -1,0 +1,22 @@
+# robots.txt para Hernando - Fundo Moraga
+User-agent: *
+Allow: /
+Allow: /api/chat/init
+Disallow: /api/chat/end
+Disallow: /admin
+
+# Bots de IA permitidos
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+# Sitemap (cuando esté disponible)
+# Sitemap: https://hernando.fundomoraga.com/sitemap.xml

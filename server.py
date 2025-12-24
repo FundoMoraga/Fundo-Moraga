@@ -115,6 +115,13 @@ def home():
     return render_template('chat_fullscreen.html')
 
 
+@app.route('/favicon.ico')
+def favicon():
+    """Servir favicon desde static/hernando.jpg como fallback."""
+    from flask import send_from_directory
+    return send_from_directory('static', 'hernando.jpg', mimetype='image/jpeg')
+
+
 @app.route('/status')
 def status():
     """Estado JSON (útil para monitoreo)."""
