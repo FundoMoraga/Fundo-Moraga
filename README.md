@@ -4,7 +4,7 @@ Chatbot inteligente para Instagram que usa **OpenAI** para respuestas naturales 
 
 ## 🎯 Características
 
-- ✅ Respuestas inteligentes con GPT-4o-mini
+- ✅ Respuestas inteligentes con GPT-5.2
 - ✅ Memoria de conversaciones en Azure Cosmos DB
 - ✅ Integración con Instagram Messaging API
 - ✅ Historial de chat por usuario
@@ -56,7 +56,7 @@ COSMOS_CONTAINER=conversations
 
 # OpenAI
 OPENAI_API_KEY=sk-tu-api-key-aqui
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.2-2025-12-11
 
 # Instagram (opcional para pruebas)
 INSTAGRAM_ACCESS_TOKEN=tu-token-aqui
@@ -128,7 +128,7 @@ Gestiona el almacenamiento de conversaciones en Cosmos DB:
 
 ### `openai_client.py`
 Genera respuestas inteligentes con OpenAI:
-- ✅ Usa GPT-4o-mini (rápido y económico)
+- ✅ Usa GPT-5.2 (modelo de última generación)
 - ✅ Personalidad configurada para Fundo Moraga
 - ✅ Mantiene contexto de conversación
 
@@ -176,7 +176,7 @@ Con **5 conversaciones/día**:
 | Servicio | Costo Mensual |
 |----------|---------------|
 | Azure Cosmos DB (Free Tier) | $0.00 |
-| OpenAI GPT-4o-mini (~50 mensajes/día) | ~$0.50 |
+| OpenAI GPT-5.2 (~50 mensajes/día) | ~$0.50 |
 | **Total** | **~$0.50/mes** |
 
 ## 🔒 Seguridad

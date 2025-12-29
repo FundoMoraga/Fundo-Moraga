@@ -40,7 +40,7 @@
    COSMOS_CONTAINER=Conversaciones
    
    OPENAI_API_KEY=sk-proj-...
-   OPENAI_MODEL=gpt-4o-mini
+   OPENAI_MODEL=gpt-5.2-2025-12-11
    
    WEBHOOK_VERIFY_TOKEN=fundomoraga_2025
    BOT_NAME=Hernando

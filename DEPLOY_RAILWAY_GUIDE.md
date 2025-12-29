@@ -50,7 +50,7 @@ COSMOS_DATABASE=Fundo Moraga IA
 COSMOS_CONTAINER=Conversaciones
 
 OPENAI_API_KEY=sk-proj-...
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.2-2025-12-11
 
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=hernando@fundomoraga.com
