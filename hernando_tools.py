@@ -158,21 +158,35 @@ class HernandoTools:
                 "type": "function",
                 "function": {
                     "name": "capturar_informacion_usuario",
-                    "description": "Registra información del usuario compartida NATURALMENTE durante la conversación. SOLO usar cuando el usuario haya mencionado voluntariamente su información (nombre, interés, contacto) en el flujo natural del diálogo. NUNCA usar como resultado de preguntas directas tipo interrogatorio.",
+                    "description": """Registra información que el usuario mencionó NATURALMENTE en conversación fluida. 
+                    
+CUÁNDO LLAMAR:
+✓ Usuario dice: "Soy María González" → capturar nombre
+✓ Usuario dice: "Mi email es maria@example.com" → capturar contacto
+✓ Usuario dice: "Necesito para evento de 50 personas" → capturar interés
+
+CUÁNDO NO LLAMAR:
+✗ Bot preguntó "¿Tu nombre?" y usuario respondió "Juan" → NO capturar aún (es respuesta directa)
+✗ Capturar después de pregunta directa - esperar que usuario dé más contexto natural
+
+ESTRATEGIA: Esperar a que usuario proporcione información en contexto conversacional, no como respuesta a interrogatorio.
+
+IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del usuario basado en toda la conversación.
+""",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "nombre": {
                                 "type": "string",
-                                "description": "Nombre completo del usuario si lo mencionó naturalmente en la conversación"
+                                "description": "Nombre completo del usuario mencionado naturalmente (ej: 'Soy Pablo', 'Me llamo María')"
                             },
                             "interes": {
                                 "type": "string",
-                                "description": "Descripción detallada y completa de qué necesita o le interesa al usuario, basándose en TODA la conversación hasta el momento"
+                                "description": "Descripción COMPLETA de qué necesita/le interesa al usuario, sintetizando TODA la conversación: tipo de actividad, cantidad personas, presupuesto aproximado, timing, nivel de urgencia. Ejemplo: 'Off-road para 3 autos, próximo sábado, presupuesto ~45k CLP, quiere info sobre rutas técnicas'"
                             },
                             "contacto": {
                                 "type": "string",
-                                "description": "Email, teléfono móvil o ambos si el usuario los compartió voluntariamente"
+                                "description": "Email y/o teléfono si usuario los compartió voluntariamente. Formato preferido: '+56912345678' para teléfonos chilenos, validar con usuario si número parece incompleto"
                             }
                         },
                         "required": []

@@ -19,6 +19,7 @@ from html import escape
 
 from google_calendar_client import CalendarEventRequest, get_google_calendar_client
 from payment_inbox_client import get_payment_inbox_client, PaymentCheckResult
+from conversation_flow_validator import get_validation_message_if_needed
 
 
 class InstagramBot:
@@ -308,7 +309,16 @@ class InstagramBot:
                 )
                 return greeting_response
             
-            # 5. Generar respuesta con OpenAI usando el contexto
+            # 5. Validar flujo conversacional antes de generar respuesta
+            # Prevenir interrogatorio detectando preguntas consecutivas
+            recent_bot_messages = []
+            for msg in reversed(conversation_history[-5:]):  # Últimos 5 mensajes
+                if msg.get("role") == "assistant":
+                    recent_bot_messages.append(msg.get("message", ""))
+            
+            validation_prefix = get_validation_message_if_needed(recent_bot_messages)
+            
+            # 6. Generar respuesta con OpenAI usando el contexto
             already_welcomed = any(
                 (msg.get("metadata") or {}).get("type") == "welcome"
                 or (msg.get("role") == "assistant" and (msg.get("message") or "").strip())
@@ -320,6 +330,11 @@ class InstagramBot:
 
             # Para alinear el estilo con el chat web, no pasamos "Instagram" como plataforma al prompt del modelo.
             prompt_platform = "Web"
+            
+            # Construir contexto adicional con validación si es necesario
+            extra_lead_context = lead_context
+            if validation_prefix:
+                extra_lead_context = f"[IMPORTANTE: Detectadas múltiples preguntas consecutivas. DEBES empezar tu respuesta con una validación/comentario como: '{validation_prefix}' ANTES de continuar con más preguntas]\n\n{lead_context}"
 
             ai_result = self.chatbot_ai.generate_response(
                 user_message=message_text,
@@ -329,7 +344,7 @@ class InstagramBot:
                 platform=prompt_platform,
                 already_welcomed=already_welcomed,
                 lead_capture_already_sent=lead_capture_already_sent,
-                extra_context=lead_context,
+                extra_context=extra_lead_context,
                 return_events=True,
             )
 
@@ -347,7 +362,7 @@ class InstagramBot:
                 if fallback:
                     response_text = self._sanitize_user_response(fallback)
             
-            # 6. Guardar respuesta del asistente en Cosmos DB
+            # 7. Guardar respuesta del asistente en Cosmos DB
             self.conversation_store.save_message(
                 user_id=user_id,
                 role="assistant",
