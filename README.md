@@ -1,14 +1,53 @@
 # Chatbot de Instagram - Fundo Moraga 🍒
 
-Chatbot inteligente para Instagram que usa **OpenAI** para respuestas naturales y **Azure Cosmos DB** para memoria persistente de conversaciones.
+Chatbot inteligente para Instagram que usa **OpenAI GPT-5.2** para respuestas naturales y **Azure Cosmos DB** para memoria persistente de conversaciones.
 
 ## 🎯 Características
 
-- ✅ Respuestas inteligentes con GPT-5.2
+- ✅ Respuestas inteligentes con GPT-5.2 (gpt-5.2-2025-12-11)
 - ✅ Memoria de conversaciones en Azure Cosmos DB
+- ✅ **Conversación natural chilena sin interrogatorio** 🇨🇱
+- ✅ **Extracción inteligente de leads** (+130% tasa de captura objetivo)
 - ✅ Integración con Instagram Messaging API
+- ✅ Validador anti-interrogatorio (máx 2 preguntas consecutivas)
+- ✅ Lenguaje chileno natural (cachái, bacán, tinca, piola)
 - ✅ Historial de chat por usuario
+- ✅ Análisis de sentimiento con Azure Language API
 - ✅ Fácil de configurar y desplegar
+
+## 📊 Métricas (Diciembre 2025)
+
+| Métrica | Actual | Meta | Mejora |
+|---------|--------|------|--------|
+| Tasa de captura de leads | 13% | 30% | +130% |
+| Abandono de conversación | 40% | <20% | -50% |
+| Sentimiento positivo | 17% | 35% | +106% |
+
+*Basado en análisis de 192 conversaciones reales*
+
+## 🆕 Mejoras Conversacionales (29/12/2025)
+
+### ✨ **Eliminación del "Interrogatorio de la CIA"**
+
+El bot ahora extrae información de forma **natural y entretenida**:
+
+- ❌ **Antes**: "¿Cuántos autos? ¿Qué fecha? ¿Tu nombre?" → 40% abandono
+- ✅ **Ahora**: Storytelling + contexto + lenguaje chileno → <20% abandono esperado
+
+### 🇨🇱 **Lenguaje Chileno Natural**
+
+```
+Usuario: "Cuánto sale el off-road?"
+Bot: "Te cuento, acá hemos tenido grupos desde 2 hasta 10 autos. 
+     El precio va en $15.000 por auto, o si van varios podemos 
+     ver un pack más piola. ¿Cachái más o menos pa cuántos 
+     fierros sería?"
+```
+
+Ver documentación completa en:
+- [`MEJORAS_CONVERSACIONALES_HERNANDO.md`](MEJORAS_CONVERSACIONALES_HERNANDO.md) - Plan completo
+- [`MEJORAS_IMPLEMENTADAS_2025-12-29.md`](MEJORAS_IMPLEMENTADAS_2025-12-29.md) - Implementación técnica
+- [`ANALISIS_CONVERSACIONES_HERNANDO_DICIEMBRE.md`](ANALISIS_CONVERSACIONES_HERNANDO_DICIEMBRE.md) - Análisis de 192 conversaciones
 
 ## 📋 Requisitos
 
@@ -138,6 +177,34 @@ Integra todo:
 - ✅ Mantiene memoria de conversaciones
 - ✅ Genera respuestas contextuales
 - ✅ Envía respuestas a usuarios
+
+## 🧪 Testing
+
+### Validar mejoras conversacionales:
+
+```bash
+python test_mejoras_conversacionales.py
+```
+
+Este test valida:
+- ✅ Validador de flujo conversacional (detección de interrogatorio)
+- ✅ Comparación ANTES vs DESPUÉS de mejoras
+- ✅ Patrones de lenguaje chileno
+- ✅ Estrategias de extracción natural
+- ✅ Métricas objetivo
+
+### Tests adicionales:
+
+```bash
+# Test de features avanzadas
+python test_advanced_features.py
+
+# Test de conexión a OpenAI
+python test_openai_model.py
+
+# Test del validador de flujo solo
+python conversation_flow_validator.py
+```
 
 ## 🌐 Despliegue en Producción
 
