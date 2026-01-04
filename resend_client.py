@@ -15,6 +15,14 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from html import escape
 from datetime import datetime
+
+try:
+    from base64_logos import LOGO_NEGRO, LOGO_BLANCO
+except ImportError:
+    LOGO_NEGRO = None
+    LOGO_BLANCO = None
+from html import escape
+from datetime import datetime
 from typing import Dict, Optional
 
 # Cargar variables de entorno
@@ -172,46 +180,171 @@ class ResendClient:
             subject = f"Nuevo Lead de {platform} - {user_name}"
             
             html_content = f"""
+            <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
-                    .content {{ padding: 20px; }}
-                    .section {{ margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #2c5530; }}
-                    .label {{ font-weight: bold; color: #2c5530; }}
-                    .footer {{ margin-top: 30px; padding: 15px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                    body {{ 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                        line-height: 1.6; 
+                        color: #1f2937;
+                        background-color: #f9fafb;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 16px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        overflow: hidden;
+                    }}
+                    .header {{ 
+                        background: #000000;
+                        color: white; 
+                        padding: 32px 24px;
+                        text-align: center;
+                    }}
+                    .header h1 {{
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin: 0;
+                        letter-spacing: -0.5px;
+                    }}
+                    .header .subtitle {{
+                        font-size: 14px;
+                        opacity: 0.9;
+                        margin-top: 8px;
+                    }}
+                    .content {{ padding: 32px 24px; }}
+                    .intro {{
+                        font-size: 15px;
+                        color: #4b5563;
+                        margin-bottom: 28px;
+                        padding-bottom: 20px;
+                        border-bottom: 2px solid #f3f4f6;
+                    }}
+                    .card {{ 
+                        margin-bottom: 16px; 
+                        padding: 20px;
+                        background: linear-gradient(to right, #f9fafb 0%, #ffffff 100%);
+                        border-radius: 12px;
+                        border-left: 4px solid #2c5530;
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                    }}
+                    .card-title {{
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 8px;
+                    }}
+                    .card-content {{
+                        font-size: 16px;
+                        font-weight: 500;
+                        color: #1f2937;
+                        line-height: 1.5;
+                    }}
+                    .info-grid {{
+                        display: table;
+                        width: 100%;
+                        margin-top: 24px;
+                    }}
+                    .info-row {{
+                        display: table-row;
+                    }}
+                    .info-label {{
+                        display: table-cell;
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        padding: 8px 0;
+                        width: 40%;
+                    }}
+                    .info-value {{
+                        display: table-cell;
+                        font-size: 14px;
+                        color: #1f2937;
+                        padding: 8px 0;
+                    }}
+                    .footer {{ 
+                        background-color: #f9fafb;
+                        padding: 24px;
+                        text-align: center;
+                        border-top: 1px solid #e5e7eb;
+                    }}
+                    .footer-text {{
+                        font-size: 13px;
+                        color: #6b7280;
+                        line-height: 1.6;
+                    }}
+                    .footer-brand {{
+                        font-weight: 600;
+                        color: #2c5530;
+                    }}
+                    .emoji {{ font-size: 20px; margin-right: 8px; }}
+                    .logo {{ 
+                        width: 240px;
+                        height: auto;
+                        margin: 0;
+                    }}
+                    .header h1, .header .subtitle {{ display: none; }}
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h1>🌿 Nuevo Lead - Fundo Moraga</h1>
-                </div>
-                <div class="content">
-                    <p>Hernando ha tenido una conversación con un potencial cliente. Aquí está el resumen:</p>
-                    
-                    <div class="section">
-                        <p><span class="label">👤 Nombre:</span> {user_name}</p>
+                <div class="container">
+                    <div class="header">
+                        {'<img src="' + LOGO_BLANCO + '" alt="Fundo Moraga" class="logo">' if LOGO_BLANCO else ''}
+                        <h1><span class="emoji">🌿</span> Nuevo Lead</h1>
+                        <div class="subtitle">Fundo Moraga · {platform}</div>
                     </div>
                     
-                    <div class="section">
-                        <p><span class="label">📝 Interés/Consulta:</span></p>
-                        <p>{user_interest}</p>
+                    <div class="content">
+                        <div class="intro">
+                            Hernando ha conectado con un potencial cliente. Aquí está el resumen de la conversación:
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">👤 Cliente</div>
+                            <div class="card-content">{escape(user_name)}</div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">📝 Interés / Consulta</div>
+                            <div class="card-content">{escape(user_interest)}</div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">📞 Contacto</div>
+                            <div class="card-content">{escape(user_contact)}</div>
+                        </div>
+                        
+                        <div class="info-grid">
+                            <div class="info-row">
+                                <div class="info-label">Plataforma</div>
+                                <div class="info-value">{platform}</div>
+                            </div>
+                            <div class="info-row">
+                                <div class="info-label">ID Conversación</div>
+                                <div class="info-value"><code style="font-size: 12px; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">{conversation_id}</code></div>
+                            </div>
+                            <div class="info-row">
+                                <div class="info-label">Fecha/Hora</div>
+                                <div class="info-value">{datetime.now().strftime('%d/%m/%Y · %H:%M:%S')}</div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="section">
-                        <p><span class="label">📞 Contacto:</span> {user_contact}</p>
+                    <div class="footer">
+                        <div class="footer-text">
+                            Mensaje generado automáticamente por <span class="footer-brand">Hernando</span>,<br>
+                            el asistente virtual de Fundo Moraga.
+                        </div>
                     </div>
-                    
-                    <div class="section">
-                        <p><span class="label">🔗 Plataforma:</span> {platform}</p>
-                        <p><span class="label">🆔 ID Conversación:</span> {conversation_id}</p>
-                        <p><span class="label">📅 Fecha:</span> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
-                    </div>
-                </div>
-                <div class="footer">
-                    <p>Este mensaje fue generado automáticamente por Hernando, el asistente virtual de Fundo Moraga.</p>
-                    <p>Para ver la conversación completa, revisa el registro en Cosmos DB con el ID proporcionado.</p>
                 </div>
             </body>
             </html>
@@ -258,51 +391,238 @@ class ResendClient:
             notes_html = ""
             if additional_notes:
                 notes_html = f"""
-                <div class="section">
-                    <p><span class="label">🗒️ Notas:</span></p>
-                    <p>{additional_notes}</p>
+                <div class="card">
+                    <div class="card-title">🗒️ Notas Adicionales</div>
+                    <div class="card-content">{escape(additional_notes)}</div>
                 </div>
                 """
 
             html_content = f"""
+            <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
-                    .content {{ padding: 20px; }}
-                    .section {{ margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #2c5530; }}
-                    .label {{ font-weight: bold; color: #2c5530; }}
-                    .footer {{ margin-top: 30px; padding: 15px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                    body {{ 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                        line-height: 1.6; 
+                        color: #1f2937;
+                        background-color: #f9fafb;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 16px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        overflow: hidden;
+                    }}
+                    .header {{ 
+                        background: #000000;
+                        color: white; 
+                        padding: 32px 24px;
+                        text-align: center;
+                    }}
+                    .header h1 {{
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin: 0;
+                        letter-spacing: -0.5px;
+                    }}
+                    .header .subtitle {{
+                        font-size: 14px;
+                        opacity: 0.9;
+                        margin-top: 8px;
+                    }}
+                    .content {{ padding: 32px 24px; }}
+                    .highlight-box {{
+                        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                        border-radius: 12px;
+                        padding: 20px;
+                        margin-bottom: 24px;
+                        border: 2px solid #fbbf24;
+                    }}
+                    .highlight-date {{
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #92400e;
+                        margin-bottom: 4px;
+                    }}
+                    .highlight-time {{
+                        font-size: 14px;
+                        color: #78350f;
+                    }}
+                    .card {{ 
+                        margin-bottom: 16px; 
+                        padding: 20px;
+                        background: linear-gradient(to right, #f9fafb 0%, #ffffff 100%);
+                        border-radius: 12px;
+                        border-left: 4px solid #dc2626;
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                    }}
+                    .card-title {{
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 8px;
+                    }}
+                    .card-content {{
+                        font-size: 16px;
+                        font-weight: 500;
+                        color: #1f2937;
+                        line-height: 1.5;
+                    }}
+                    .info-grid {{
+                        display: table;
+                        width: 100%;
+                    }}
+                    .info-row {{
+                        display: table-row;
+                    }}
+                    .info-label {{
+                        display: table-cell;
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        padding: 10px 0;
+                        width: 40%;
+                    }}
+                    .info-value {{
+                        display: table-cell;
+                        font-size: 15px;
+                        color: #1f2937;
+                        padding: 10px 0;
+                        font-weight: 500;
+                    }}
+                    .price-box {{
+                        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+                        border-radius: 12px;
+                        padding: 20px;
+                        text-align: center;
+                        margin: 24px 0;
+                        border: 2px solid #10b981;
+                    }}
+                    .price-label {{
+                        font-size: 13px;
+                        color: #065f46;
+                        font-weight: 600;
+                        margin-bottom: 4px;
+                    }}
+                    .price-amount {{
+                        font-size: 32px;
+                        font-weight: 700;
+                        color: #047857;
+                    }}
+                    .footer {{ 
+                        background-color: #f9fafb;
+                        padding: 24px;
+                        text-align: center;
+                        border-top: 1px solid #e5e7eb;
+                    }}
+                    .footer-text {{
+                        font-size: 13px;
+                        color: #6b7280;
+                        line-height: 1.6;
+                    }}
+                    .footer-brand {{
+                        font-weight: 600;
+                        color: #dc2626;
+                    }}
+                    .emoji {{ font-size: 20px; margin-right: 8px; }}
+                    .logo {{ 
+                        width: 240px;
+                        height: auto;
+                        margin: 0;
+                    }}
+                    .header h1, .header .subtitle {{ display: none; }}
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h1>📅 Solicitud de Agendamiento - Fundo Moraga</h1>
-                </div>
-                <div class="content">
-                    <div class="section">
-                        <p><span class="label">🗓️ Día solicitado:</span> {visit_day} ({visit_date})</p>
-                        <p><span class="label">🕘 Horario:</span> 09:00 - 17:00</p>
-                        <p><span class="label">👤 Nombres y apellidos:</span> {full_name}</p>
-                        <p><span class="label">📞 Teléfono:</span> {phone}</p>
-                        <p><span class="label">✉️ Email:</span> {email}</p>
-                        <p><span class="label">👥 Personas:</span> {people_count}</p>
-                        <p><span class="label">🚗 Automóviles:</span> {cars_count}</p>
-                        <p><span class="label">🏍️ Motos:</span> {motos_count}</p>
-                        <p><span class="label">💵 Tarifa:</span> ${price_formatted} CLP</p>
+                <div class="container">
+                    <div class="header">
+                        {'<img src="' + LOGO_BLANCO + '" alt="Fundo Moraga" class="logo">' if LOGO_BLANCO else ''}
+                        <h1><span class="emoji">📅</span> Nueva Reserva</h1>
+                        <div class="subtitle">Solicitud de Agendamiento · Fundo Moraga</div>
                     </div>
-
-                    {notes_html}
-
-                    <div class="section">
-                        <p><span class="label">🔗 Plataforma:</span> {platform}</p>
-                        <p><span class="label">🆔 ID Conversación:</span> {conversation_id}</p>
-                        <p><span class="label">📅 Fecha:</span> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
+                    
+                    <div class="content">
+                        <div class="highlight-box">
+                            <div class="highlight-date">{visit_day}, {visit_date}</div>
+                            <div class="highlight-time">🕘 Horario: 09:00 - 17:00</div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">👤 Información del Cliente</div>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-label">Nombre</div>
+                                    <div class="info-value">{escape(full_name)}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">Teléfono</div>
+                                    <div class="info-value">{escape(phone)}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">Email</div>
+                                    <div class="info-value">{escape(email)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">🚗 Detalles de la Visita</div>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-label">Personas</div>
+                                    <div class="info-value">{people_count} personas</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">Automóviles</div>
+                                    <div class="info-value">{cars_count} autos</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">Motos</div>
+                                    <div class="info-value">{motos_count} motos</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {notes_html}
+                        
+                        <div class="price-box">
+                            <div class="price-label">TARIFA TOTAL</div>
+                            <div class="price-amount">${price_formatted} CLP</div>
+                        </div>
+                        
+                        <div class="card" style="border-left-color: #6b7280;">
+                            <div class="card-title">📋 Información Técnica</div>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-label">Plataforma</div>
+                                    <div class="info-value">{platform}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">ID Conversación</div>
+                                    <div class="info-value" style="font-size: 12px; font-family: monospace;">{conversation_id}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">Fecha/Hora</div>
+                                    <div class="info-value">{datetime.now().strftime('%d/%m/%Y · %H:%M:%S')}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="footer">
-                    <p>Este mensaje fue generado automáticamente por Hernando.</p>
+                    
+                    <div class="footer">
+                        <div class="footer-text">
+                            Mensaje generado automáticamente por <span class="footer-brand">Hernando</span>
+                        </div>
+                    </div>
                 </div>
             </body>
             </html>
@@ -348,35 +668,223 @@ class ResendClient:
             subject = f"Reserva confirmada - Batuco Off Road ({day_txt} {date_txt})".strip()
 
             html_content = f"""
+            <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
-                    .content {{ padding: 20px; }}
-                    .section {{ margin-bottom: 18px; padding: 14px; background-color: #f5f5f5; border-left: 4px solid #2c5530; }}
-                    .label {{ font-weight: bold; color: #2c5530; }}
-                    .footer {{ margin-top: 24px; padding: 12px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                    body {{ 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                        line-height: 1.6; 
+                        color: #1f2937;
+                        background-color: #f9fafb;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 16px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        overflow: hidden;
+                    }}
+                    .header {{ 
+                        background: #000000;
+                        color: white; 
+                        padding: 32px 24px;
+                        text-align: center;
+                    }}
+                    .header h1 {{
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin: 0;
+                        letter-spacing: -0.5px;
+                    }}
+                    .header .subtitle {{
+                        font-size: 14px;
+                        opacity: 0.9;
+                        margin-top: 8px;
+                    }}
+                    .content {{ padding: 32px 24px; }}
+                    .greeting {{
+                        font-size: 16px;
+                        color: #374151;
+                        margin-bottom: 24px;
+                        line-height: 1.7;
+                    }}
+                    .highlight-box {{
+                        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+                        border-radius: 12px;
+                        padding: 20px;
+                        margin-bottom: 24px;
+                        border: 2px solid #10b981;
+                        text-align: center;
+                    }}
+                    .highlight-title {{
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #065f46;
+                        margin-bottom: 8px;
+                    }}
+                    .highlight-date {{
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #047857;
+                        margin-bottom: 4px;
+                    }}
+                    .highlight-time {{
+                        font-size: 14px;
+                        color: #065f46;
+                    }}
+                    .card {{ 
+                        margin-bottom: 16px; 
+                        padding: 20px;
+                        background: linear-gradient(to right, #f9fafb 0%, #ffffff 100%);
+                        border-radius: 12px;
+                        border-left: 4px solid #10b981;
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                    }}
+                    .card-title {{
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 12px;
+                    }}
+                    .info-grid {{
+                        display: table;
+                        width: 100%;
+                    }}
+                    .info-row {{
+                        display: table-row;
+                    }}
+                    .info-label {{
+                        display: table-cell;
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        padding: 8px 0;
+                        width: 45%;
+                    }}
+                    .info-value {{
+                        display: table-cell;
+                        font-size: 15px;
+                        color: #1f2937;
+                        padding: 8px 0;
+                        font-weight: 500;
+                    }}
+                    .contact-box {{
+                        background: #fef3c7;
+                        border-radius: 12px;
+                        padding: 20px;
+                        margin: 24px 0;
+                        border: 2px solid #fbbf24;
+                    }}
+                    .contact-title {{
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #92400e;
+                        margin-bottom: 8px;
+                    }}
+                    .contact-text {{
+                        font-size: 14px;
+                        color: #78350f;
+                        line-height: 1.6;
+                    }}
+                    .contact-link {{
+                        color: #b45309;
+                        text-decoration: none;
+                        font-weight: 600;
+                    }}
+                    .footer {{ 
+                        background-color: #f9fafb;
+                        padding: 24px;
+                        text-align: center;
+                        border-top: 1px solid #e5e7eb;
+                    }}
+                    .footer-text {{
+                        font-size: 13px;
+                        color: #6b7280;
+                        line-height: 1.6;
+                    }}
+                    .footer-brand {{
+                        font-weight: 600;
+                        color: #10b981;
+                    }}
+                    .emoji {{ font-size: 20px; margin-right: 8px; }}
+                    .logo {{ 
+                        width: 240px;
+                        height: auto;
+                        margin: 0;
+                    }}
+                    .header h1, .header .subtitle {{ display: none; }}
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h1>✅ Reserva confirmada</h1>
-                </div>
-                <div class="content">
-                    <p>Hola {name_txt}, ya verificamos tu transferencia. Tu reserva quedó confirmada.</p>
-                    <div class="section">
-                        <p><span class="label">📅 Fecha:</span> {day_txt} {date_txt}</p>
-                        <p><span class="label">🕘 Hora de llegada:</span> {arrival_txt}</p>
-                        <p><span class="label">🚗 Autos:</span> {cars_count} | <span class="label">🏍️ Motos:</span> {motos_count}</p>
-                        <p><span class="label">👥 Personas:</span> {people_count}</p>
-                        <p><span class="label">💵 Tarifa:</span> {escape(price_txt)}</p>
+                <div class="container">
+                    <div class="header">
+                        {'<img src="' + LOGO_BLANCO + '" alt="Fundo Moraga" class="logo">' if LOGO_BLANCO else ''}
+                        <h1><span class="emoji">✅</span> Reserva Confirmada</h1>
+                        <div class="subtitle">Tu reserva está lista · Fundo Moraga</div>
                     </div>
-                    <p>Un día antes te enviaremos un recordatorio por este mismo correo.</p>
-                    <p>Si necesitas cambios, contáctanos en contacto@fundomoraga.com o WhatsApp +5694 1242609.</p>
-                </div>
-                <div class="footer">
-                    <p>Mensaje automático de Hernando - Fundo Moraga</p>
+                    
+                    <div class="content">
+                        <div class="greeting">
+                            Hola <strong>{name_txt}</strong>, ya verificamos tu transferencia. 🎉<br>
+                            ¡Tu reserva quedó confirmada!
+                        </div>
+                        
+                        <div class="highlight-box">
+                            <div class="highlight-title">TU VISITA</div>
+                            <div class="highlight-date">{day_txt}, {date_txt}</div>
+                            <div class="highlight-time">🕘 Llegada: {arrival_txt}</div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">📋 Detalles de tu Reserva</div>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-label">🚗 Automóviles</div>
+                                    <div class="info-value">{cars_count} auto{'s' if cars_count != 1 else ''}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">🏍️ Motos</div>
+                                    <div class="info-value">{motos_count} moto{'s' if motos_count != 1 else ''}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">👥 Personas</div>
+                                    <div class="info-value">{people_count} persona{'s' if people_count != 1 else ''}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">💵 Tarifa Total</div>
+                                    <div class="info-value">{escape(price_txt)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-box">
+                            <div class="contact-title">📞 ¿Necesitas hacer cambios?</div>
+                            <div class="contact-text">
+                                Contáctanos en <a href="mailto:contacto@fundomoraga.com" class="contact-link">contacto@fundomoraga.com</a><br>
+                                o por WhatsApp al <a href="https://wa.me/56941242609" class="contact-link">+56 9 4124 2609</a>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #eff6ff; border-radius: 12px; padding: 16px; border-left: 4px solid #3b82f6;">
+                            <p style="font-size: 14px; color: #1e40af; margin: 0;">
+                                📧 <strong>Recordatorio:</strong> Te enviaremos un correo un día antes de tu visita.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <div class="footer-text">
+                            Mensaje automático de <span class="footer-brand">Hernando</span> · Fundo Moraga
+                        </div>
+                    </div>
                 </div>
             </body>
             </html>
@@ -422,34 +930,222 @@ class ResendClient:
             subject = f"Recordatorio de tu reserva - {day_txt} {date_txt}".strip()
 
             html_content = f"""
+            <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                    .header {{ background-color: #2c5530; color: white; padding: 20px; text-align: center; }}
-                    .content {{ padding: 20px; }}
-                    .section {{ margin-bottom: 18px; padding: 14px; background-color: #f5f5f5; border-left: 4px solid #2c5530; }}
-                    .label {{ font-weight: bold; color: #2c5530; }}
-                    .footer {{ margin-top: 24px; padding: 12px; background-color: #f0f0f0; text-align: center; font-size: 12px; }}
+                    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                    body {{ 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                        line-height: 1.6; 
+                        color: #1f2937;
+                        background-color: #f9fafb;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 16px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        overflow: hidden;
+                    }}
+                    .header {{ 
+                        background: #000000;
+                        color: white; 
+                        padding: 32px 24px;
+                        text-align: center;
+                    }}
+                    .header h1 {{
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin: 0;
+                        letter-spacing: -0.5px;
+                    }}
+                    .header .subtitle {{
+                        font-size: 14px;
+                        opacity: 0.9;
+                        margin-top: 8px;
+                    }}
+                    .content {{ padding: 32px 24px; }}
+                    .greeting {{
+                        font-size: 16px;
+                        color: #374151;
+                        margin-bottom: 24px;
+                        line-height: 1.7;
+                    }}
+                    .highlight-box {{
+                        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                        border-radius: 12px;
+                        padding: 24px;
+                        margin-bottom: 24px;
+                        border: 2px solid #fbbf24;
+                        text-align: center;
+                    }}
+                    .highlight-emoji {{
+                        font-size: 48px;
+                        margin-bottom: 12px;
+                    }}
+                    .highlight-title {{
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #92400e;
+                        margin-bottom: 8px;
+                    }}
+                    .highlight-date {{
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #b45309;
+                        margin-bottom: 4px;
+                    }}
+                    .highlight-time {{
+                        font-size: 14px;
+                        color: #78350f;
+                    }}
+                    .card {{ 
+                        margin-bottom: 16px; 
+                        padding: 20px;
+                        background: linear-gradient(to right, #f9fafb 0%, #ffffff 100%);
+                        border-radius: 12px;
+                        border-left: 4px solid #f59e0b;
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                    }}
+                    .card-title {{
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 12px;
+                    }}
+                    .info-grid {{
+                        display: table;
+                        width: 100%;
+                    }}
+                    .info-row {{
+                        display: table-row;
+                    }}
+                    .info-label {{
+                        display: table-cell;
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        padding: 8px 0;
+                        width: 45%;
+                    }}
+                    .info-value {{
+                        display: table-cell;
+                        font-size: 15px;
+                        color: #1f2937;
+                        padding: 8px 0;
+                        font-weight: 500;
+                    }}
+                    .contact-box {{
+                        background: #dbeafe;
+                        border-radius: 12px;
+                        padding: 20px;
+                        margin: 24px 0 0 0;
+                        border: 2px solid #3b82f6;
+                    }}
+                    .contact-title {{
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #1e40af;
+                        margin-bottom: 8px;
+                    }}
+                    .contact-text {{
+                        font-size: 14px;
+                        color: #1e3a8a;
+                        line-height: 1.6;
+                    }}
+                    .contact-link {{
+                        color: #2563eb;
+                        text-decoration: none;
+                        font-weight: 600;
+                    }}
+                    .footer {{ 
+                        background-color: #f9fafb;
+                        padding: 24px;
+                        text-align: center;
+                        border-top: 1px solid #e5e7eb;
+                    }}
+                    .footer-text {{
+                        font-size: 13px;
+                        color: #6b7280;
+                        line-height: 1.6;
+                    }}
+                    .footer-brand {{
+                        font-weight: 600;
+                        color: #f59e0b;
+                    }}
+                    .emoji {{ font-size: 20px; margin-right: 8px; }}
+                    .logo {{ 
+                        width: 240px;
+                        height: auto;
+                        margin: 0;
+                    }}
+                    .header h1, .header .subtitle {{ display: none; }}
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h1>⏰ Recordatorio de reserva</h1>
-                </div>
-                <div class="content">
-                    <p>Hola {name_txt}, te recordamos tu reserva en Batuco Off Road para mañana.</p>
-                    <div class="section">
-                        <p><span class="label">📅 Fecha:</span> {day_txt} {date_txt}</p>
-                        <p><span class="label">🕘 Hora de llegada:</span> {arrival_txt}</p>
-                        <p><span class="label">🚗 Autos:</span> {cars_count} | <span class="label">🏍️ Motos:</span> {motos_count}</p>
-                        <p><span class="label">👥 Personas:</span> {people_count}</p>
-                        <p><span class="label">💵 Tarifa:</span> {escape(price_txt)}</p>
+                <div class="container">
+                    <div class="header">
+                        {'<img src="' + LOGO_BLANCO + '" alt="Fundo Moraga" class="logo">' if LOGO_BLANCO else ''}
+                        <h1><span class="emoji">⏰</span> Recordatorio de Reserva</h1>
+                        <div class="subtitle">Tu visita es mañana · Fundo Moraga</div>
                     </div>
-                    <p>Si necesitas cambiar algo, contáctanos en contacto@fundomoraga.com o WhatsApp +5694 1242609.</p>
-                </div>
-                <div class="footer">
-                    <p>Mensaje automático de Hernando - Fundo Moraga</p>
+                    
+                    <div class="content">
+                        <div class="greeting">
+                            Hola <strong>{name_txt}</strong>, 👋<br>
+                            Te recordamos que tu reserva en <strong>Batuco Off Road</strong> es mañana.
+                        </div>
+                        
+                        <div class="highlight-box">
+                            <div class="highlight-emoji">📅</div>
+                            <div class="highlight-title">TU VISITA ES MAÑANA</div>
+                            <div class="highlight-date">{day_txt}, {date_txt}</div>
+                            <div class="highlight-time">🕘 Llegada: {arrival_txt}</div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">📋 Detalles de tu Reserva</div>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-label">🚗 Automóviles</div>
+                                    <div class="info-value">{cars_count} auto{'s' if cars_count != 1 else ''}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">🏍️ Motos</div>
+                                    <div class="info-value">{motos_count} moto{'s' if motos_count != 1 else ''}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">👥 Personas</div>
+                                    <div class="info-value">{people_count} persona{'s' if people_count != 1 else ''}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">💵 Tarifa Total</div>
+                                    <div class="info-value">{escape(price_txt)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-box">
+                            <div class="contact-title">📞 ¿Necesitas hacer cambios?</div>
+                            <div class="contact-text">
+                                Contáctanos en <a href="mailto:contacto@fundomoraga.com" class="contact-link">contacto@fundomoraga.com</a><br>
+                                o por WhatsApp al <a href="https://wa.me/56941242609" class="contact-link">+56 9 4124 2609</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <div class="footer-text">
+                            Mensaje automático de <span class="footer-brand">Hernando</span> · Fundo Moraga
+                        </div>
+                    </div>
                 </div>
             </body>
             </html>
