@@ -110,7 +110,7 @@ const chatBody = document.getElementById('chatBody');
 const chatBadge = document.querySelector('.chat-badge');
 
 // Configuration
-const RAILWAY_API_URL = 'https://fm-ia-production.up.railway.app'; // Tu URL de Railway
+const RAILWAY_API_URL = '/hernando'; // Proxy interno vía nginx a Railway
 
 // Toggle chat window
 chatToggle?.addEventListener('click', () => {
@@ -223,14 +223,6 @@ document.querySelectorAll('.btn-reserva, .btn-hernando').forEach(button => {
         chatWindow.classList.add('active');
         chatInput.focus();
         if (chatBadge) chatBadge.style.display = 'none';
-        
-        // Send initial message
-        setTimeout(() => {
-            addMessageToChat('Hola! Me gustaría hacer una reserva 🌿', 'user');
-            setTimeout(() => {
-                sendMessage('Hola! Me gustaría hacer una reserva');
-            }, 500);
-        }, 300);
     });
 });
 
@@ -281,35 +273,6 @@ document.querySelectorAll('.btn-primary, .btn-reserva').forEach(button => {
         trackEvent('Engagement', 'Button Click', button.textContent);
     });
 });
-
-// ============================================
-// AUTO-OPEN HERNANDO
-// ============================================
-// Auto-open chat after 3 seconds on first visit
-setTimeout(() => {
-    const hasVisited = sessionStorage.getItem('hernando_greeted');
-    if (!hasVisited) {
-        chatWindow.classList.add('active');
-        if (chatBadge) chatBadge.style.display = 'none';
-        
-        // Send automatic welcome message
-        setTimeout(() => {
-            const welcomeMessages = [
-                '¡Hola! 👋 Bienvenido a Fundo Moraga.',
-                'Soy Hernando, tu asistente virtual. ¿En qué puedo ayudarte hoy?',
-                'Puedo ayudarte con reservas, información sobre nuestros servicios, tarifas y disponibilidad. 🌿'
-            ];
-            
-            welcomeMessages.forEach((msg, index) => {
-                setTimeout(() => {
-                    addMessageToChat(msg, 'bot');
-                }, index * 1000);
-            });
-        }, 500);
-        
-        sessionStorage.setItem('hernando_greeted', 'true');
-    }
-}, 3000);
 
 // ============================================
 // CONSOLE MESSAGE
