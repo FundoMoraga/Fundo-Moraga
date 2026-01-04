@@ -858,14 +858,8 @@ contactForm?.addEventListener('submit', async (e) => {
     submitButton.disabled = true;
     
     try {
-        // Here you would integrate with your backend or email service
-        // Example: EmailJS, Formspree, or your own API
-        
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // For now, we'll send to Hernando's chat API
-        const response = await fetch('https://fm-ia-production.up.railway.app/webhook', {
+        // Enviar al backend de Hernando vía proxy interno
+        const response = await fetch(`${RAILWAY_API_URL}/webhook`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
