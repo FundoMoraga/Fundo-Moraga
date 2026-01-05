@@ -12,37 +12,6 @@ from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
 import json
 
-app = Flask(__name__, static_folder='Web', static_url_path='')
-CORS(app)  # Permitir peticiones desde fundomoraga.com
-start_reminder_scheduler()
-
-# Inicializar bot al arranque para evitar timeouts en primera petición
-_bot: Optional[InstagramBot] = None
-_bot_init_error: Optional[str] = None
-
-def _init_bot_on_startup():
-    """Inicializa el bot al arranque del servidor"""
-    global _bot, _bot_init_error
-    try:
-        configured_ok, missing_required, warnings = _config_status()
-        if not configured_ok:
-            print(f"⚠️ Bot no inicializado: Faltan variables - {', '.join(missing_required)}")
-            _bot_init_error = f"Configuración incompleta: {', '.join(missing_required)}"
-            return
-        
-        print("🤖 Pre-inicializando InstagramBot al arranque...")
-        _bot = InstagramBot()
-        print("✅ InstagramBot pre-inicializado correctamente")
-    except Exception as e:
-        print(f"❌ Error pre-inicializando bot: {e}")
-        traceback.print_exc()
-        _bot_init_error = f"Error inicializando bot: {e}"
-
-# Pre-inicializar el bot
-_init_bot_on_startup()
-
-# Token de verificación del webhook (configúralo en .env)
-VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "fundomoraga_2025")
 
 def _config_status() -> Tuple[bool, list[str], list[str]]:
     """
@@ -75,6 +44,38 @@ def _config_status() -> Tuple[bool, list[str], list[str]]:
         warnings.append("INSTAGRAM_PAGE_ID (instagram)")
 
     return (len(missing_required) == 0, missing_required, warnings)
+
+app = Flask(__name__, static_folder='Web', static_url_path='')
+CORS(app)  # Permitir peticiones desde fundomoraga.com
+start_reminder_scheduler()
+
+# Inicializar bot al arranque para evitar timeouts en primera petición
+_bot: Optional[InstagramBot] = None
+_bot_init_error: Optional[str] = None
+
+def _init_bot_on_startup():
+    """Inicializa el bot al arranque del servidor"""
+    global _bot, _bot_init_error
+    try:
+        configured_ok, missing_required, warnings = _config_status()
+        if not configured_ok:
+            print(f"⚠️ Bot no inicializado: Faltan variables - {', '.join(missing_required)}")
+            _bot_init_error = f"Configuración incompleta: {', '.join(missing_required)}"
+            return
+        
+        print("🤖 Pre-inicializando InstagramBot al arranque...")
+        _bot = InstagramBot()
+        print("✅ InstagramBot pre-inicializado correctamente")
+    except Exception as e:
+        print(f"❌ Error pre-inicializando bot: {e}")
+        traceback.print_exc()
+        _bot_init_error = f"Error inicializando bot: {e}"
+
+# Pre-inicializar el bot
+_init_bot_on_startup()
+
+# Token de verificación del webhook (configúralo en .env)
+VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "fundomoraga_2025")
 
 
 def get_bot() -> InstagramBot:
