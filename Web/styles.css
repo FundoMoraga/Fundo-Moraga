@@ -56,7 +56,7 @@ body {
 }
 
 .preloader-logo {
-    width: 150px;
+    width: 270px;
     height: auto;
     margin-bottom: 30px;
     animation: logoFloat 2s ease-in-out infinite;
