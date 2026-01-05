@@ -74,10 +74,14 @@ def get_bot() -> InstagramBot:
         raise RuntimeError(_bot_init_error)
 
     try:
+        print("🤖 Inicializando InstagramBot...")
         _bot = InstagramBot()
+        print("✅ InstagramBot inicializado correctamente")
         return _bot
     except Exception as e:
         _bot_init_error = f"Error inicializando bot: {e}"
+        print(f"❌ Error inicializando bot: {e}")
+        traceback.print_exc()
         raise RuntimeError(_bot_init_error)
 
 
@@ -209,6 +213,7 @@ def web_chat():
     }
     """
     try:
+        print("📨 Recibiendo petición en /api/chat")
         data = request.get_json()
         
         if not data or 'message' not in data:
@@ -220,6 +225,8 @@ def web_chat():
         user_message = data.get('message', '').strip()
         user_id = data.get('user_id', f"web_{request.remote_addr}")
         
+        print(f"👤 User: {user_id}, Message: {user_message[:50]}...")
+        
         if not user_message:
             return jsonify({
                 "error": "El mensaje no puede estar vacío"
@@ -227,14 +234,18 @@ def web_chat():
         
         # Procesar mensaje con el bot
         try:
+            print("🔄 Obteniendo instancia del bot...")
             bot = get_bot()
+            print("✅ Bot obtenido, procesando mensaje...")
         except Exception as e:
+            print(f"❌ Error obteniendo bot: {e}")
             return jsonify({
                 "error": "Servicio no configurado",
                 "message": str(e)
             }), 503
 
         response = bot.process_message(user_id, user_message)
+        print(f"✅ Respuesta generada: {len(response)} caracteres")
 
         close_token = "[[CLOSE_CHAT]]"
         close_chat = False
