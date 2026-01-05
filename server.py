@@ -12,7 +12,7 @@ from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
 import json
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='Web', static_url_path='')
 CORS(app)  # Permitir peticiones desde fundomoraga.com
 start_reminder_scheduler()
 
@@ -478,24 +478,6 @@ def chat_embed_page():
         return render_template('chat_embed.html')
     except Exception as e:
         return f"<pre>Error rendering template:\n{traceback.format_exc()}</pre>"
-
-# Servir archivos estáticos del directorio Web/
-@app.route('/<path:filename>')
-def serve_web_files(filename):
-    """Servir archivos del directorio Web/ (HTML, CSS, JS, imágenes, etc.)"""
-    from flask import send_from_directory
-    import os
-    
-    # Solo servir si no es una ruta de API
-    if filename.startswith('api/') or filename.startswith('webhook/'):
-        return "Not found", 404
-    
-    web_path = os.path.join('Web', filename)
-    if os.path.exists(web_path):
-        return send_from_directory('Web', filename)
-    
-    # Si no existe en Web/, devolver 404
-    return "Archivo no encontrado", 404
 
 
 if __name__ == '__main__':
