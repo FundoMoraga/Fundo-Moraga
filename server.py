@@ -479,16 +479,23 @@ def chat_embed_page():
     except Exception as e:
         return f"<pre>Error rendering template:\n{traceback.format_exc()}</pre>"
 
+# Servir archivos estáticos del directorio Web/
 @app.route('/<path:filename>')
-def serve_static_files(filename):
-    """Servir archivos estáticos del directorio Web/"""
+def serve_web_files(filename):
+    """Servir archivos del directorio Web/ (HTML, CSS, JS, imágenes, etc.)"""
     from flask import send_from_directory
-    try:
-        # Intentar servir desde el directorio Web/
+    import os
+    
+    # Solo servir si no es una ruta de API
+    if filename.startswith('api/') or filename.startswith('webhook/'):
+        return "Not found", 404
+    
+    web_path = os.path.join('Web', filename)
+    if os.path.exists(web_path):
         return send_from_directory('Web', filename)
-    except:
-        # Si no existe, devolver 404
-        return "Archivo no encontrado", 404
+    
+    # Si no existe en Web/, devolver 404
+    return "Archivo no encontrado", 404
 
 
 if __name__ == '__main__':
