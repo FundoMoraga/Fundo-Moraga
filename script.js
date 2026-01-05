@@ -110,7 +110,7 @@ const chatBody = document.getElementById('chatBody');
 const chatBadge = document.querySelector('.chat-badge');
 
 // Configuration
-const RAILWAY_API_URL = 'https://hernando.fundomoraga.com/api'; // URL pública de Hernando API
+const RAILWAY_API_URL = 'https://hernando.fundomoraga.com'; // URL pública de Hernando
 
 // Toggle chat window
 chatToggle?.addEventListener('click', () => {
@@ -140,16 +140,14 @@ async function sendMessage(message) {
     try {
         // Call Hernando API
         console.log('Enviando mensaje a Hernando:', message);
-        const response = await fetch(`${RAILWAY_API_URL}/webhook`, {
+        const response = await fetch(`${RAILWAY_API_URL}/api/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                message: message,
-                platform: 'web',
-                userId: getOrCreateUserId(),
-                timestamp: new Date().toISOString()
+                user_id: getOrCreateUserId(),
+                message: message
             })
         });
         
@@ -866,16 +864,14 @@ contactForm?.addEventListener('submit', async (e) => {
     try {
         // Enviar al backend de Hernando
         console.log('Enviando formulario de contacto a Hernando');
-        const response = await fetch(`${RAILWAY_API_URL}/webhook`, {
+        const response = await fetch(`${RAILWAY_API_URL}/api/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                message: `Nuevo mensaje de contacto:\nNombre: ${data.name}\nEmail: ${data.email}\nTeléfono: ${data.phone}\nServicio: ${data.service}\nMensaje: ${data.message}`,
-                platform: 'web-form',
-                userId: getOrCreateUserId(),
-                timestamp: new Date().toISOString()
+                user_id: `form_${getOrCreateUserId()}`,
+                message: `📋 FORMULARIO DE CONTACTO\n\nNombre: ${data.name}\nEmail: ${data.email}\nTeléfono: ${data.phone}\nServicio: ${data.service}\n\nMensaje:\n${data.message}`
             })
         });
         
