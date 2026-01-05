@@ -110,7 +110,7 @@ const chatBody = document.getElementById('chatBody');
 const chatBadge = document.querySelector('.chat-badge');
 
 // Configuration
-const RAILWAY_API_URL = 'https://hernando.fundomoraga.com'; // URL pública de Hernando
+const RAILWAY_API_URL = '/api'; // Proxy transparente vía nginx (no visible para navegador)
 
 // Toggle chat window
 chatToggle?.addEventListener('click', () => {
