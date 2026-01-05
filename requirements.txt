@@ -15,6 +15,9 @@ gunicorn>=21.2.0
 # Instagram/Facebook API
 requests>=2.31.0
 
+# Redis client
+redis>=5.0.0
+
 # Email service
 resend>=0.8.0
 
