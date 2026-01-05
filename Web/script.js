@@ -140,7 +140,7 @@ async function sendMessage(message) {
     try {
         // Call Hernando API
         console.log('Enviando mensaje a Hernando:', message);
-        const response = await fetch(`${RAILWAY_API_URL}/api/chat`, {
+        const response = await fetch(`${RAILWAY_API_URL}/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
