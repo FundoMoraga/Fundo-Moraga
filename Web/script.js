@@ -12,6 +12,17 @@ window.addEventListener('load', () => {
         preloader.classList.add('hidden');
         // Start animations after preloader
         document.body.style.overflow = 'auto';
+        
+        // Abrir automáticamente el chat de Hernando después de 1.5 segundos
+        setTimeout(() => {
+            const chatWindow = document.getElementById('chatWindow');
+            const chatBadge = document.querySelector('.chat-badge');
+            if (chatWindow) {
+                chatWindow.classList.add('active');
+                // Ocultar badge cuando se abre automáticamente
+                if (chatBadge) chatBadge.style.display = 'none';
+            }
+        }, 1500);
     }, 1000);
 });
 
