@@ -16,10 +16,30 @@ app = Flask(__name__)
 CORS(app)  # Permitir peticiones desde fundomoraga.com
 start_reminder_scheduler()
 
-# Inicializar bot (lazy) para que el servidor pueda arrancar en Railway
-# incluso si faltan variables de entorno; las rutas de chat devolverán 503 con detalle.
+# Inicializar bot al arranque para evitar timeouts en primera petición
 _bot: Optional[InstagramBot] = None
 _bot_init_error: Optional[str] = None
+
+def _init_bot_on_startup():
+    """Inicializa el bot al arranque del servidor"""
+    global _bot, _bot_init_error
+    try:
+        configured_ok, missing_required, warnings = _config_status()
+        if not configured_ok:
+            print(f"⚠️ Bot no inicializado: Faltan variables - {', '.join(missing_required)}")
+            _bot_init_error = f"Configuración incompleta: {', '.join(missing_required)}"
+            return
+        
+        print("🤖 Pre-inicializando InstagramBot al arranque...")
+        _bot = InstagramBot()
+        print("✅ InstagramBot pre-inicializado correctamente")
+    except Exception as e:
+        print(f"❌ Error pre-inicializando bot: {e}")
+        traceback.print_exc()
+        _bot_init_error = f"Error inicializando bot: {e}"
+
+# Pre-inicializar el bot
+_init_bot_on_startup()
 
 # Token de verificación del webhook (configúralo en .env)
 VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "fundomoraga_2025")
@@ -58,31 +78,13 @@ def _config_status() -> Tuple[bool, list[str], list[str]]:
 
 
 def get_bot() -> InstagramBot:
+    """Obtiene la instancia del bot (pre-inicializado al arranque)"""
     global _bot, _bot_init_error
     if _bot is not None:
         return _bot
     if _bot_init_error is not None:
         raise RuntimeError(_bot_init_error)
-
-    configured_ok, missing_required, warnings = _config_status()
-    if not configured_ok:
-        _bot_init_error = (
-            "Configuración incompleta. Faltan variables requeridas: "
-            + ", ".join(missing_required)
-            + ". Configúralas en Railway → Variables y redepliega."
-        )
-        raise RuntimeError(_bot_init_error)
-
-    try:
-        print("🤖 Inicializando InstagramBot...")
-        _bot = InstagramBot()
-        print("✅ InstagramBot inicializado correctamente")
-        return _bot
-    except Exception as e:
-        _bot_init_error = f"Error inicializando bot: {e}"
-        print(f"❌ Error inicializando bot: {e}")
-        traceback.print_exc()
-        raise RuntimeError(_bot_init_error)
+    raise RuntimeError("Bot no inicializado")
 
 
 @app.route('/oembed.json')
