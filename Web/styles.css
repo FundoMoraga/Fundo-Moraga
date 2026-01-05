@@ -121,8 +121,8 @@ a {
 }
 
 .logo {
-    height: 80px;
-    width: auto;
+    width: 270px;
+    height: auto;
     transition: transform 0.3s ease;
 }
 
