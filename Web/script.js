@@ -110,7 +110,7 @@ const chatBody = document.getElementById('chatBody');
 const chatBadge = document.querySelector('.chat-badge');
 
 // Configuration
-const RAILWAY_API_URL = '/hernando'; // Proxy interno vía nginx a Railway
+const RAILWAY_API_URL = 'https://hernando.fundomoraga.com'; // URL pública de Hernando
 
 // Toggle chat window
 chatToggle?.addEventListener('click', () => {
@@ -139,28 +139,32 @@ async function sendMessage(message) {
     
     try {
         // Call Hernando API
-        const response = await fetch(`${RAILWAY_API_URL}/webhook`, {
+        console.log('Enviando mensaje a Hernando:', message);
+        const response = await fetch(`${RAILWAY_API_URL}/api/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                message: message,
-                platform: 'web',
-                userId: getOrCreateUserId(),
-                timestamp: new Date().toISOString()
+                user_id: getOrCreateUserId(),
+                message: message
             })
         });
         
+        console.log('Respuesta recibida:', response.status, response.statusText);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log('Datos:', data);
             typingIndicator.remove();
-            addMessageToChat(data.message || data.response || 'Gracias por tu mensaje. Te responderé pronto.', 'bot');
+            addMessageToChat(data.response || data.message || 'Gracias por tu mensaje. Te responderé pronto.', 'bot');
         } else {
-            throw new Error('Error en la respuesta');
+            const errorText = await response.text();
+            console.error('Error en respuesta:', response.status, errorText);
+            throw new Error(`Error ${response.status}: ${errorText}`);
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error completo:', error);
         typingIndicator.remove();
         addMessageToChat('Lo siento, hay un problema de conexión. Por favor intenta más tarde o contáctanos al +56 9 4124 2609', 'bot');
     }
