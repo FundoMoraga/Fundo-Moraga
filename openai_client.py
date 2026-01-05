@@ -19,7 +19,9 @@ class ChatbotAI:
     
     def __init__(self):
         """Inicializa el cliente de OpenAI y carga prompts dinámicamente desde Cosmos DB."""
-        self.client = OpenAI(api_key=config.OPENAI_API_KEY)
+        # Timeout agresivo para evitar que el proxy devuelva 504 y mejorar P95.
+        self.request_timeout = int(os.getenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "15"))
+        self.client = OpenAI(api_key=config.OPENAI_API_KEY, timeout=self.request_timeout)
         self.model = config.OPENAI_MODEL
         self.memory_store = get_memory_store()
         # Si la cuenta queda sin cuota, evitamos golpear la API en cada mensaje (reduce latencia/ruido).
@@ -254,6 +256,12 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
         message = (payload.get("message") or "").strip()
         text = (str(exc) or "").lower()
 
+        timeout_cls = getattr(openai, "APITimeoutError", None)
+        if timeout_cls and isinstance(exc, timeout_cls):
+            return {"type": "timeout", "status_code": status_code, "code": code or "timeout", "message": message}
+        if "timeout" in text:
+            return {"type": "timeout", "status_code": status_code, "code": code or "timeout", "message": message or str(exc)}
+
         code_l = code.lower()
         msg_l = message.lower()
 
@@ -366,8 +374,9 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
                 messages=messages,
                 tools=self.tools,
                 tool_choice="auto",
-                temperature=0.7,
+                temperature=0.5,
             )
+            kwargs["timeout"] = self.request_timeout
             kwargs[token_param] = 800
             response = self.client.chat.completions.create(**kwargs)
 
@@ -507,7 +516,8 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                temperature=0.7,
+                temperature=0.5,
+                timeout=self.request_timeout,
                 **{self._token_param_name(self.model): 500},
             )
             
@@ -564,6 +574,7 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
                 messages=[{"role": "system", "content": sys}, {"role": "user", "content": user}],
                 temperature=0.2,
             )
+            kwargs["timeout"] = self.request_timeout
             kwargs[self._token_param_name(self.model)] = 200
             response = self.client.chat.completions.create(**kwargs)
             return (response.choices[0].message.content or "").strip()

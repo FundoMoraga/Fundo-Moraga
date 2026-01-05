@@ -64,7 +64,7 @@ INSTAGRAM_PAGE_ID = os.getenv("INSTAGRAM_PAGE_ID")
 
 # Bot Configuration
 BOT_NAME = os.getenv("BOT_NAME", "Fundo Moraga Bot")
-MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "50"))
+MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "30"))
 
 # Redis Cache Configuration
 REDIS_ENABLED = os.getenv("REDIS_ENABLED", "true").lower() in ("1", "true", "yes", "y", "si")
