@@ -160,13 +160,26 @@
             })
             .filter(Boolean);
 
+        let lastActiveId = '';
+
         const setActive = (activeId) => {
+            let activeLink = null;
             chapters.forEach(({ id, link }) => {
                 const isActive = id === activeId;
                 link.classList.toggle('is-active', isActive);
                 if (isActive) link.setAttribute('aria-current', 'true');
                 else link.removeAttribute('aria-current');
+                if (isActive) activeLink = link;
             });
+
+            if (!activeLink || !activeLink.scrollIntoView) return;
+            try {
+                activeLink.scrollIntoView({
+                    behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                    block: 'nearest',
+                    inline: 'center',
+                });
+            } catch {}
         };
 
         const updateActiveChapter = () => {
@@ -180,6 +193,8 @@
                 if (top <= scanLine) activeId = chapter.id;
                 else break;
             }
+            if (activeId === lastActiveId) return;
+            lastActiveId = activeId;
             setActive(activeId);
         };
 
@@ -395,9 +410,27 @@
 
     const initLeyenda = () => {
         const navbar = document.querySelector('.navbar');
+        const chapterNav = document.querySelector('.chapter-nav');
+
+        const syncHeaderVars = () => {
+            const navHeight = navbar?.getBoundingClientRect().height ?? 0;
+            document.documentElement.style.setProperty('--nav-h', `${Math.round(navHeight)}px`);
+        };
+
+        syncHeaderVars();
+        window.addEventListener('resize', syncHeaderVars, { passive: true });
+
+        if ('ResizeObserver' in window && navbar) {
+            try {
+                const ro = new ResizeObserver(() => syncHeaderVars());
+                ro.observe(navbar);
+            } catch {}
+        }
+
         const getScrollOffset = () => {
             const navHeight = navbar?.getBoundingClientRect().height ?? 0;
-            return Math.round(navHeight + 18);
+            const chapterHeight = chapterNav?.getBoundingClientRect().height ?? 0;
+            return Math.round(navHeight + chapterHeight + 20);
         };
 
         initMobileMenu();

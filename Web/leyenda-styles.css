@@ -115,68 +115,78 @@ html.js {
 /* Chapter navigation */
 .chapter-nav {
     position: fixed;
-    right: clamp(12px, 1.8vw, 22px);
-    top: calc(env(safe-area-inset-top, 0px) + 92px);
-    transform: none;
-    z-index: 1250;
-    width: clamp(180px, 16vw, 230px);
-    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 132px);
-    padding: 10px;
-    border-radius: 18px;
-    border: 1px solid rgba(212, 175, 55, 0.22);
-    background: rgba(0, 0, 0, 0.45);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(14px);
+    left: 0;
+    right: 0;
+    top: calc(env(safe-area-inset-top, 0px) + var(--nav-h, 86px));
+    z-index: 950;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+    background: rgba(0, 0, 0, 0.62);
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(16px);
 }
 
 .chapter-nav__toggle {
-    width: 100%;
     display: none;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(212, 175, 55, 0.2);
-    background: rgba(212, 175, 55, 0.06);
-    color: var(--ink-100);
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    cursor: pointer;
 }
 
 .chapter-nav__list {
     list-style: none;
-    padding: 0;
-    margin: 0;
-    display: grid;
-    gap: 5px;
-    overflow: auto;
-    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 196px);
+    margin: 0 auto;
+    padding: 0 clamp(14px, 3vw, 28px);
+    max-width: 1200px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
 }
 
 .chapter-nav__list a {
-    display: block;
-    padding: 7px 10px;
-    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 999px;
     text-decoration: none;
-    color: rgba(224, 224, 224, 0.92);
-    border: 1px solid transparent;
-    transition: background 180ms var(--ease-out), border-color 180ms var(--ease-out), color 180ms var(--ease-out);
-    font-size: 0.9rem;
+    white-space: nowrap;
+    color: #0a0a0a;
+    font-weight: 700;
+    letter-spacing: 0.25px;
+    font-size: 0.92rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: linear-gradient(180deg, rgba(224, 192, 74, 0.98), rgba(212, 175, 55, 0.92));
+    box-shadow:
+        0 10px 26px rgba(212, 175, 55, 0.14),
+        0 16px 40px rgba(0, 0, 0, 0.55);
+    transition:
+        transform 180ms var(--ease-out),
+        filter 180ms var(--ease-out),
+        box-shadow 180ms var(--ease-out);
 }
 
 .chapter-nav__list a:hover {
-    background: rgba(212, 175, 55, 0.08);
-    border-color: rgba(212, 175, 55, 0.18);
-    color: var(--ink-0);
+    transform: translateY(-1px);
+    filter: brightness(1.06) saturate(1.05);
+    box-shadow:
+        0 12px 34px rgba(212, 175, 55, 0.2),
+        0 18px 44px rgba(0, 0, 0, 0.58);
+}
+
+.chapter-nav__list a:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 4px rgba(212, 175, 55, 0.22),
+        0 12px 34px rgba(212, 175, 55, 0.2),
+        0 18px 44px rgba(0, 0, 0, 0.58);
 }
 
 .chapter-nav__list a.is-active {
-    background: linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(212, 175, 55, 0.06));
-    border-color: rgba(212, 175, 55, 0.35);
-    color: var(--ink-0);
-    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.12);
+    transform: translateY(-1px);
+    filter: brightness(1.1) saturate(1.1);
+    box-shadow:
+        0 0 0 4px rgba(212, 175, 55, 0.22),
+        0 16px 48px rgba(212, 175, 55, 0.22),
+        0 18px 44px rgba(0, 0, 0, 0.58);
 }
 
 /* Dark Navigation */
@@ -876,27 +886,8 @@ html.js {
 
 /* Responsive */
 @media (max-width: 1024px) {
-    .chapter-nav {
-        right: 12px;
-        width: clamp(168px, 26vw, 220px);
-    }
-
-    .chapter-nav__toggle {
-        display: inline-flex;
-    }
-
     .chapter-nav__list {
-        margin-top: 10px;
-        display: none;
-        max-height: 42vh;
-    }
-
-    .chapter-nav.is-open .chapter-nav__list {
-        display: grid;
-    }
-
-    .chapter-nav.is-open {
-        width: min(86vw, 320px);
+        gap: 8px;
     }
     .visit-info {
         grid-template-columns: 1fr;
@@ -904,27 +895,22 @@ html.js {
 }
 
 @media (max-width: 768px) {
-    .chapter-nav {
-        top: auto;
-        bottom: 14px;
-        right: 14px;
-        transform: none;
-        width: min(92vw, 360px);
-        max-height: 52vh;
-    }
-
-    .chapter-nav__toggle {
-        display: inline-flex;
-    }
-
     .chapter-nav__list {
-        margin-top: 10px;
-        display: none;
-        max-height: 38vh;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 0 16px;
     }
 
-    .chapter-nav.is-open .chapter-nav__list {
-        display: grid;
+    .chapter-nav__list::-webkit-scrollbar {
+        display: none;
+    }
+
+    .chapter-nav__list a {
+        padding: 9px 12px;
+        font-size: 0.9rem;
     }
 
     .story-section {
