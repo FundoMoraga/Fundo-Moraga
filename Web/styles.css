@@ -69,14 +69,7 @@ body {
 }
 
 .intro-preloader::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    background:
-        radial-gradient(circle at 50% 30%, rgba(212, 175, 55, 0.14), transparent 55%),
-        linear-gradient(180deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.75));
+    content: none;
 }
 
 .intro-ui {

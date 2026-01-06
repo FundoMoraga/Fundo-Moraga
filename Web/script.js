@@ -48,11 +48,25 @@ window.addEventListener('load', () => {
     document.body.classList.add('is-intro-playing');
     document.body.style.overflow = 'hidden';
 
-    let fallbackTimeout = 0;
+    let stallTimeout = 0;
+    let hardEndTimeout = 0;
     const clearFallback = () => {
-        if (!fallbackTimeout) return;
-        window.clearTimeout(fallbackTimeout);
-        fallbackTimeout = 0;
+        if (stallTimeout) {
+            window.clearTimeout(stallTimeout);
+            stallTimeout = 0;
+        }
+        if (hardEndTimeout) {
+            window.clearTimeout(hardEndTimeout);
+            hardEndTimeout = 0;
+        }
+    };
+
+    let introFinished = false;
+    const finishIntro = () => {
+        if (introFinished) return;
+        introFinished = true;
+        clearFallback();
+        hideIntro();
     };
 
     const setSoundLabel = () => {
@@ -73,22 +87,17 @@ window.addEventListener('load', () => {
         });
     };
 
-    const onEnd = () => {
-        clearFallback();
-        hideIntro();
-    };
+    const onEnd = () => finishIntro();
 
     introVideo.addEventListener('ended', onEnd);
     introVideo.addEventListener('error', () => {
-        clearFallback();
         introSkip?.removeAttribute('hidden');
-        hideIntro();
+        finishIntro();
     });
 
     introSkip?.addEventListener('click', () => {
-        clearFallback();
         try { introVideo.pause(); } catch {}
-        hideIntro();
+        finishIntro();
     });
 
     introStart?.addEventListener('click', () => {
@@ -106,9 +115,8 @@ window.addEventListener('load', () => {
 
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
-        clearFallback();
         try { introVideo.pause(); } catch {}
-        hideIntro();
+        finishIntro();
     });
 
     // Asegurar que no quede infinito si no se puede obtener la duración.
@@ -126,20 +134,26 @@ window.addEventListener('load', () => {
         introVideo.addEventListener('timeupdate', onProgress);
 
         const checkStallAndFailSafe = () => {
-            if (introVideo.ended) return;
+            if (introVideo.ended) {
+                finishIntro();
+                return;
+            }
             const stalledFor = Date.now() - lastProgressAt;
             if (stalledFor > 9000) {
                 introVideo.removeEventListener('timeupdate', onProgress);
                 introSkip?.removeAttribute('hidden');
-                hideIntro();
+                finishIntro();
                 return;
             }
-            fallbackTimeout = window.setTimeout(checkStallAndFailSafe, 8000);
+            stallTimeout = window.setTimeout(checkStallAndFailSafe, 8000);
         };
 
         const d = Number(introVideo.duration);
+        if (Number.isFinite(d) && d > 0) {
+            hardEndTimeout = window.setTimeout(finishIntro, clamp(Math.round(d * 1000) + 1200, 5000, 300000));
+        }
         const firstCheck = Number.isFinite(d) && d > 0 ? Math.round((d + 6) * 1000) : 25000;
-        fallbackTimeout = window.setTimeout(checkStallAndFailSafe, clamp(firstCheck, 12000, 90000));
+        stallTimeout = window.setTimeout(checkStallAndFailSafe, clamp(firstCheck, 12000, 90000));
     };
 
     introVideo.addEventListener('loadedmetadata', scheduleFallback, { once: true });
