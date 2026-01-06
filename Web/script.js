@@ -5,8 +5,11 @@ const navbar = document.querySelector('.navbar');
 const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
 const navLinks = document.querySelector('.nav-links');
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const setChatOpen = (isOpen) => {
+    document.body.classList.toggle('chat-open', Boolean(isOpen));
+};
 
-window.addEventListener('load', () => {
+const initIntro = () => {
     const introOverlay = document.getElementById('introOverlay');
     const introVideo = document.getElementById('introVideo');
     const introSkip = document.getElementById('introSkip');
@@ -84,6 +87,9 @@ window.addEventListener('load', () => {
         p.catch(() => {
             introStart?.removeAttribute('hidden');
             introSkip?.removeAttribute('hidden');
+            if (!introStart && !introSkip) {
+                finishIntro();
+            }
         });
     };
 
@@ -156,15 +162,30 @@ window.addEventListener('load', () => {
         stallTimeout = window.setTimeout(checkStallAndFailSafe, clamp(firstCheck, 12000, 90000));
     };
 
-    introVideo.addEventListener('loadedmetadata', scheduleFallback, { once: true });
-    introVideo.addEventListener('canplay', () => {
-        // Mostrar "Saltar" solo después de unos segundos (por si el usuario lo necesita)
+    if (introVideo.readyState >= 1) {
+        scheduleFallback();
+    } else {
+        introVideo.addEventListener('loadedmetadata', scheduleFallback, { once: true });
+    }
+    if (introVideo.readyState >= 3) {
         window.setTimeout(() => introSkip?.removeAttribute('hidden'), 7000);
-    }, { once: true });
+    } else {
+        introVideo.addEventListener('canplay', () => {
+            // Mostrar "Saltar" solo después de unos segundos (por si el usuario lo necesita)
+            window.setTimeout(() => introSkip?.removeAttribute('hidden'), 7000);
+        }, { once: true });
+    }
 
     setSoundLabel();
     tryPlay();
-});
+    if (introVideo.ended) finishIntro();
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initIntro, { once: true });
+} else {
+    initIntro();
+}
 
 // Sticky navbar on scroll
 window.addEventListener('scroll', () => {
@@ -206,31 +227,6 @@ document.querySelectorAll('.nav-links a').forEach(link => {
 });
 
 // ============================================
-// SCROLL ANIMATIONS
-// ============================================
-const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -100px 0px'
-};
-
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.style.opacity = '1';
-            entry.target.style.transform = 'translateY(0)';
-        }
-    });
-}, observerOptions);
-
-// Observe all service cards, gallery items, etc.
-document.querySelectorAll('.service-card, .gallery-item, .info-card').forEach(el => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(30px)';
-    el.style.transition = 'all 0.6s ease';
-    observer.observe(el);
-});
-
-// ============================================
 // HERNANDO CHAT WIDGET
 // ============================================
 const chatToggle = document.getElementById('chatToggle');
@@ -240,9 +236,6 @@ const chatSend = document.getElementById('chatSend');
 const chatInput = document.getElementById('chatInput');
 const chatBody = document.getElementById('chatBody');
 const chatBadge = document.querySelector('.chat-badge');
-const setChatOpen = (isOpen) => {
-    document.body.classList.toggle('chat-open', Boolean(isOpen));
-};
 
 // Configuration
 const RAILWAY_API_URL = '/api'; // Proxy transparente vía nginx (no visible para navegador)
@@ -404,24 +397,12 @@ chatInput?.addEventListener('keypress', (e) => {
 // Handle all "Reservar con Hernando" buttons
 document.querySelectorAll('.btn-reserva, .btn-hernando').forEach(button => {
     button.addEventListener('click', (e) => {
+        if (!chatWindow || !chatInput) return;
         e.preventDefault();
         chatWindow.classList.add('active');
         setChatOpen(true);
         chatInput.focus();
         if (chatBadge) chatBadge.style.display = 'none';
-    });
-});
-
-// ============================================
-// GALLERY LIGHTBOX (Optional Enhancement)
-// ============================================
-document.querySelectorAll('.gallery-item').forEach(item => {
-    item.addEventListener('click', () => {
-        const img = item.querySelector('img');
-        if (img) {
-            // You can add a lightbox library here or create custom lightbox
-            window.open(img.src, '_blank');
-        }
     });
 });
 
@@ -469,7 +450,8 @@ console.log('%cSitio desarrollado con 💚', 'font-size: 14px; color: #666;');
 // ============================================
 // PARTICLES.JS INITIALIZATION
 // ============================================
-if (document.getElementById('particles-js')) {
+const particlesContainer = document.getElementById('particles-js');
+if (particlesContainer && typeof window.particlesJS === 'function') {
     particlesJS('particles-js', {
         particles: {
             number: {
