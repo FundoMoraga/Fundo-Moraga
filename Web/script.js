@@ -1,3 +1,5 @@
+(() => {
+    'use strict';
 // ============================================
 // NAVIGATION
 // ============================================
@@ -1614,3 +1616,4 @@ if (window.location.pathname.includes('historia.html')) {
     
     console.log('✅ Historia page enhancements loaded');
 }
+})();
