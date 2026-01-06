@@ -22,6 +22,8 @@ window.addEventListener('load', () => {
                 // Ocultar badge cuando se abre automáticamente
                 if (chatBadge) chatBadge.style.display = 'none';
             }
+            // Saludo inicial (cuando el usuario abre la página)
+            try { initHernandoGreeting(); } catch (e) {}
         }, 1500);
     }, 1000);
 });
@@ -122,6 +124,8 @@ const chatBadge = document.querySelector('.chat-badge');
 
 // Configuration
 const RAILWAY_API_URL = '/api'; // Proxy transparente vía nginx (no visible para navegador)
+const DEFAULT_GREETING = '¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?';
+let _hernandoGreetingInitialized = false;
 
 // Toggle chat window
 chatToggle?.addEventListener('click', () => {
@@ -207,6 +211,46 @@ function addTypingIndicator() {
     chatBody.appendChild(typingDiv);
     chatBody.scrollTop = chatBody.scrollHeight;
     return typingDiv;
+}
+
+async function initHernandoGreeting() {
+    if (_hernandoGreetingInitialized) return;
+    if (!chatBody) return;
+
+    // Evitar duplicar saludo si ya hay mensajes o si esta pestaña ya lo hizo.
+    if ((chatBody.children?.length || 0) > 0) {
+        _hernandoGreetingInitialized = true;
+        return;
+    }
+    if (sessionStorage.getItem('hernando_greeted') === '1') {
+        _hernandoGreetingInitialized = true;
+        return;
+    }
+
+    const userId = getOrCreateUserId();
+
+    try {
+        const response = await fetch(`${RAILWAY_API_URL}/chat/init`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+        });
+
+        let greeting = DEFAULT_GREETING;
+        if (response.ok) {
+            const data = await response.json();
+            if (data?.greeting) greeting = data.greeting;
+        }
+
+        addMessageToChat(greeting, 'bot');
+        sessionStorage.setItem('hernando_greeted', '1');
+        _hernandoGreetingInitialized = true;
+    } catch (e) {
+        // Fallback silencioso
+        addMessageToChat(DEFAULT_GREETING, 'bot');
+        sessionStorage.setItem('hernando_greeted', '1');
+        _hernandoGreetingInitialized = true;
+    }
 }
 
 // Get or create user ID
