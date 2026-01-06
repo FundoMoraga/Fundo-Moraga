@@ -19,6 +19,9 @@
     --text-light: #6b7280;
     --bg-light: #faf9f6;
     --white: #ffffff;
+    --container-max: 1200px;
+    --container-padding: clamp(16px, 3vw, 36px);
+    --section-pad-y: clamp(72px, 9vw, 120px);
     --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -28,6 +31,7 @@ html {
 
 body {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: clamp(15px, 1.05vw, 18px);
     line-height: 1.6;
     color: var(--text-dark);
     overflow-x: hidden;
@@ -199,9 +203,9 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: min(var(--container-max), 92vw);
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 0 var(--container-padding);
 }
 
 img {
@@ -234,11 +238,11 @@ a {
     justify-content: space-between;
     align-items: center;
     padding: 20px 0;
-    gap: 2rem;
+    gap: clamp(1rem, 2.5vw, 2rem);
 }
 
 .logo {
-    width: 270px;
+    width: clamp(150px, 20vw, 300px);
     height: auto;
     transition: transform 0.3s ease;
 }
@@ -250,7 +254,7 @@ a {
 .nav-links {
     display: flex;
     list-style: none;
-    gap: 30px;
+    gap: clamp(14px, 2vw, 30px);
     align-items: center;
     margin: 0;
 }
@@ -725,9 +729,9 @@ section {
 }
 
 .video-container-wrapper {
-    max-width: 1200px;
+    max-width: min(var(--container-max), 92vw);
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 0 var(--container-padding);
 }
 
 .video-player {
@@ -1407,8 +1411,9 @@ section {
     position: fixed;
     bottom: 120px;
     right: 30px;
-    width: 400px;
-    height: 600px;
+    width: min(400px, 90vw);
+    height: min(600px, calc(100svh - 160px));
+    max-height: calc(100svh - 160px);
     background: white;
     border-radius: 20px;
     box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
@@ -1556,6 +1561,26 @@ section {
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */
+@media (min-width: 1400px) {
+    :root {
+        --container-max: 1320px;
+    }
+
+    .hero-content {
+        max-width: 980px;
+    }
+}
+
+@media (min-width: 1800px) {
+    :root {
+        --container-max: 1500px;
+    }
+
+    .hero-content {
+        max-width: 1100px;
+    }
+}
+
 @media (max-width: 1100px) {
     .nav-links {
         position: fixed;
@@ -1613,6 +1638,16 @@ section {
         width: calc(100vw - 40px);
         right: 20px;
         bottom: 100px;
+        height: min(520px, calc(100svh - 140px));
+        max-height: calc(100svh - 140px);
+    }
+}
+
+@media (max-height: 700px) {
+    .chat-window {
+        bottom: 90px;
+        height: min(460px, calc(100svh - 120px));
+        max-height: calc(100svh - 120px);
     }
 }
 
