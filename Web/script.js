@@ -874,7 +874,8 @@ contactForm?.addEventListener('submit', async (e) => {
     
     try {
         // Enviar al backend de Hernando (API oficial)
-        const response = await fetch(`${RAILWAY_API_URL}/api/chat`, {
+        // Enviar al endpoint correcto (RAILWAY_API_URL ya incluye "/api")
+        const response = await fetch(`${RAILWAY_API_URL}/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
