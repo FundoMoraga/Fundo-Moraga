@@ -752,14 +752,15 @@ section {
 }
 
 .main-video.portrait {
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .main-video {
     width: 100%;
     height: 100%;
     display: block;
-    object-fit: cover;
+    object-fit: contain;
+    background: #000;
 }
 
 .video-overlay {
@@ -854,15 +855,22 @@ section {
     opacity: 0;
     transition: opacity 0.3s ease;
     z-index: 3;
+    pointer-events: none;
 }
 
 .video-player.portrait .video-controls {
     padding: 22px 16px 16px;
 }
 
-.video-player:hover .video-controls,
+.video-player.has-started:hover .video-controls,
 .video-controls.show {
     opacity: 1;
+    pointer-events: auto;
+}
+
+.video-overlay:not(.hidden) ~ .video-controls {
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .progress-bar {

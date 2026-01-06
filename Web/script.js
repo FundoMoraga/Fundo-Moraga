@@ -620,6 +620,13 @@ const durationDisplay = document.getElementById('duration');
 const videoTitleEl = document.querySelector('.video-title h3');
 const videoSubtitleEl = document.querySelector('.video-title p');
 const videoGalleryGrid = document.getElementById('videoGalleryGrid');
+const videoPlayer = document.querySelector('.video-player');
+
+const setVideoStarted = (started) => {
+    if (!videoPlayer || !videoControls) return;
+    videoPlayer.classList.toggle('has-started', Boolean(started));
+    if (!started) videoControls.classList.remove('show');
+};
 
 const videoClips = [
     {
@@ -677,12 +684,14 @@ if (mainVideo) {
     playButton?.addEventListener('click', () => {
         mainVideo.play();
         videoOverlay.classList.add('hidden');
+        setVideoStarted(true);
     });
 
     // Video overlay click
     videoOverlay?.addEventListener('click', () => {
         mainVideo.play();
         videoOverlay.classList.add('hidden');
+        setVideoStarted(true);
     });
 
     // Play/Pause toggle
@@ -699,13 +708,15 @@ if (mainVideo) {
 
     // Update play/pause icon
     mainVideo?.addEventListener('play', () => {
+        setVideoStarted(true);
         playPauseBtn.querySelector('.play-icon').style.display = 'none';
         playPauseBtn.querySelector('.pause-icon').style.display = 'block';
     });
-
+    
     mainVideo?.addEventListener('pause', () => {
         playPauseBtn.querySelector('.play-icon').style.display = 'block';
         playPauseBtn.querySelector('.pause-icon').style.display = 'none';
+        videoControls?.classList.remove('show');
     });
 
     // Mute/Unmute
@@ -772,13 +783,14 @@ if (mainVideo) {
         videoOverlay.classList.remove('hidden');
         playPauseBtn.querySelector('.play-icon').style.display = 'block';
         playPauseBtn.querySelector('.pause-icon').style.display = 'none';
+        setVideoStarted(false);
     });
 
     // Show controls on mousemove
     let controlsTimeout;
-    const videoPlayer = document.querySelector('.video-player');
     
     videoPlayer?.addEventListener('mousemove', () => {
+        if (!videoOverlay?.classList.contains('hidden')) return;
         videoControls.classList.add('show');
         clearTimeout(controlsTimeout);
         
@@ -870,7 +882,7 @@ if (mainVideo) {
 
     function setMainVideo(clip) {
         if (!clip || !mainVideo) return;
-        const videoPlayer = document.querySelector('.video-player');
+        setVideoStarted(false);
 
         // Ajustar modo retrato o paisaje
         if (clip.orientation === 'portrait') {
@@ -889,6 +901,7 @@ if (mainVideo) {
         videoOverlay?.classList.remove('hidden');
         playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'block');
         playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'none');
+        videoControls?.classList.remove('show');
 
         if (videoTitleEl) videoTitleEl.textContent = clip.title;
         if (videoSubtitleEl) videoSubtitleEl.textContent = clip.description;
@@ -898,11 +911,13 @@ if (mainVideo) {
                 videoOverlay?.classList.add('hidden');
                 playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'none');
                 playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'block');
+                setVideoStarted(true);
             }).catch(() => {
                 // Si el navegador bloquea, dejamos overlay visible para interacción manual
                 videoOverlay?.classList.remove('hidden');
                 playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'block');
                 playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'none');
+                setVideoStarted(false);
             });
         };
 
