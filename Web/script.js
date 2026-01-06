@@ -4,6 +4,7 @@
 const navbar = document.querySelector('.navbar');
 const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
 const navLinks = document.querySelector('.nav-links');
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 window.addEventListener('load', () => {
     const introOverlay = document.getElementById('introOverlay');
@@ -21,6 +22,7 @@ window.addEventListener('load', () => {
             const chatBadge = document.querySelector('.chat-badge');
             if (chatWindow) {
                 chatWindow.classList.add('active');
+                setChatOpen(true);
                 if (chatBadge) chatBadge.style.display = 'none';
             }
             try { initHernandoGreeting(); } catch (e) {}
@@ -176,6 +178,7 @@ window.addEventListener('load', () => {
 
 // Sticky navbar on scroll
 window.addEventListener('scroll', () => {
+    if (!navbar) return;
     if (window.scrollY > 50) {
         navbar.style.boxShadow = '0 5px 30px rgba(0, 0, 0, 0.15)';
     } else {
@@ -247,6 +250,9 @@ const chatSend = document.getElementById('chatSend');
 const chatInput = document.getElementById('chatInput');
 const chatBody = document.getElementById('chatBody');
 const chatBadge = document.querySelector('.chat-badge');
+const setChatOpen = (isOpen) => {
+    document.body.classList.toggle('chat-open', Boolean(isOpen));
+};
 
 // Configuration
 const RAILWAY_API_URL = '/api'; // Proxy transparente vía nginx (no visible para navegador)
@@ -255,8 +261,11 @@ let _hernandoGreetingInitialized = false;
 
 // Toggle chat window
 chatToggle?.addEventListener('click', () => {
+    if (!chatWindow) return;
     chatWindow.classList.toggle('active');
-    if (chatWindow.classList.contains('active')) {
+    const isOpen = chatWindow.classList.contains('active');
+    setChatOpen(isOpen);
+    if (isOpen) {
         chatInput.focus();
         // Hide badge when opened
         if (chatBadge) chatBadge.style.display = 'none';
@@ -264,6 +273,7 @@ chatToggle?.addEventListener('click', () => {
 });
 
 chatClose?.addEventListener('click', () => {
+    setChatOpen(false);
     chatWindow.classList.remove('active');
 });
 
@@ -406,6 +416,7 @@ document.querySelectorAll('.btn-reserva, .btn-hernando').forEach(button => {
     button.addEventListener('click', (e) => {
         e.preventDefault();
         chatWindow.classList.add('active');
+        setChatOpen(true);
         chatInput.focus();
         if (chatBadge) chatBadge.style.display = 'none';
     });
@@ -1256,6 +1267,7 @@ if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
 // ============================================
 window.addEventListener('load', () => {
     const preloader = document.getElementById('preloader');
+    if (!preloader) return;
     
     // Add fade out class
     setTimeout(() => {

@@ -2361,6 +2361,10 @@ section {
     display: flex;
 }
 
+body.chat-open .scroll-to-top {
+    display: none;
+}
+
 .scroll-to-top svg {
     width: 24px;
     height: 24px;
