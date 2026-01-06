@@ -18,7 +18,7 @@
         document.documentElement.classList.remove('no-js');
         document.documentElement.classList.add('js');
     </script>
-    <link rel="stylesheet" href="styles.css?v=20260106-6">
+    <link rel="stylesheet" href="styles.css?v=20260106-7">
     <link rel="stylesheet" href="leyenda-styles.css?v=20260106-5">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,6 +28,14 @@
     <a class="skip-link" href="#leyenda-story">Saltar al contenido</a>
     <div class="reading-progress" aria-hidden="true"><div class="reading-progress__bar"></div></div>
     <canvas id="postfx-canvas" class="postfx-canvas" aria-hidden="true"></canvas>
+
+    <!-- Transición antigua (logo + spinner) -->
+    <div id="pageTransition" class="preloader hidden" aria-hidden="true">
+        <div class="preloader-content">
+            <img src="assets/images/Logo Fundo Moraga.png" alt="" class="preloader-logo">
+            <div class="preloader-spinner"></div>
+        </div>
+    </div>
 
     <aside class="chapter-nav" aria-label="Capítulos de la leyenda">
         <button class="chapter-nav__toggle" type="button" aria-expanded="false" aria-controls="chapter-nav-list">
@@ -382,6 +390,7 @@
         </div>
     </footer>
 
+    <script src="transitions.js?v=20260106-1"></script>
     <script src="leyenda-script.js?v=20260106-5"></script>
 </body>
 </html>

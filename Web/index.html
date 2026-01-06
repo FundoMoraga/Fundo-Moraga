@@ -22,14 +22,14 @@
     <meta property="twitter:image" content="assets/images/Logo Fundo Moraga.png">
     
     <title>Fundo Moraga - Batuco Off Road | Tu próxima aventura</title>
-    <link rel="stylesheet" href="styles.css?v=20260106-6">
+    <link rel="stylesheet" href="styles.css?v=20260106-7">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Intro (fullscreen video) -->
-    <div id="preloader" class="preloader intro-preloader" aria-label="Intro Fundo Moraga">
+    <!-- Intro (fullscreen video, solo 1 vez) -->
+    <div id="introOverlay" class="preloader intro-preloader" aria-label="Intro Fundo Moraga">
         <video
             id="introVideo"
             class="intro-video"
@@ -48,9 +48,17 @@
             <div class="intro-actions">
                 <button id="introStart" class="intro-btn intro-start" type="button" hidden>Iniciar</button>
                 <button id="introSound" class="intro-btn intro-sound" type="button">Sonido: OFF</button>
-                <button id="introSkip" class="intro-btn intro-skip" type="button">Saltar</button>
+                <button id="introSkip" class="intro-btn intro-skip" type="button" hidden>Saltar</button>
             </div>
             <div class="intro-hint" aria-hidden="true">Presiona Esc para saltar</div>
+        </div>
+    </div>
+
+    <!-- Transición antigua (logo + spinner) -->
+    <div id="pageTransition" class="preloader hidden" aria-hidden="true">
+        <div class="preloader-content">
+            <img src="assets/images/Logo Fundo Moraga.png" alt="" class="preloader-logo">
+            <div class="preloader-spinner"></div>
         </div>
     </div>
 
@@ -554,6 +562,7 @@
 
     <!-- Particles.js -->
     <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-    <script src="script.js?v=20260106-6"></script>
+    <script src="transitions.js?v=20260106-1"></script>
+    <script src="script.js?v=20260106-7"></script>
 </body>
 </html>

@@ -5,9 +5,8 @@ const navbar = document.querySelector('.navbar');
 const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
 const navLinks = document.querySelector('.nav-links');
 
-// Preloader
 window.addEventListener('load', () => {
-    const preloader = document.getElementById('preloader');
+    const introOverlay = document.getElementById('introOverlay');
     const introVideo = document.getElementById('introVideo');
     const introSkip = document.getElementById('introSkip');
     const introSound = document.getElementById('introSound');
@@ -29,17 +28,26 @@ window.addEventListener('load', () => {
     };
 
     const hideIntro = () => {
-        if (!preloader) return startAfterIntro();
-        if (preloader.classList.contains('hidden')) return;
+        if (!introOverlay) return startAfterIntro();
+        if (introOverlay.classList.contains('hidden')) return;
 
-        preloader.classList.add('hidden');
+        introOverlay.classList.add('hidden');
         setTimeout(() => {
-            try { preloader.remove(); } catch {}
+            try { introOverlay.remove(); } catch {}
             startAfterIntro();
         }, 650);
     };
 
-    if (!preloader || !introVideo) {
+    const introSeenKey = 'fm_intro_seen_v1';
+    const shouldShowIntro = () => {
+        try {
+            return localStorage.getItem(introSeenKey) !== '1';
+        } catch {
+            return true;
+        }
+    };
+
+    if (!introOverlay || !introVideo || !shouldShowIntro()) {
         startAfterIntro();
         return;
     }
@@ -47,7 +55,7 @@ window.addEventListener('load', () => {
     document.body.classList.add('is-intro-playing');
     document.body.style.overflow = 'hidden';
 
-    let fallbackTimeout = window.setTimeout(() => hideIntro(), 26000);
+    let fallbackTimeout = 0;
     const clearFallback = () => {
         if (!fallbackTimeout) return;
         window.clearTimeout(fallbackTimeout);
@@ -68,23 +76,31 @@ window.addEventListener('load', () => {
 
         p.catch(() => {
             introStart?.removeAttribute('hidden');
+            introSkip?.removeAttribute('hidden');
         });
     };
 
     const onEnd = () => {
         clearFallback();
+        try {
+            localStorage.setItem(introSeenKey, '1');
+        } catch {}
         hideIntro();
     };
 
     introVideo.addEventListener('ended', onEnd);
     introVideo.addEventListener('error', () => {
         clearFallback();
+        introSkip?.removeAttribute('hidden');
         hideIntro();
     });
 
     introSkip?.addEventListener('click', () => {
         clearFallback();
         try { introVideo.pause(); } catch {}
+        try {
+            localStorage.setItem(introSeenKey, '1');
+        } catch {}
         hideIntro();
     });
 
@@ -105,8 +121,54 @@ window.addEventListener('load', () => {
         if (e.key !== 'Escape') return;
         clearFallback();
         try { introVideo.pause(); } catch {}
+        try {
+            localStorage.setItem(introSeenKey, '1');
+        } catch {}
         hideIntro();
     });
+
+    // Asegurar que no quede infinito si no se puede obtener la duración.
+    const scheduleFallback = () => {
+        clearFallback();
+
+        let lastT = 0;
+        let lastProgressAt = Date.now();
+        const onProgress = () => {
+            if (introVideo.currentTime > lastT + 0.01) {
+                lastT = introVideo.currentTime;
+                lastProgressAt = Date.now();
+            }
+        };
+        introVideo.addEventListener('timeupdate', onProgress);
+
+        const checkStallAndFailSafe = () => {
+            if (introVideo.ended) return;
+            const stalledFor = Date.now() - lastProgressAt;
+            if (stalledFor > 9000) {
+                introVideo.removeEventListener('timeupdate', onProgress);
+                introSkip?.removeAttribute('hidden');
+                hideIntro();
+                return;
+            }
+            fallbackTimeout = window.setTimeout(checkStallAndFailSafe, 8000);
+        };
+
+        const d = Number(introVideo.duration);
+        const firstCheck = Number.isFinite(d) && d > 0 ? Math.round((d + 6) * 1000) : 25000;
+        fallbackTimeout = window.setTimeout(checkStallAndFailSafe, clamp(firstCheck, 12000, 90000));
+    };
+
+    introVideo.addEventListener('loadedmetadata', scheduleFallback, { once: true });
+    introVideo.addEventListener('canplay', () => {
+        // Mostrar "Saltar" solo después de unos segundos (por si el usuario lo necesita)
+        window.setTimeout(() => introSkip?.removeAttribute('hidden'), 7000);
+    }, { once: true });
+
+    introVideo.addEventListener('playing', () => {
+        try {
+            localStorage.setItem(introSeenKey, '1');
+        } catch {}
+    }, { once: true });
 
     setSoundLabel();
     tryPlay();
@@ -147,26 +209,6 @@ document.querySelectorAll('.nav-links a').forEach(link => {
             span.style.transform = '';
             span.style.opacity = '1';
         });
-    });
-});
-
-// ============================================
-// SMOOTH SCROLL
-// ============================================
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        const href = this.getAttribute('href');
-        if (href !== '#' && href !== '') {
-            e.preventDefault();
-            const target = document.querySelector(href);
-            if (target) {
-                const offsetTop = target.offsetTop - 80;
-                window.scrollTo({
-                    top: offsetTop,
-                    behavior: 'smooth'
-                });
-            }
-        }
     });
 });
 
@@ -1259,37 +1301,6 @@ function stopLoading() {
         loadingBar.style.display = 'none';
     }, 400);
 }
-
-// Simulate loading on internal links
-document.querySelectorAll('a[href^="#"]').forEach(link => {
-    link.addEventListener('click', () => {
-        startLoading();
-        setTimeout(stopLoading, 500);
-    });
-});
-
-// ============================================
-// ENHANCED SMOOTH SCROLL WITH OFFSET
-// ============================================
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        const href = this.getAttribute('href');
-        if (href !== '#' && href !== '') {
-            e.preventDefault();
-            const target = document.querySelector(href);
-            if (target) {
-                const offsetTop = target.offsetTop - 100; // Navbar height
-                window.scrollTo({
-                    top: offsetTop,
-                    behavior: 'smooth'
-                });
-                
-                // Update URL without jumping
-                history.pushState(null, null, href);
-            }
-        }
-    });
-});
 
 // ============================================
 // IMAGE LAZY LOADING ENHANCEMENT

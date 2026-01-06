@@ -54,6 +54,7 @@ body {
 .intro-preloader {
     background: #000;
     overflow: hidden;
+    z-index: 10000;
 }
 
 .intro-video {

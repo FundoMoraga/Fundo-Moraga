@@ -10,7 +10,7 @@
         document.documentElement.classList.remove('no-js');
         document.documentElement.classList.add('js');
     </script>
-    <link rel="stylesheet" href="styles.css?v=20260106-6">
+    <link rel="stylesheet" href="styles.css?v=20260106-7">
     <link rel="stylesheet" href="mapa-styles.css?v=20260106-1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,13 +100,22 @@
         </section>
     </main>
 
+    <!-- Transición antigua (logo + spinner) -->
+    <div id="pageTransition" class="preloader hidden" aria-hidden="true">
+        <div class="preloader-content">
+            <img src="assets/images/Logo Fundo Moraga.png" alt="" class="preloader-logo">
+            <div class="preloader-spinner"></div>
+        </div>
+    </div>
+
     <script
         src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""
     ></script>
     <script src="https://unpkg.com/@tmcw/togeojson@0.16.0/dist/togeojson.umd.js"></script>
-    <script src="script.js?v=20260106-6"></script>
+    <script src="transitions.js?v=20260106-1"></script>
+    <script src="script.js?v=20260106-7"></script>
     <script src="mapa-script.js?v=20260106-1"></script>
 </body>
 </html>
