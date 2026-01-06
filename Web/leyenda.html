@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="no-js">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +14,10 @@
     <meta property="og:image" content="assets/images/Logo Fundo Moraga.png">
     
     <title>La Sombra del Fundo Moraga | La Leyenda</title>
+    <script>
+        document.documentElement.classList.remove('no-js');
+        document.documentElement.classList.add('js');
+    </script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="leyenda-styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,6 +25,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body class="leyenda-page">
+    <a class="skip-link" href="#leyenda-story">Saltar al contenido</a>
+    <div class="reading-progress" aria-hidden="true"><div class="reading-progress__bar"></div></div>
+    <canvas id="postfx-canvas" class="postfx-canvas" aria-hidden="true"></canvas>
+
+    <aside class="chapter-nav" aria-label="Capítulos de la leyenda">
+        <button class="chapter-nav__toggle" type="button" aria-expanded="false" aria-controls="chapter-nav-list">
+            Capítulos
+        </button>
+        <ol class="chapter-nav__list" id="chapter-nav-list">
+            <li><a href="#capitulo-silencio">El silencio</a></li>
+            <li><a href="#capitulo-hermanos">Los hermanos</a></li>
+            <li><a href="#capitulo-aparicion">La aparición</a></li>
+            <li><a href="#capitulo-sin-huella">Sin huella</a></li>
+            <li><a href="#capitulo-cuida">El que cuida</a></li>
+            <li><a href="#capitulo-jinete">El jinete</a></li>
+            <li><a href="#capitulo-certeza">La certeza</a></li>
+            <li><a href="#experiencia">Experiencia</a></li>
+            <li><a href="#visita">Visitar</a></li>
+        </ol>
+    </aside>
+
     <!-- Navigation -->
     <nav class="navbar dark-nav">
         <div class="container">
@@ -46,7 +71,7 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="leyenda-hero">
+    <section class="leyenda-hero" id="leyenda-hero">
         <div class="hero-overlay-dark"></div>
         <div class="hero-content-center">
             <h1 class="leyenda-title">
@@ -54,18 +79,18 @@
                 <span class="title-line-2">Fundo Moraga</span>
             </h1>
             <p class="leyenda-subtitle">El huaso de negro que no deja huella</p>
-            <div class="scroll-down">
+            <a class="scroll-down" href="#capitulo-silencio" aria-label="Ir al inicio de la historia">
                 <span>Descubre la historia</span>
                 <div class="scroll-arrow">↓</div>
-            </div>
+            </a>
         </div>
     </section>
 
     <!-- Story Content -->
-    <section class="leyenda-content">
+    <section class="leyenda-content" id="leyenda-story">
         <div class="container-narrow">
             <!-- Intro -->
-            <div class="story-section fade-in">
+            <div class="story-section reveal" id="capitulo-silencio" data-chapter="El silencio">
                 <div class="section-tag">La Leyenda</div>
                 <h2>El silencio no siempre es soledad</h2>
                 <p class="lead-text">
@@ -78,7 +103,7 @@
             </div>
 
             <!-- Story Part 1 -->
-            <div class="story-section fade-in">
+            <div class="story-section reveal" id="capitulo-hermanos" data-chapter="Los hermanos">
                 <div class="section-tag">Década del 70</div>
                 <h2>Los cuatro hermanos</h2>
                 <p>
@@ -95,14 +120,14 @@
                 </p>
             </div>
 
-            <div class="story-section fade-in">
+            <div class="story-section reveal" aria-label="Imagen de los cerros">
                 <div class="story-image-container">
                     <img src="assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG" alt="Fundo Moraga" class="story-image">
                     <div class="image-caption">Los cerros del Fundo Moraga en Batuco</div>
                 </div>
             </div>
 
-            <div class="story-section fade-in">
+            <div class="story-section reveal" id="capitulo-aparicion" data-chapter="La aparición">
                 <div class="section-tag">La Aparición</div>
                 <h2>El hombre de negro</h2>
                 <p>
@@ -132,7 +157,7 @@
             </div>
 
             <!-- Story Part 2 -->
-            <div class="story-section fade-in">
+            <div class="story-section reveal" id="capitulo-sin-huella" data-chapter="Sin huella">
                 <div class="section-tag">El Misterio</div>
                 <h2>Sin dejar huella</h2>
                 <p>
@@ -160,7 +185,7 @@
                 </p>
             </div>
 
-            <div class="story-section fade-in">
+            <div class="story-section reveal" data-chapter="La prueba">
                 <h2>La prueba</h2>
                 <p>
                     Cuando el susto les soltó un poco el cuerpo, hicieron lo único que hace un hombre 
@@ -182,7 +207,7 @@
             </div>
 
             <!-- Story Part 3 -->
-            <div class="story-section fade-in">
+            <div class="story-section reveal" id="capitulo-cuida" data-chapter="El que cuida">
                 <div class="section-tag">Otras Historias</div>
                 <h2>El que cuida</h2>
                 <p>
@@ -207,7 +232,7 @@
                 </p>
             </div>
 
-            <div class="story-section fade-in">
+            <div class="story-section reveal" id="capitulo-jinete" data-chapter="El jinete">
                 <div class="section-tag">En la Noche</div>
                 <h2>El jinete silencioso</h2>
                 <p>
@@ -231,7 +256,7 @@
             </div>
 
             <!-- Story Part 4 -->
-            <div class="story-section fade-in">
+            <div class="story-section reveal" id="capitulo-certeza" data-chapter="La certeza">
                 <div class="section-tag">El Legado</div>
                 <h2>La certeza</h2>
                 <p>
@@ -252,7 +277,7 @@
             </div>
 
             <!-- Experience Section -->
-            <div class="experience-section fade-in">
+            <div class="experience-section reveal" id="experiencia" data-chapter="Experiencia">
                 <div class="experience-box">
                     <h3>🌙 Experiencia Nocturna: Ruta de la Loma del Diablo</h3>
                     <p>
@@ -272,7 +297,7 @@
             </div>
 
             <!-- Visit Section -->
-            <div class="visit-section fade-in">
+            <div class="visit-section reveal" id="visita" data-chapter="Visitar">
                 <h2>Visita el Fundo Moraga</h2>
                 <p>
                     El Fundo Moraga te invita a descubrir los cerros donde habita La Sombra y toda la 
@@ -299,7 +324,7 @@
             </div>
 
             <!-- Social Share -->
-            <div class="share-section fade-in">
+            <div class="share-section reveal" id="compartir">
                 <p>¿Te gustó esta leyenda? Compártela</p>
                 <div class="social-share">
                     <a href="#" class="share-btn facebook" title="Compartir en Facebook">
@@ -315,7 +340,7 @@
             </div>
 
             <!-- Back to Home -->
-            <div class="back-home fade-in">
+            <div class="back-home reveal" id="volver">
                 <a href="index.html" class="btn-back">← Volver a Inicio</a>
             </div>
         </div>
