@@ -22,7 +22,7 @@ from payment_inbox_client import get_payment_inbox_client, PaymentCheckResult
 from conversation_flow_validator import get_validation_message_if_needed
 
 
-class InstagramBot:
+class HernandoBot:
     """Chatbot de Instagram con memoria en Cosmos DB"""
     
     def __init__(self):
@@ -3484,7 +3484,7 @@ def main():
     """Función de ejemplo para probar el bot localmente"""
     config.validate_config()
     
-    bot = InstagramBot()
+    bot = HernandoBot()
     
     print(f"\n🤖 {config.BOT_NAME} iniciado")
     print("=" * 50)

@@ -1,13 +1,13 @@
 """
-Script para integrar advanced_ai_integration en instagram_bot.py
+Script para integrar advanced_ai_integration en hernando_bot.py
 """
 import re
 
 def integrate_advanced_ai():
-    """Integra los módulos de IA avanzada en instagram_bot.py"""
+    """Integra los módulos de IA avanzada en hernando_bot.py"""
     
     # Leer archivo
-    with open("instagram_bot.py", "r", encoding="utf-8") as f:
+    with open("hernando_bot.py", "r", encoding="utf-8") as f:
         content = f.read()
     
     # 1. Agregar import
@@ -115,7 +115,7 @@ def integrate_advanced_ai():
         print("✅ Registro de interacción agregado")
     
     # Guardar archivo
-    with open("instagram_bot.py", "w", encoding="utf-8") as f:
+    with open("hernando_bot.py", "w", encoding="utf-8") as f:
         f.write(content)
     
     print("\n✅ Integración completada exitosamente")

@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
 import config
-from instagram_bot_enhanced import InstagramBotEnhanced as InstagramBot
+from instagram_bot_enhanced import InstagramBotEnhanced as HernandoBot
 from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
 import json
@@ -50,7 +50,7 @@ CORS(app)  # Permitir peticiones desde fundomoraga.com
 start_reminder_scheduler()
 
 # Inicializar bot al arranque para evitar timeouts en primera petición
-_bot: Optional[InstagramBot] = None
+_bot: Optional[HernandoBot] = None
 _bot_init_error: Optional[str] = None
 
 def _init_bot_on_startup():
@@ -63,9 +63,9 @@ def _init_bot_on_startup():
             _bot_init_error = f"Configuración incompleta: {', '.join(missing_required)}"
             return
         
-        print("🤖 Pre-inicializando InstagramBot al arranque...")
-        _bot = InstagramBot()
-        print("✅ InstagramBot pre-inicializado correctamente")
+        print("🤖 Pre-inicializando HernandoBot al arranque...")
+        _bot = HernandoBot()
+        print("✅ HernandoBot pre-inicializado correctamente")
     except Exception as e:
         print(f"❌ Error pre-inicializando bot: {e}")
         traceback.print_exc()
@@ -78,7 +78,7 @@ _init_bot_on_startup()
 VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "fundomoraga_2025")
 
 
-def get_bot() -> InstagramBot:
+def get_bot() -> HernandoBot:
     """Obtiene la instancia del bot (pre-inicializado al arranque)"""
     global _bot, _bot_init_error
     if _bot is not None:

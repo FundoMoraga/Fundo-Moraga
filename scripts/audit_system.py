@@ -135,12 +135,12 @@ def audit_bot_integration():
     
     # Bot original
     try:
-        from instagram_bot import InstagramBot
-        print("✅ InstagramBot (original) - OK")
-        results['instagram_bot'] = True
+        from hernando_bot import HernandoBot
+        print("✅ HernandoBot (original) - OK")
+        results['hernando_bot'] = True
     except Exception as e:
-        print(f"❌ InstagramBot - Error: {e}")
-        results['instagram_bot'] = False
+        print(f"❌ HernandoBot - Error: {e}")
+        results['hernando_bot'] = False
     
     # Bot mejorado
     try:
@@ -162,7 +162,7 @@ def audit_bot_integration():
     
     # Server
     try:
-        from server import InstagramBot as ServerBot
+        from server import HernandoBot as ServerBot
         print("✅ server.py usando bot correcto")
         print(f"   Clase: {ServerBot.__name__}")
         results['server'] = True

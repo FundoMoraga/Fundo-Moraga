@@ -2,7 +2,7 @@
 Wrapper mejorado para InstagramBot que integra capacidades de IA avanzada
 Incluye: Cache Redis, Recomendaciones por Sentimiento, Timing de Contacto, Detección de Insatisfacción, Modo Admin
 """
-from instagram_bot import InstagramBot
+from hernando_bot import HernandoBot
 from advanced_ai_integration import get_advanced_ai_integration
 from redis_cache import get_redis_cache
 from sentiment_recommendations import get_sentiment_recommender
@@ -14,7 +14,7 @@ from typing import Optional
 import config
 
 
-class InstagramBotEnhanced(InstagramBot):
+class InstagramBotEnhanced(HernandoBot):
     """
     Extensión de InstagramBot con capacidades de IA avanzada integradas.
     
