@@ -115,12 +115,12 @@ html.js {
 /* Chapter navigation */
 .chapter-nav {
     position: fixed;
-    right: 18px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: clamp(12px, 1.8vw, 22px);
+    top: calc(env(safe-area-inset-top, 0px) + 92px);
+    transform: none;
     z-index: 1250;
-    width: 220px;
-    max-height: 70vh;
+    width: clamp(180px, 16vw, 230px);
+    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 132px);
     padding: 10px;
     border-radius: 18px;
     border: 1px solid rgba(212, 175, 55, 0.22);
@@ -150,20 +150,20 @@ html.js {
     padding: 0;
     margin: 0;
     display: grid;
-    gap: 6px;
+    gap: 5px;
     overflow: auto;
-    max-height: 62vh;
+    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 196px);
 }
 
 .chapter-nav__list a {
     display: block;
-    padding: 8px 10px;
+    padding: 7px 10px;
     border-radius: 12px;
     text-decoration: none;
     color: rgba(224, 224, 224, 0.92);
     border: 1px solid transparent;
     transition: background 180ms var(--ease-out), border-color 180ms var(--ease-out), color 180ms var(--ease-out);
-    font-size: 0.92rem;
+    font-size: 0.9rem;
 }
 
 .chapter-nav__list a:hover {
@@ -878,7 +878,25 @@ html.js {
 @media (max-width: 1024px) {
     .chapter-nav {
         right: 12px;
-        width: 200px;
+        width: clamp(168px, 26vw, 220px);
+    }
+
+    .chapter-nav__toggle {
+        display: inline-flex;
+    }
+
+    .chapter-nav__list {
+        margin-top: 10px;
+        display: none;
+        max-height: 42vh;
+    }
+
+    .chapter-nav.is-open .chapter-nav__list {
+        display: grid;
+    }
+
+    .chapter-nav.is-open {
+        width: min(86vw, 320px);
     }
     .visit-info {
         grid-template-columns: 1fr;
