@@ -40,16 +40,7 @@ window.addEventListener('load', () => {
         }, 650);
     };
 
-    const introSeenKey = 'fm_intro_seen_v1';
-    const shouldShowIntro = () => {
-        try {
-            return localStorage.getItem(introSeenKey) !== '1';
-        } catch {
-            return true;
-        }
-    };
-
-    if (!introOverlay || !introVideo || !shouldShowIntro()) {
+    if (!introOverlay || !introVideo) {
         startAfterIntro();
         return;
     }
@@ -84,9 +75,6 @@ window.addEventListener('load', () => {
 
     const onEnd = () => {
         clearFallback();
-        try {
-            localStorage.setItem(introSeenKey, '1');
-        } catch {}
         hideIntro();
     };
 
@@ -100,9 +88,6 @@ window.addEventListener('load', () => {
     introSkip?.addEventListener('click', () => {
         clearFallback();
         try { introVideo.pause(); } catch {}
-        try {
-            localStorage.setItem(introSeenKey, '1');
-        } catch {}
         hideIntro();
     });
 
@@ -123,9 +108,6 @@ window.addEventListener('load', () => {
         if (e.key !== 'Escape') return;
         clearFallback();
         try { introVideo.pause(); } catch {}
-        try {
-            localStorage.setItem(introSeenKey, '1');
-        } catch {}
         hideIntro();
     });
 
@@ -164,12 +146,6 @@ window.addEventListener('load', () => {
     introVideo.addEventListener('canplay', () => {
         // Mostrar "Saltar" solo después de unos segundos (por si el usuario lo necesita)
         window.setTimeout(() => introSkip?.removeAttribute('hidden'), 7000);
-    }, { once: true });
-
-    introVideo.addEventListener('playing', () => {
-        try {
-            localStorage.setItem(introSeenKey, '1');
-        } catch {}
     }, { once: true });
 
     setSoundLabel();
