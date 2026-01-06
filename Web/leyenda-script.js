@@ -522,9 +522,11 @@
 
                 heroVideo.addEventListener('playing', markVideoReady, { once: true });
                 heroVideo.addEventListener('loadeddata', markVideoReady, { once: true });
+                heroVideo.addEventListener('loadedmetadata', markVideoReady, { once: true });
+                heroVideo.addEventListener('canplay', markVideoReady, { once: true });
                 heroVideo.addEventListener('error', unmarkVideo);
 
-                if (heroVideo.readyState >= 2) markVideoReady();
+                if (heroVideo.readyState >= 1) markVideoReady();
 
                 const tryPlay = () => {
                     heroVideo.play().catch(() => {});

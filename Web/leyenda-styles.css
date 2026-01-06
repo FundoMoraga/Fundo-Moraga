@@ -252,8 +252,8 @@ html.js {
     transform: translate3d(0, var(--hero-parallax), 0) scale(1.08);
     filter: saturate(1.18) contrast(1.08) brightness(0.7);
     will-change: transform, opacity;
-    z-index: 0;
-    opacity: 0;
+    z-index: 1;
+    opacity: 1;
     pointer-events: none;
     transition: opacity 900ms var(--ease-soft);
 }
@@ -275,7 +275,7 @@ html.js {
         linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0.94) 100%),
         radial-gradient(circle at 50% 22%, rgba(212, 175, 55, 0.12), transparent 55%),
         radial-gradient(circle at 20% 80%, rgba(212, 175, 55, 0.06), transparent 55%);
-    z-index: 1;
+    z-index: 2;
 }
 
 .hero-overlay-dark {
