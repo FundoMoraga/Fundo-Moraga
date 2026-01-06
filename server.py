@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 import os
 import config
+import requests
 from instagram_bot_enhanced import InstagramBotEnhanced as HernandoBot
 from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
@@ -90,6 +91,88 @@ def get_bot() -> HernandoBot:
     if _bot_init_error is not None:
         raise RuntimeError(_bot_init_error)
     raise RuntimeError("Bot no inicializado")
+
+
+def _extract_waha_events(payload: dict) -> list[dict]:
+    events: list[dict] = []
+    if not isinstance(payload, dict):
+        return events
+
+    if "event" in payload and "payload" in payload:
+        events.append(payload)
+
+    nested = payload.get("events")
+    if isinstance(nested, list):
+        events.extend([e for e in nested if isinstance(e, dict)])
+
+    messages = payload.get("messages")
+    if isinstance(messages, list):
+        for msg in messages:
+            if isinstance(msg, dict):
+                events.append({"event": "message", "payload": msg, "session": payload.get("session")})
+
+    return events
+
+
+def _extract_waha_text(payload: dict) -> str:
+    for key in ("body", "text", "message", "caption", "content"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    message_obj = payload.get("message")
+    if isinstance(message_obj, dict):
+        for key in ("text", "body", "caption"):
+            value = message_obj.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    return ""
+
+
+def _waha_from_me(payload: dict) -> bool:
+    for key in ("fromMe", "from_me", "isOutgoing", "self", "is_from_me"):
+        value = payload.get(key)
+        if isinstance(value, bool):
+            return value
+    return False
+
+
+def _extract_waha_chat_id(payload: dict) -> str:
+    for key in ("from", "chatId", "chat_id", "jid", "to", "remoteJid"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _send_waha_text(chat_id: str, text: str, session: str) -> bool:
+    if not config.WAHA_API_URL:
+        print("⚠️ WAHA API URL no configurada (WAHA_API_URL).")
+        return False
+
+    url = f"{config.WAHA_API_URL.rstrip('/')}/api/sendText"
+    headers = {"Content-Type": "application/json"}
+    if config.WAHA_API_KEY:
+        headers["X-API-KEY"] = config.WAHA_API_KEY
+
+    payload = {
+        "session": session or "default",
+        "chatId": chat_id,
+        "text": text,
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+    except Exception as e:
+        print(f"❌ Error enviando WhatsApp: {e}")
+        return False
+
+    if response.status_code >= 200 and response.status_code < 300:
+        return True
+
+    print(f"❌ WAHA respondió {response.status_code}: {response.text}")
+    return False
 
 
 @app.route('/oembed.json')
@@ -372,6 +455,105 @@ def chat_history():
         return jsonify({"error": str(e)}), 500
 
 
+# ============= WHATSAPP (WAHA) WEBHOOK =============
+
+@app.route('/webhook/whatsapp', methods=['POST'])
+def whatsapp_webhook():
+    """
+    Webhook para WAHA (WhatsApp HTTP API).
+    Espera eventos con payload de mensaje y responde vía WAHA /api/sendText.
+    """
+    if config.WAHA_WEBHOOK_SECRET:
+        provided = (
+            request.headers.get("X-WAHA-SECRET")
+            or request.headers.get("X-Webhook-Secret")
+            or request.args.get("token")
+        )
+        if provided != config.WAHA_WEBHOOK_SECRET:
+            return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    if data is None:
+        try:
+            raw = (request.data or b"").decode("utf-8", errors="ignore").strip()
+            data = json.loads(raw) if raw else {}
+        except Exception:
+            data = {}
+
+    events = _extract_waha_events(data or {})
+    if not events:
+        return jsonify({"ok": True, "handled": 0}), 200
+
+    try:
+        bot = get_bot()
+    except Exception as e:
+        return jsonify({"error": "Servicio no configurado", "message": str(e)}), 503
+
+    handled = 0
+    for event in events:
+        payload = event.get("payload") or {}
+        if not isinstance(payload, dict):
+            continue
+
+        if _waha_from_me(payload):
+            continue
+
+        chat_id = _extract_waha_chat_id(payload)
+        if not chat_id:
+            continue
+
+        if "status@broadcast" in chat_id:
+            continue
+
+        if chat_id.endswith("@g.us") and not config.WAHA_ALLOW_GROUPS:
+            continue
+
+        text = _extract_waha_text(payload)
+        if not text:
+            msg_type = str(payload.get("type") or payload.get("messageType") or "").lower()
+            if msg_type and msg_type != "chat":
+                text = "[adjunto]"
+            elif payload.get("media") or payload.get("file") or payload.get("attachment"):
+                text = "[adjunto]"
+
+        if not text:
+            continue
+
+        session = (
+            (event.get("session") or data.get("session") or config.WAHA_SESSION or "default").strip()
+        )
+        user_id = f"wa_{chat_id}"
+
+        if text == "[adjunto]":
+            response = "Recibí un adjunto. ¿Me puedes contar en texto qué necesitas o qué te gustaría coordinar?"
+        else:
+            response = bot.process_message(
+                user_id,
+                text,
+                platform="whatsapp",
+                source="whatsapp_webhook",
+                message_id=str(payload.get("id") or payload.get("messageId") or payload.get("message_id") or ""),
+            )
+
+        close_token = "[[CLOSE_CHAT]]"
+        close_chat = False
+        if isinstance(response, str) and close_token in response:
+            close_chat = True
+            response = response.replace(close_token, "").strip()
+
+        if response:
+            _send_waha_text(chat_id, response, session)
+            handled += 1
+
+        if close_chat:
+            try:
+                bot.finalize_conversation(user_id=user_id, reason="close_chat", platform="WhatsApp")
+            except Exception as e:
+                print(f"[WARNING] Error enviando resumen final: {e}")
+
+    return jsonify({"ok": True, "handled": handled}), 200
+
+
 # ============= EJEMPLOS DE INTEGRACIÓN WEB =============
 
 @app.route('/api/docs')
@@ -405,6 +587,10 @@ def api_docs():
             "/webhook/instagram": {
                 "method": "GET/POST",
                 "description": "Webhook para Instagram Messaging API"
+            },
+            "/webhook/whatsapp": {
+                "method": "POST",
+                "description": "Webhook para WAHA (WhatsApp HTTP API)"
             }
         },
         "example_web_integration": """

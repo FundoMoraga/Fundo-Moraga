@@ -62,6 +62,19 @@ def _clean_token(value: str | None) -> str | None:
 INSTAGRAM_ACCESS_TOKEN = _clean_token(os.getenv("INSTAGRAM_ACCESS_TOKEN"))
 INSTAGRAM_PAGE_ID = os.getenv("INSTAGRAM_PAGE_ID")
 
+# WhatsApp (WAHA)
+WAHA_API_URL = _clean_env(os.getenv("WAHA_API_URL") or os.getenv("WAHA_BASE_URL"))
+WAHA_API_KEY = _clean_env(os.getenv("WAHA_API_KEY"))
+WAHA_SESSION = _clean_env(os.getenv("WAHA_SESSION")) or "default"
+WAHA_WEBHOOK_SECRET = _clean_env(os.getenv("WAHA_WEBHOOK_SECRET"))
+WAHA_ALLOW_GROUPS = os.getenv("WAHA_ALLOW_GROUPS", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+    "y",
+    "si",
+)
+
 # Bot Configuration
 BOT_NAME = os.getenv("BOT_NAME", "Fundo Moraga Bot")
 MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "30"))
