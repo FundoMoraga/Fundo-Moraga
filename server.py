@@ -157,42 +157,6 @@ def health():
     }), 200
 
 
-# ============= INSTAGRAM WEBHOOK =============
-
-@app.route('/webhook/instagram', methods=['GET', 'POST'], strict_slashes=False)
-def instagram_webhook():
-    """
-    Webhook para Instagram/Facebook Messenger.
-    GET: verificación inicial del webhook (Meta).
-    POST: recepción de mensajes.
-    """
-    if request.method == 'GET':
-        mode = request.args.get('hub.mode')
-        token = request.args.get('hub.verify_token')
-        challenge = request.args.get('hub.challenge')
-
-        if mode == 'subscribe' and token == VERIFY_TOKEN:
-            print("[OK] Webhook de Instagram verificado")
-            return challenge, 200
-
-        print("[ERROR] Webhook de Instagram fallo verificacion")
-        return 'Forbidden', 403
-
-    # POST
-    data = request.get_json(silent=True) or {}
-    print(f"[WEBHOOK] Webhook recibido de Instagram: {data}")
-
-    try:
-        bot = get_bot()
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 503
-
-    try:
-        bot.handle_webhook_message(data)
-        return jsonify({"status": "ok"}), 200
-    except Exception as e:
-        print(f"[ERROR] Error procesando webhook: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # ============= WEB CHAT API =============
