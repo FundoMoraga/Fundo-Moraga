@@ -655,6 +655,37 @@ const setVideoStarted = (started) => {
     if (!started) videoControls.classList.remove('show');
 };
 
+const videoSupport = (() => {
+    const tester = document.createElement('video');
+    return {
+        quicktime: Boolean(tester.canPlayType('video/quicktime')),
+    };
+})();
+
+const fallbackPoster = 'assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG';
+
+const pickClipSource = (clip) => {
+    if (!clip || !clip.src) return null;
+    const src = clip.src;
+    if (/\.mov$/i.test(src)) {
+        return videoSupport.quicktime ? src : null;
+    }
+    return src;
+};
+
+const safePlay = (videoEl) => {
+    if (!videoEl) return Promise.resolve(false);
+    const p = videoEl.play();
+    if (!p || typeof p.then !== 'function') return Promise.resolve(true);
+    return p.then(() => true).catch(() => false);
+};
+
+const setPlayButtonState = (isEnabled) => {
+    if (!playButton) return;
+    playButton.disabled = !isEnabled;
+    playButton.setAttribute('aria-disabled', String(!isEnabled));
+};
+
 const videoClips = [
     {
         src: 'assets/videos/IMG_2274.mov',
@@ -707,18 +738,25 @@ const videoClips = [
 ];
 
 if (mainVideo) {
+    const startMainPlayback = () => {
+        if (playButton?.disabled) return;
+        safePlay(mainVideo).then((played) => {
+            if (!played) return;
+            videoOverlay.classList.add('hidden');
+            setVideoStarted(true);
+        });
+    };
+
     // Play button click
-    playButton?.addEventListener('click', () => {
-        mainVideo.play();
-        videoOverlay.classList.add('hidden');
-        setVideoStarted(true);
+    playButton?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startMainPlayback();
     });
 
     // Video overlay click
-    videoOverlay?.addEventListener('click', () => {
-        mainVideo.play();
-        videoOverlay.classList.add('hidden');
-        setVideoStarted(true);
+    videoOverlay?.addEventListener('click', (e) => {
+        if (e.target !== videoOverlay) return;
+        startMainPlayback();
     });
 
     // Play/Pause toggle
@@ -727,7 +765,7 @@ if (mainVideo) {
 
     function togglePlayPause() {
         if (mainVideo.paused) {
-            mainVideo.play();
+            safePlay(mainVideo);
         } else {
             mainVideo.pause();
         }
@@ -882,11 +920,12 @@ if (mainVideo) {
         videoGalleryGrid.innerHTML = '';
 
         videoClips.forEach((clip, index) => {
+            const source = pickClipSource(clip);
             const card = document.createElement('div');
             card.className = 'video-card';
             card.dataset.index = index;
             card.innerHTML = `
-                <video class="video-thumb" src="${clip.src}" muted playsinline loop preload="metadata"></video>
+                <video class="video-thumb" ${source ? `src="${source}"` : ''} muted playsinline loop preload="metadata" poster="${fallbackPoster}"></video>
                 <span class="video-chip">${clip.tag}</span>
                 <span class="video-duration">${clip.duration}</span>
                 <div class="video-play-mini">
@@ -898,8 +937,16 @@ if (mainVideo) {
                 </div>
             `;
 
+            if (!source) card.classList.add('video-card--fallback');
+
             const thumb = card.querySelector('video');
-            thumb?.addEventListener('mouseenter', () => thumb.play());
+            thumb?.addEventListener('mouseenter', () => {
+                if (!source) return;
+                const p = thumb.play();
+                if (p && typeof p.catch === 'function') {
+                    p.catch(() => {});
+                }
+            });
             card.addEventListener('mouseleave', () => thumb?.pause());
 
             card.addEventListener('click', () => setMainVideo(clip));
@@ -910,6 +957,8 @@ if (mainVideo) {
     function setMainVideo(clip) {
         if (!clip || !mainVideo) return;
         setVideoStarted(false);
+        const source = pickClipSource(clip);
+        setPlayButtonState(Boolean(source));
 
         // Ajustar modo retrato o paisaje
         if (clip.orientation === 'portrait') {
@@ -921,7 +970,20 @@ if (mainVideo) {
         }
 
         mainVideo.pause();
-        mainVideo.src = clip.src;
+        if (!source) {
+            mainVideo.removeAttribute('src');
+            mainVideo.poster = fallbackPoster;
+            mainVideo.load();
+            videoOverlay?.classList.remove('hidden');
+            playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'block');
+            playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'none');
+            videoControls?.classList.remove('show');
+            if (videoTitleEl) videoTitleEl.textContent = clip.title;
+            if (videoSubtitleEl) videoSubtitleEl.textContent = clip.description;
+            return;
+        }
+
+        mainVideo.src = source;
         mainVideo.load();
 
         // Mostrar overlay mientras se prepara el video
@@ -934,17 +996,19 @@ if (mainVideo) {
         if (videoSubtitleEl) videoSubtitleEl.textContent = clip.description;
 
         const attemptPlay = () => {
-            mainVideo.play().then(() => {
-                videoOverlay?.classList.add('hidden');
-                playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'none');
-                playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'block');
-                setVideoStarted(true);
-            }).catch(() => {
-                // Si el navegador bloquea, dejamos overlay visible para interacción manual
-                videoOverlay?.classList.remove('hidden');
-                playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'block');
-                playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'none');
-                setVideoStarted(false);
+            safePlay(mainVideo).then((played) => {
+                if (played) {
+                    videoOverlay?.classList.add('hidden');
+                    playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'none');
+                    playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'block');
+                    setVideoStarted(true);
+                } else {
+                    // Si el navegador bloquea, dejamos overlay visible para interacción manual
+                    videoOverlay?.classList.remove('hidden');
+                    playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'block');
+                    playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'none');
+                    setVideoStarted(false);
+                }
             });
         };
 

@@ -3,6 +3,7 @@ Sistema de cache en Redis para prompts y respuestas frecuentes
 Reduce latencia de respuestas 40% usando cache inteligente
 """
 import os
+import re
 import json
 import hashlib
 from typing import Optional, Dict, Any
@@ -22,11 +23,41 @@ class RedisCache:
         """Inicializa conexión a Redis"""
         self.client = None
         self.enabled = False
+        self.local_cache = {}
+
+        def _normalize_redis_url(raw: str) -> str:
+            value = (raw or "").strip().strip('"').strip("'")
+            if not value:
+                return ""
+            if value.lower() in ("none", "null", "false", "0", "off"):
+                return ""
+            if "://" not in value:
+                if re.match(r"^[A-Za-z0-9._-]+(:\d+)?(/\d+)?$", value):
+                    value = f"redis://{value}"
+                else:
+                    return ""
+            return value
         
         try:
             if _REDIS_AVAILABLE:
+                redis_enabled = os.getenv("REDIS_ENABLED", "true").lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                    "y",
+                    "si",
+                )
+                if not redis_enabled:
+                    print("ℹ️ Redis desactivado por configuración")
+                    self.enabled = False
+                    return
+
                 # Intentar conectar a Redis
-                redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                redis_url = _normalize_redis_url(os.getenv("REDIS_URL", ""))
+                if not redis_url:
+                    print("ℹ️ Redis URL no configurada o inválida; cache desactivada")
+                    self.enabled = False
+                    return
                 self.client = redis.from_url(redis_url, decode_responses=True)
                 # Test de conexión
                 self.client.ping()

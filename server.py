@@ -3,7 +3,7 @@ Servidor web para Hernando - Fundo Moraga
 Maneja webhooks de Instagram y chat de la página web
 """
 import traceback
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 import os
 import config
@@ -47,7 +47,11 @@ def _config_status() -> Tuple[bool, list[str], list[str]]:
 
 app = Flask(__name__, static_folder='Web', static_url_path='')
 CORS(app)  # Permitir peticiones desde fundomoraga.com
-start_reminder_scheduler()
+
+# Evitar doble scheduler cuando existe un servicio dedicado.
+RUN_SCHEDULER_THREAD = os.getenv("RUN_SCHEDULER_THREAD", "").lower() in ("1", "true", "yes", "y", "si")
+if RUN_SCHEDULER_THREAD:
+    start_reminder_scheduler()
 
 # Inicializar bot al arranque para evitar timeouts en primera petición
 _bot: Optional[HernandoBot] = None
@@ -127,6 +131,12 @@ def favicon():
     """Servir favicon desde static/hernando.jpg como fallback."""
     from flask import send_from_directory
     return send_from_directory('static', 'hernando.jpg', mimetype='image/jpeg')
+
+
+@app.route('/static/<path:filename>')
+def static_assets(filename: str):
+    """Servir assets del chat (hernando.jpg/mp4) desde /static."""
+    return send_from_directory('static', filename)
 
 
 @app.route('/status')
