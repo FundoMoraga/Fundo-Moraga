@@ -80,6 +80,9 @@ REDIS_CACHE_TTL_USER_CONTEXT_MINUTES = int(os.getenv("REDIS_CACHE_TTL_USER_CONTE
 SENTIMENT_RECOMMENDATIONS_ENABLED = os.getenv("SENTIMENT_RECOMMENDATIONS_ENABLED", "true").lower() in ("1", "true", "yes")
 CONTACT_TIMING_PREDICTION_ENABLED = os.getenv("CONTACT_TIMING_PREDICTION_ENABLED", "true").lower() in ("1", "true", "yes")
 SATISFACTION_DETECTION_ENABLED = os.getenv("SATISFACTION_DETECTION_ENABLED", "true").lower() in ("1", "true", "yes")
+# Importante: los módulos de "IA avanzada" tienen fallback por heurísticas. Para evitar multiplicar
+# las llamadas a OpenAI (y por ende la latencia), por defecto NO llaman OpenAI.
+ADVANCED_AI_USE_OPENAI = os.getenv("ADVANCED_AI_USE_OPENAI", "false").lower() in ("1", "true", "yes", "y", "si")
 
 # Fechas Libres Activas (solo si se han anunciado en Instagram @Batuco_OffRoad)
 # Formato: lista de fechas en YYYY-MM-DD que están abiertas con tarifa normal ($15k auto, $10k moto)

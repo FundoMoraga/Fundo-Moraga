@@ -203,7 +203,8 @@ class InstagramBotEnhanced(HernandoBot):
             message_text=message_text,
             platform=platform,
             source=source,
-            message_id=message_id
+            message_id=message_id,
+            sentiment_data=sentiment_data,
         )
         
         # PASO 9: Cachear respuesta para futuras preguntas similares

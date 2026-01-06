@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 import re
 from datetime import datetime, timedelta
 import config
+import os
 
 try:
     from openai import OpenAI
@@ -19,8 +20,8 @@ class EntityExtractor:
     
     def __init__(self):
         self.client = None
-        if _OPENAI_AVAILABLE and config.OPENAI_API_KEY:
-            self.client = OpenAI(api_key=config.OPENAI_MODEL)
+        if _OPENAI_AVAILABLE and config.OPENAI_API_KEY and getattr(config, "ADVANCED_AI_USE_OPENAI", False):
+            self.client = OpenAI(api_key=config.OPENAI_API_KEY)
     
     def extract_entities(self, text: str) -> Dict[str, Any]:
         """

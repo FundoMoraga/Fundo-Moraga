@@ -64,6 +64,7 @@ class HernandoBot:
         platform: str = "web",
         source: str = "widget",
         message_id: Optional[str] = None,
+        sentiment_data: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Procesa un mensaje entrante del usuario
@@ -81,7 +82,8 @@ class HernandoBot:
             print(f"📥 Mensaje de {user_id} ({platform_label}): {message_text}")
             
             # Análisis de sentimiento del mensaje del usuario
-            sentiment_data = analyze_sentiment(message_text)
+            if sentiment_data is None:
+                sentiment_data = analyze_sentiment(message_text)
             if sentiment_data:
                 sentiment_label = sentiment_data.get("sentiment", "unknown")
                 sentiment_score = sentiment_data.get(sentiment_label, 0.0)

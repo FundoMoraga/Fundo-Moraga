@@ -5,6 +5,7 @@ Sugiere actividades y ofertas basadas en perfil y preferencias del usuario
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import config
+import os
 
 try:
     from openai import OpenAI
@@ -69,7 +70,7 @@ class RecommendationEngine:
         # Alias para compatibilidad
         self.activity_catalog = self.ACTIVITIES_CATALOG
         self.client = None
-        if _OPENAI_AVAILABLE and config.OPENAI_API_KEY:
+        if _OPENAI_AVAILABLE and config.OPENAI_API_KEY and getattr(config, "ADVANCED_AI_USE_OPENAI", False):
             self.client = OpenAI(api_key=config.OPENAI_API_KEY)
     
     def recommend(
