@@ -22,17 +22,35 @@
     <meta property="twitter:image" content="assets/images/Logo Fundo Moraga.png">
     
     <title>Fundo Moraga - Batuco Off Road | Tu próxima aventura</title>
-    <link rel="stylesheet" href="styles.css?v=20260106-4">
+    <link rel="stylesheet" href="styles.css?v=20260106-5">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Preloader -->
-    <div id="preloader" class="preloader">
-        <div class="preloader-content">
-            <img src="assets/images/Logo Fundo Moraga.png" alt="Fundo Moraga" class="preloader-logo">
-            <div class="preloader-spinner"></div>
+    <!-- Intro (fullscreen video) -->
+    <div id="preloader" class="preloader intro-preloader" aria-label="Intro Fundo Moraga">
+        <video
+            id="introVideo"
+            class="intro-video"
+            autoplay
+            muted
+            playsinline
+            preload="auto"
+            disablepictureinpicture
+            controlslist="nodownload noplaybackrate noremoteplayback"
+            aria-hidden="true"
+        >
+            <source src="https://fundomoragastorage.blob.core.windows.net/bbdd/Intro%20Fundo%20Moraga.mp4" type="video/mp4">
+        </video>
+        <div class="intro-ui">
+            <img src="assets/images/Logo Fundo Moraga.png" alt="Fundo Moraga" class="intro-logo">
+            <div class="intro-actions">
+                <button id="introStart" class="intro-btn intro-start" type="button" hidden>Iniciar</button>
+                <button id="introSound" class="intro-btn intro-sound" type="button">Sonido: OFF</button>
+                <button id="introSkip" class="intro-btn intro-skip" type="button">Saltar</button>
+            </div>
+            <div class="intro-hint" aria-hidden="true">Presiona Esc para saltar</div>
         </div>
     </div>
 
@@ -535,6 +553,6 @@
 
     <!-- Particles.js -->
     <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-    <script src="script.js?v=20260106-4"></script>
+    <script src="script.js?v=20260106-5"></script>
 </body>
 </html>

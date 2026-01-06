@@ -8,24 +8,108 @@ const navLinks = document.querySelector('.nav-links');
 // Preloader
 window.addEventListener('load', () => {
     const preloader = document.getElementById('preloader');
-    setTimeout(() => {
-        preloader.classList.add('hidden');
-        // Start animations after preloader
+    const introVideo = document.getElementById('introVideo');
+    const introSkip = document.getElementById('introSkip');
+    const introSound = document.getElementById('introSound');
+    const introStart = document.getElementById('introStart');
+
+    const startAfterIntro = () => {
+        document.body.classList.remove('is-intro-playing');
         document.body.style.overflow = 'auto';
-        
-        // Abrir automáticamente el chat de Hernando después de 1.5 segundos
+
         setTimeout(() => {
             const chatWindow = document.getElementById('chatWindow');
             const chatBadge = document.querySelector('.chat-badge');
             if (chatWindow) {
                 chatWindow.classList.add('active');
-                // Ocultar badge cuando se abre automáticamente
                 if (chatBadge) chatBadge.style.display = 'none';
             }
-            // Saludo inicial (cuando el usuario abre la página)
             try { initHernandoGreeting(); } catch (e) {}
         }, 1500);
-    }, 1000);
+    };
+
+    const hideIntro = () => {
+        if (!preloader) return startAfterIntro();
+        if (preloader.classList.contains('hidden')) return;
+
+        preloader.classList.add('hidden');
+        setTimeout(() => {
+            try { preloader.remove(); } catch {}
+            startAfterIntro();
+        }, 650);
+    };
+
+    if (!preloader || !introVideo) {
+        startAfterIntro();
+        return;
+    }
+
+    document.body.classList.add('is-intro-playing');
+    document.body.style.overflow = 'hidden';
+
+    let fallbackTimeout = window.setTimeout(() => hideIntro(), 26000);
+    const clearFallback = () => {
+        if (!fallbackTimeout) return;
+        window.clearTimeout(fallbackTimeout);
+        fallbackTimeout = 0;
+    };
+
+    const setSoundLabel = () => {
+        if (!introSound) return;
+        introSound.textContent = introVideo.muted ? 'Sonido: OFF' : 'Sonido: ON';
+    };
+
+    const tryPlay = () => {
+        introStart?.setAttribute('hidden', '');
+        setSoundLabel();
+
+        const p = introVideo.play();
+        if (!p || typeof p.then !== 'function') return;
+
+        p.catch(() => {
+            introStart?.removeAttribute('hidden');
+        });
+    };
+
+    const onEnd = () => {
+        clearFallback();
+        hideIntro();
+    };
+
+    introVideo.addEventListener('ended', onEnd);
+    introVideo.addEventListener('error', () => {
+        clearFallback();
+        hideIntro();
+    });
+
+    introSkip?.addEventListener('click', () => {
+        clearFallback();
+        try { introVideo.pause(); } catch {}
+        hideIntro();
+    });
+
+    introStart?.addEventListener('click', () => {
+        introVideo.muted = true;
+        setSoundLabel();
+        tryPlay();
+    });
+
+    introSound?.addEventListener('click', () => {
+        const wasMuted = introVideo.muted;
+        introVideo.muted = !wasMuted;
+        setSoundLabel();
+        tryPlay();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        clearFallback();
+        try { introVideo.pause(); } catch {}
+        hideIntro();
+    });
+
+    setSoundLabel();
+    tryPlay();
 });
 
 // Sticky navbar on scroll

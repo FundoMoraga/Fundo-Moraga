@@ -411,6 +411,7 @@
     const initLeyenda = () => {
         const navbar = document.querySelector('.navbar');
         const chapterNav = document.querySelector('.chapter-nav');
+        const root = document.documentElement;
 
         const syncHeaderVars = () => {
             const navHeight = navbar?.getBoundingClientRect().height ?? 0;
@@ -451,6 +452,56 @@
 
         const hero = document.getElementById('leyenda-hero');
         const heroVideo = document.getElementById('leyenda-hero-video');
+
+        const initGlobalLantern = () => {
+            if (prefersReducedMotion) return () => {};
+
+            let raf = 0;
+            let currentX = 50;
+            let currentY = 35;
+            let targetX = currentX;
+            let targetY = currentY;
+
+            const apply = () => {
+                raf = requestAnimationFrame(apply);
+
+                const dx = targetX - currentX;
+                const dy = targetY - currentY;
+                currentX += dx * 0.14;
+                currentY += dy * 0.14;
+
+                root.style.setProperty('--mx', `${clamp(currentX, 0, 100).toFixed(2)}%`);
+                root.style.setProperty('--my', `${clamp(currentY, 0, 100).toFixed(2)}%`);
+
+                if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) {
+                    cancelAnimationFrame(raf);
+                    raf = 0;
+                }
+            };
+
+            const pushTarget = (clientX, clientY) => {
+                const w = window.innerWidth || 1;
+                const h = window.innerHeight || 1;
+                targetX = (clientX / w) * 100;
+                targetY = (clientY / h) * 100;
+                if (!raf) raf = requestAnimationFrame(apply);
+            };
+
+            const onPointerMove = (e) => pushTarget(e.clientX, e.clientY);
+            const onPointerDown = (e) => pushTarget(e.clientX, e.clientY);
+            const onMouseLeave = () => pushTarget((window.innerWidth || 1) / 2, (window.innerHeight || 1) * 0.35);
+
+            window.addEventListener('pointermove', onPointerMove, { passive: true });
+            window.addEventListener('pointerdown', onPointerDown, { passive: true });
+            document.addEventListener('mouseleave', onMouseLeave, { passive: true });
+
+            return () => {
+                if (raf) cancelAnimationFrame(raf);
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerdown', onPointerDown);
+                document.removeEventListener('mouseleave', onMouseLeave);
+            };
+        };
 
         const shouldDisableHeroVideo = () => {
             if (prefersReducedMotion) return true;
@@ -571,6 +622,7 @@
         window.addEventListener('resize', onScroll, { passive: true });
         onScroll();
 
+        const cleanupLantern = initGlobalLantern();
         const cleanupPostFx = initPostFxCanvas();
 
         let konami = [];
@@ -607,7 +659,10 @@
         `;
         document.head.appendChild(style);
 
-        window.addEventListener('beforeunload', () => cleanupPostFx());
+        window.addEventListener('beforeunload', () => {
+            cleanupLantern();
+            cleanupPostFx();
+        });
 
         console.log(
             '%cFundo Moraga — Leyenda (Premium Postproduction)',

@@ -25,6 +25,9 @@
 
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    --mx: 50%;
+    --my: 35%;
 }
 
 html {
@@ -55,7 +58,8 @@ html.js {
     pointer-events: none;
     z-index: 5;
     background:
-        radial-gradient(circle at 50% 35%, rgba(212, 175, 55, 0.06), transparent 55%),
+        radial-gradient(circle at var(--mx) var(--my), rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.26) 34%, rgba(0, 0, 0, 0.82) 72%, rgba(0, 0, 0, 0.94) 100%),
+        radial-gradient(circle at var(--mx) var(--my), rgba(212, 175, 55, 0.08), transparent 48%),
         radial-gradient(circle at 50% 60%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 58%, rgba(0, 0, 0, 0.92) 100%);
     opacity: 0.95;
     mix-blend-mode: multiply;
@@ -210,6 +214,8 @@ html.js {
     --mx: 50%;
     --my: 45%;
     --hero-parallax: 0px;
+    --hero-media-x: 44%;
+    --hero-media-y: 50%;
 
     position: relative;
     min-height: 100svh;
@@ -227,7 +233,7 @@ html.js {
     inset: -14%;
     background-image: url('assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG');
     background-size: cover;
-    background-position: center;
+    background-position: var(--hero-media-x) var(--hero-media-y);
     transform: translate3d(0, var(--hero-parallax), 0) scale(1.08);
     filter: saturate(1.18) contrast(1.08) brightness(0.72);
     will-change: transform;
@@ -242,6 +248,7 @@ html.js {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: var(--hero-media-x) var(--hero-media-y);
     transform: translate3d(0, var(--hero-parallax), 0) scale(1.08);
     filter: saturate(1.18) contrast(1.08) brightness(0.7);
     will-change: transform, opacity;

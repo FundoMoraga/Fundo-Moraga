@@ -45,3 +45,6 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Large local media (do not commit)
+Web/assets/videos/Leyenda Fundo Moraga.mp4
