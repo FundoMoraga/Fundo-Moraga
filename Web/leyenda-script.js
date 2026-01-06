@@ -450,6 +450,49 @@
         });
 
         const hero = document.getElementById('leyenda-hero');
+        const heroVideo = document.getElementById('leyenda-hero-video');
+
+        const shouldDisableHeroVideo = () => {
+            if (prefersReducedMotion) return true;
+            const saveData = navigator.connection?.saveData ?? false;
+            return Boolean(saveData);
+        };
+
+        if (hero && heroVideo) {
+            if (shouldDisableHeroVideo()) {
+                try {
+                    heroVideo.pause();
+                } catch {}
+                heroVideo.removeAttribute('autoplay');
+                heroVideo.setAttribute('preload', 'none');
+            } else {
+                const markVideoReady = () => hero.classList.add('has-video');
+                const unmarkVideo = () => hero.classList.remove('has-video');
+
+                heroVideo.addEventListener('playing', markVideoReady, { once: true });
+                heroVideo.addEventListener('loadeddata', markVideoReady, { once: true });
+                heroVideo.addEventListener('error', unmarkVideo);
+
+                if (heroVideo.readyState >= 2) markVideoReady();
+
+                const tryPlay = () => {
+                    heroVideo.play().catch(() => {});
+                };
+
+                tryPlay();
+
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        try {
+                            heroVideo.pause();
+                        } catch {}
+                        return;
+                    }
+                    tryPlay();
+                });
+            }
+        }
+
         const setHeroParallax = () => {
             if (!hero) return;
             const y = window.scrollY || window.pageYOffset || 0;
