@@ -30,7 +30,7 @@ const initIntro = () => {
                 setChatOpen(true);
                 if (chatBadge) chatBadge.style.display = 'none';
             }
-            try { initHernandoGreeting(); } catch (e) {}
+            try { initHernandoGreeting({ force: true }); } catch (e) {}
         }, 1500);
     };
 
@@ -334,8 +334,9 @@ function addTypingIndicator() {
     return typingDiv;
 }
 
-async function initHernandoGreeting() {
-    if (_hernandoGreetingInitialized) return;
+async function initHernandoGreeting(options = {}) {
+    const force = options.force === true;
+    if (_hernandoGreetingInitialized && !force) return;
     if (!chatBody) return;
 
     // Evitar duplicar saludo si ya hay mensajes o si esta pestaña ya lo hizo.
@@ -343,7 +344,10 @@ async function initHernandoGreeting() {
         _hernandoGreetingInitialized = true;
         return;
     }
-    if (sessionStorage.getItem('hernando_greeted') === '1') {
+    if (force) {
+        try { sessionStorage.removeItem('hernando_greeted'); } catch {}
+    }
+    if (!force && sessionStorage.getItem('hernando_greeted') === '1') {
         _hernandoGreetingInitialized = true;
         return;
     }

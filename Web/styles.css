@@ -1556,16 +1556,38 @@ section {
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */
+@media (max-width: 1100px) {
+    .nav-links {
+        position: fixed;
+        top: 80px;
+        left: -100%;
+        flex-direction: column;
+        background: #000000;
+        width: 100%;
+        padding: 40px 20px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        transition: var(--transition);
+    }
+
+    .nav-links.active {
+        left: 0;
+    }
+
+    .mobile-menu-toggle {
+        display: flex;
+    }
+}
+
 @media (max-width: 768px) {
     .nav-links {
         position: fixed;
         top: 80px;
         left: -100%;
         flex-direction: column;
-        background: white;
+        background: #000000;
         width: 100%;
         padding: 40px 20px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
         transition: var(--transition);
     }
 
