@@ -408,6 +408,129 @@
         };
     };
 
+    const initAudioPlayer = () => {
+        const audio = document.getElementById('audioRelato');
+        const player = document.getElementById('audioPlayer');
+        const toggle = document.getElementById('audioToggle');
+        const track = document.getElementById('audioTrack');
+        const fill = document.getElementById('audioFill');
+        const current = document.getElementById('audioCurrent');
+        const duration = document.getElementById('audioDuration');
+        const mute = document.getElementById('audioMute');
+
+        if (!audio || !player || !toggle || !track || !fill) return () => {};
+
+        const formatTime = (seconds) => {
+            if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        };
+
+        const setProgress = (percent) => {
+            const safe = clamp(percent, 0, 100);
+            player.style.setProperty('--audio-progress', `${safe.toFixed(2)}%`);
+            track.setAttribute('aria-valuenow', safe.toFixed(0));
+        };
+
+        const updateTimes = () => {
+            if (current) current.textContent = formatTime(audio.currentTime);
+            if (duration && Number.isFinite(audio.duration)) duration.textContent = formatTime(audio.duration);
+            const percent = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+            setProgress(percent);
+        };
+
+        const updateState = () => {
+            const isPlaying = !audio.paused;
+            player.classList.toggle('is-playing', isPlaying);
+            player.classList.toggle('is-muted', audio.muted);
+            toggle.setAttribute('aria-pressed', String(isPlaying));
+        };
+
+        const seekTo = (clientX) => {
+            const rect = track.getBoundingClientRect();
+            const ratio = rect.width ? (clientX - rect.left) / rect.width : 0;
+            audio.currentTime = clamp(ratio, 0, 1) * (audio.duration || 0);
+            updateTimes();
+        };
+
+        const onToggle = () => {
+            if (audio.paused) {
+                const p = audio.play();
+                if (p && typeof p.catch === 'function') p.catch(() => {});
+            } else {
+                audio.pause();
+            }
+        };
+
+        const onMute = () => {
+            audio.muted = !audio.muted;
+            updateState();
+        };
+
+        const onPointerDown = (e) => {
+            seekTo(e.clientX);
+            const move = (ev) => seekTo(ev.clientX);
+            const up = () => {
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', up);
+            };
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', up, { once: true });
+        };
+
+        const onKey = (e) => {
+            if (!audio.duration) return;
+            switch (e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    audio.currentTime = Math.max(0, audio.currentTime - 5);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+                    break;
+                case 'Home':
+                    e.preventDefault();
+                    audio.currentTime = 0;
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    audio.currentTime = audio.duration;
+                    break;
+                default:
+                    return;
+            }
+            updateTimes();
+        };
+
+        toggle.addEventListener('click', onToggle);
+        mute?.addEventListener('click', onMute);
+        track.addEventListener('pointerdown', onPointerDown);
+        track.addEventListener('keydown', onKey);
+
+        audio.addEventListener('timeupdate', updateTimes);
+        audio.addEventListener('loadedmetadata', updateTimes);
+        audio.addEventListener('play', updateState);
+        audio.addEventListener('pause', updateState);
+        audio.addEventListener('ended', updateState);
+
+        updateState();
+        updateTimes();
+
+        return () => {
+            toggle.removeEventListener('click', onToggle);
+            mute?.removeEventListener('click', onMute);
+            track.removeEventListener('pointerdown', onPointerDown);
+            track.removeEventListener('keydown', onKey);
+            audio.removeEventListener('timeupdate', updateTimes);
+            audio.removeEventListener('loadedmetadata', updateTimes);
+            audio.removeEventListener('play', updateState);
+            audio.removeEventListener('pause', updateState);
+            audio.removeEventListener('ended', updateState);
+        };
+    };
+
     const initLeyenda = () => {
         const navbar = document.querySelector('.navbar');
         const chapterNav = document.querySelector('.chapter-nav');
@@ -517,6 +640,10 @@
                 heroVideo.removeAttribute('autoplay');
                 heroVideo.setAttribute('preload', 'none');
             } else {
+                heroVideo.muted = true;
+                heroVideo.defaultMuted = true;
+                heroVideo.playsInline = true;
+
                 const markVideoReady = () => hero.classList.add('has-video');
                 const unmarkVideo = () => hero.classList.remove('has-video');
 
@@ -528,8 +655,17 @@
 
                 if (heroVideo.readyState >= 1) markVideoReady();
 
+                let userGestureBound = false;
                 const tryPlay = () => {
-                    heroVideo.play().catch(() => {});
+                    const result = heroVideo.play();
+                    if (result && typeof result.catch === 'function') {
+                        result.catch(() => {
+                            if (userGestureBound) return;
+                            userGestureBound = true;
+                            document.addEventListener('pointerdown', tryPlay, { once: true, passive: true });
+                            document.addEventListener('keydown', tryPlay, { once: true });
+                        });
+                    }
                 };
 
                 tryPlay();
@@ -625,6 +761,7 @@
         onScroll();
 
         const cleanupLantern = initGlobalLantern();
+        const cleanupAudio = initAudioPlayer();
         const cleanupPostFx = initPostFxCanvas();
 
         let konami = [];
@@ -663,6 +800,7 @@
 
         window.addEventListener('beforeunload', () => {
             cleanupLantern();
+            cleanupAudio();
             cleanupPostFx();
         });
 
