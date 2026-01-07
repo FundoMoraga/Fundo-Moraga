@@ -138,6 +138,33 @@ def _waha_from_me(payload: dict) -> bool:
     return False
 
 
+def _extract_waha_message_id(payload: dict) -> str:
+    for key in ("id", "messageId", "message_id", "msgId"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    message_obj = payload.get("message")
+    if isinstance(message_obj, dict):
+        for key in ("id", "messageId", "message_id", "msgId"):
+            value = message_obj.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        key_obj = message_obj.get("key")
+        if isinstance(key_obj, dict):
+            value = key_obj.get("id")
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    key_obj = payload.get("key")
+    if isinstance(key_obj, dict):
+        value = key_obj.get("id")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return ""
+
+
 def _extract_waha_chat_id(payload: dict) -> str:
     for key in ("from", "chatId", "chat_id", "jid", "to", "remoteJid"):
         value = payload.get(key)
@@ -490,6 +517,7 @@ def whatsapp_webhook():
         return jsonify({"error": "Servicio no configurado", "message": str(e)}), 503
 
     handled = 0
+    seen_messages: set[str] = set()
     for event in events:
         payload = event.get("payload") or {}
         if not isinstance(payload, dict):
@@ -501,6 +529,13 @@ def whatsapp_webhook():
         chat_id = _extract_waha_chat_id(payload)
         if not chat_id:
             continue
+
+        message_id = _extract_waha_message_id(payload)
+        if message_id:
+            dedupe_key = f"{chat_id}:{message_id}"
+            if dedupe_key in seen_messages:
+                continue
+            seen_messages.add(dedupe_key)
 
         if "status@broadcast" in chat_id:
             continue
