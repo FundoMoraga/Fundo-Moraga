@@ -130,14 +130,22 @@ html.js {
     box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.18);
 }
 
+.leyenda-page .nav-wrapper {
+    padding: 14px 0;
+}
+
+.leyenda-page .logo {
+    width: clamp(135px, 18vw, 250px);
+}
+
 /* Chapter navigation */
 .chapter-nav {
     position: fixed;
     left: 0;
     right: 0;
-    top: calc(env(safe-area-inset-top, 0px) + var(--nav-h, 86px));
+    top: calc(env(safe-area-inset-top, 0px) + var(--nav-h, 72px));
     z-index: 950;
-    padding: 10px 0;
+    padding: 6px 0;
     border-bottom: 1px solid rgba(212, 175, 55, 0.18);
     background: rgba(0, 0, 0, 0.62);
     box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
@@ -151,26 +159,26 @@ html.js {
 .chapter-nav__list {
     list-style: none;
     margin: 0 auto;
-    padding: 0 clamp(14px, 3vw, 28px);
+    padding: 0 clamp(12px, 3vw, 24px);
     max-width: 1200px;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .chapter-nav__list a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 14px;
+    padding: 8px 12px;
     border-radius: 999px;
     text-decoration: none;
     white-space: nowrap;
     color: #0a0a0a;
     font-weight: 700;
     letter-spacing: 0.25px;
-    font-size: 0.92rem;
+    font-size: 0.86rem;
     border: 1px solid rgba(255, 255, 255, 0.16);
     background: linear-gradient(180deg, rgba(224, 192, 74, 0.98), rgba(212, 175, 55, 0.92));
     box-shadow:
@@ -1156,8 +1164,8 @@ html.js {
     }
 
     .chapter-nav__list a {
-        padding: 9px 12px;
-        font-size: 0.9rem;
+        padding: 8px 10px;
+        font-size: 0.84rem;
     }
 
     .story-section {
