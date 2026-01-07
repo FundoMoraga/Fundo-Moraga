@@ -10,7 +10,7 @@ from contact_timing_prediction import get_contact_timing_predictor
 from satisfaction_detector import get_satisfaction_detector
 from fecha_libre_validator import validate_response_for_fecha_libre
 from admin_mode import get_admin_mode
-from typing import Optional
+from typing import Optional, Dict, Any
 import config
 
 
@@ -63,6 +63,7 @@ class InstagramBotEnhanced(HernandoBot):
         platform: str = "web",
         source: str = "widget",
         message_id: Optional[str] = None,
+        extra_context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Procesa un mensaje con todas las capacidades de IA avanzada.
@@ -84,12 +85,25 @@ class InstagramBotEnhanced(HernandoBot):
         if self.admin_mode.is_admin_key(message_text):
             is_active, response = self.admin_mode.toggle_mode(user_id, platform)
             return response
-        
-        # Si está activo, procesar como comando admin
-        if self.admin_mode.is_active(user_id):
-            admin_response = self.admin_mode.process_admin_command(user_id, message_text)
+
+        is_admin_session = self.admin_mode.is_active(user_id)
+
+        # Si está activo, procesar como comando admin (o pasar a IA si corresponde)
+        if is_admin_session:
+            admin_response = self.admin_mode.process_admin_command(user_id, message_text, allow_passthrough=True)
             if admin_response:
                 return admin_response
+            merged_admin_context = dict(extra_context) if isinstance(extra_context, dict) else {}
+            merged_admin_context.update({"admin_mode": "true", "admin_session": "active"})
+            return super().process_message(
+                user_id=user_id,
+                message_text=message_text,
+                platform=platform,
+                source="admin",
+                message_id=message_id,
+                sentiment_data={},
+                extra_context=merged_admin_context,
+            )
         
         # PASO 1: Intentar obtener de cache
         if self.cache:
@@ -205,6 +219,7 @@ class InstagramBotEnhanced(HernandoBot):
             source=source,
             message_id=message_id,
             sentiment_data=sentiment_data,
+            extra_context=extra_context,
         )
         
         # PASO 9: Cachear respuesta para futuras preguntas similares

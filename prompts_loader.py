@@ -14,7 +14,7 @@ Uso:
 from __future__ import annotations
 
 from typing import Dict, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import config
 
 
@@ -123,6 +123,66 @@ class PromptsLoader:
 
         except Exception as e:
             raise RuntimeError(f"Error fetching prompts from Cosmos: {e}") from e
+
+    def update_prompt(
+        self,
+        *,
+        persona: str,
+        prompt_type: str,
+        new_text: str,
+        db_name: Optional[str] = None,
+        container_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Actualiza el contenido del prompt (personalidad/operativo) en Cosmos.
+        """
+        normalized = (prompt_type or "").strip().lower()
+        if normalized in ("system", "personalidad", "persona"):
+            normalized = "personalidad"
+        elif normalized in ("operational", "operativo", "ops"):
+            normalized = "operativo"
+
+        if normalized not in ("personalidad", "operativo"):
+            raise ValueError("prompt_type debe ser 'personalidad' o 'operativo'")
+
+        client = self._connect()
+        _db_name = db_name or config.COSMOS_PROMPTS_DB
+        _container_name = container_name or config.COSMOS_PROMPTS_CONTAINER
+        db = client.get_database_client(_db_name)
+        cont = db.get_container_client(_container_name)
+
+        query = """
+            SELECT TOP 1 * FROM c
+            WHERE c.Categoria = @persona AND c.type = @type
+            ORDER BY c.version DESC
+        """
+        params = [
+            {"name": "@persona", "value": persona},
+            {"name": "@type", "value": normalized},
+        ]
+        items = list(
+            cont.query_items(
+                query=query,
+                parameters=params,
+                partition_key=persona,
+                enable_cross_partition_query=False,
+            )
+        )
+        if not items:
+            raise RuntimeError(f"No se encontró prompt tipo '{normalized}' para {persona}")
+
+        item = items[0]
+        item["content"] = new_text
+        item["updatedAt"] = datetime.now(timezone.utc).isoformat()
+        item["status"] = "active"
+        try:
+            item["version"] = int(item.get("version") or 0) + 1
+        except Exception:
+            item["version"] = 1
+
+        updated = cont.upsert_item(item)
+        self.clear_cache()
+        return updated
 
     def _is_cache_valid(self) -> bool:
         """Verifica si el caché sigue siendo válido."""

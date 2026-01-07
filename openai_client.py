@@ -36,60 +36,58 @@ class ChatbotAI:
         from prompts_loader import get_prompts_loader
         
         # Defaults embebidos (usado como fallback si Cosmos no responde)
-        self._default_system_prompt = """Eres Hernando, anfitrión virtual de Fundo Moraga. Eres como un huaso urbano educado: conoces el campo y la ciudad, hablas chileno natural pero no vulgar, eres hospitalario (no vendedor).
+        self._default_system_prompt = """Eres Hernando, anfitrión digital de Fundo Moraga. Tono cercano, claro y seguro: informal moderado, sin exceso de modismos. Usa un modismo chileno ocasional y suave si aporta cercanía; evita muletillas repetitivas.
 
-ESTRATEGIA CONVERSACIONAL - EXTRACCIÓN NATURAL DE INFORMACIÓN:
-1. NUNCA hagas 3+ preguntas seguidas sin comentar/validar entre medio
-2. Después de cada respuesta del usuario, COMENTA o VALIDA antes de siguiente pregunta
-3. USA storytelling: "Acá hemos tenido..." / "Te cuento que..." / "Según lo que veo..."
-4. ASUME y CONFIRMA: "Entonces si te cacho bien, necesitái..." → dar chance de corregir
-5. DA VALOR PRIMERO: "Te mando info completa, ¿a qué correo?" (no pedir contacto sin razón)
+OBJETIVO
+- Resolver con precisión, criterio y calidez.
+- Entregar valor primero y luego pedir datos.
+- Evitar respuestas vagas o evasivas; si falta información, pide lo mínimo necesario.
 
-LENGUAJE CHILENO NATURAL:
-- USA: "cachái", "bacán", "tinca", "piola", "altiro", "pa" (para), "po", "nomá"
-- USA: "¿Cómo vai?", "¿Qué onda?", "¿Te tinca?", "¿Cachái?"
-- EVITA: "usted", formalidad excesiva, "estimado"
-- SÍ USA: "tú", "te", tono cercano pero respetuoso
+CONVERSACIÓN
+1. No hagas 3+ preguntas seguidas sin validar o comentar.
+2. Valida/recapitula antes de preguntar.
+3. Si asumes algo, confirma en una línea.
+4. Evita repetir saludos o fórmulas cada turno.
 
-TONOS SEGÚN CONTEXTO:
-- Usuario casual/joven: Más relajado ("¡Wena compa!")
-- Usuario corporativo: Profesional pero cercano ("¡Hola! Bacán que estén viendo el fundo...")
-- Usuario interesado en historia: Educado y narrativo
+ADMIN MODE (cuando CONTEXTO indique admin_mode=true)
+- Trata al usuario como equipo interno, no cliente.
+- Responde directo, técnico si aplica, y propone pasos concretos.
+- No hagas venta ni pitch; evita textos promocionales.
+- Puedes hablar de prompts, DB, logs, despliegues y pruebas.
+- Si piden guardar reglas, sugiere /remember y confirma.
 
-PERSONALIDAD:
-- Eres hospitalario, no vendedor
-- Sabes harto pero no eres pedante
-- Si usuario hace talla, sigue la onda
-- Si pregunta seria, responde serio pero cercano
-- Valida y confirma comprensión frecuentemente
+PERSONALIDAD
+- Hospitalario, inteligente, con criterio.
+- No condescendiente; no inventes.
 """
-        self._default_operational_prompt = """EXTRACCIÓN DE INFORMACIÓN (sin interrogatorio):
+        self._default_operational_prompt = """RECOLECCIÓN DE DATOS (sin interrogatorio):
 
 Cuando necesitas NOMBRE:
-- "Pa dejarte coordinado, ¿cómo te llamo?"
-- "¿Y tú eres...? [pausa natural]"
+- "¿Cómo te llamas para registrarte?"
+- "¿A nombre de quién dejamos la solicitud?"
 
 Cuando necesitas TELÉFONO:
-- "Te mando los detalles por WhatsApp. ¿Cuál es tu celu?"
-- "Quedemos con WhatsApp, ¿me pasái tu número?"
+- "¿A qué número te escribo por WhatsApp?"
+- "¿Cuál es tu teléfono de contacto?"
 
 Cuando necesitas EMAIL:
-- "Te mando la info completa por mail. ¿A qué correo?"
-- "¿Cachai? Te puedo mandar el PDF con todo. ¿Tu email?"
+- "¿A qué correo te envío la información completa?"
+- "Si te parece, te mando el detalle por mail. ¿Cuál usas?"
 
 Cuando necesitas FECHA:
-- "¿Pa cuándo más o menos lo estás viendo?"
-- "¿Cachái si pa este finde o más adelante?"
+- "¿Para cuándo lo estás viendo?"
+- "¿Tienes una fecha tentativa?"
 
 Cuando necesitas CANTIDAD:
-- "¿Y van a ser varios o más piola, poca gente?"
-- "¿Cuántos fierros/motos serían más o menos?"
+- "¿Cuántos autos/motos serían?"
+- "¿Cuántas personas estimas?"
 
-REGLA ORO: Siempre da CONTEXTO o RAZÓN antes de pedir información.
-Ejemplo: "Pa mandarte el mapa y confirmar cupos, ¿cuál es tu contacto?" ✓
+REGLA ORO: Siempre da contexto antes de pedir información.
+Ejemplo: "Para enviarte el mapa y confirmar cupos, ¿cuál es tu contacto?" ✓
 No: "¿Cuál es tu contacto?" ✗
 
-Llama herramientas cuando usuario haya mencionado datos naturalmente, no como respuesta directa a pregunta.
+Si admin_mode=true, responde directo y no uses este guion salvo que lo pidan.
+Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como respuesta directa a pregunta.
 """
         
         # Cargar dinámicamente desde Cosmos DB
@@ -128,7 +126,7 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
         platform: Optional[str] = None,
         already_welcomed: Optional[bool] = None,
         lead_capture_already_sent: Optional[bool] = None,
-        extra_context: Optional[Dict[str, Any]] = None,
+        extra_context: Optional[Any] = None,
     ) -> List[Dict[str, str]]:
         messages: List[Dict[str, str]] = [{"role": "system", "content": self.system_prompt}]
 
@@ -154,7 +152,14 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
         if lead_capture_already_sent is not None:
             context_lines.append(f"lead_capture_already_sent={'true' if lead_capture_already_sent else 'false'}")
 
-        if extra_context:
+        is_admin_mode = False
+        if isinstance(extra_context, dict):
+            raw_admin = extra_context.get("admin_mode")
+            if isinstance(raw_admin, bool):
+                is_admin_mode = raw_admin
+            elif isinstance(raw_admin, str):
+                is_admin_mode = raw_admin.strip().lower() in ("1", "true", "yes", "on")
+
             for k, v in extra_context.items():
                 if v is None:
                     continue
@@ -168,22 +173,50 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
                 if len(value) > 400:
                     value = value[:400] + "…"
                 context_lines.append(f"{key}={value}")
+        elif isinstance(extra_context, str):
+            note = extra_context.strip()
+            if note:
+                if len(note) > 400:
+                    note = note[:400] + "…"
+                context_lines.append(f"extra_context_note={note}")
 
         if user_id:
             # Inyectar memoria: hechos, precios y resúmenes recientes.
             memory_lines: List[str] = []
-            facts = self.memory_store.list_facts(limit=5)
-            for f in facts:
-                key = f.get("key")
-                val = f.get("value")
-                scope = f.get("scope") or "global"
-                if key and val:
-                    memory_lines.append(f"fact[{scope}]: {key}={val}")
-                    if len(memory_lines) >= 5:
+            special_facts: Dict[str, str] = {}
+
+            def _append_fact(item: Dict[str, Any]) -> None:
+                key = item.get("key")
+                val = item.get("value")
+                scope = item.get("scope") or "global"
+                if not key or val is None:
+                    return
+                val_str = str(val).strip()
+                if not val_str:
+                    return
+                if len(val_str) > 300:
+                    val_str = val_str[:300] + "…"
+                if key in ("tone_guidelines", "admin_mode_not_client"):
+                    special_facts[key] = val_str
+                memory_lines.append(f"fact[{scope}]: {key}={val_str}")
+
+            scopes: List[tuple[str, int]] = [("global", 5)]
+            if is_admin_mode:
+                scopes.append(("admin", 5))
+            scopes.append((f"user:{user_id}", 4))
+
+            for scope, limit in scopes:
+                for f in self.memory_store.list_facts(scope=scope, limit=limit):
+                    _append_fact(f)
+                    if len(memory_lines) >= 10:
                         break
+                if len(memory_lines) >= 10:
+                    break
 
             prices = self.memory_store.list_prices(limit=5)
             for p in prices:
+                if len(memory_lines) >= 10:
+                    break
                 prod = p.get("product")
                 price = p.get("price")
                 curr = p.get("currency") or "CLP"
@@ -194,6 +227,8 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
 
             summaries = self.memory_store.get_conversation_summaries(user_id=user_id, limit=3)
             for s in summaries:
+                if len(memory_lines) >= 13:
+                    break
                 cid = s.get("conversationId")
                 summary = s.get("summary")
                 if summary:
@@ -201,6 +236,9 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
                     if len(memory_lines) >= 13:
                         break
 
+            if special_facts:
+                for key, val in special_facts.items():
+                    context_lines.append(f"{key}={val}")
             if memory_lines:
                 context_lines.append("MEMORIA")
                 context_lines.extend(memory_lines)
@@ -425,7 +463,7 @@ Llama herramientas cuando usuario haya mencionado datos naturalmente, no como re
         user_id: Optional[str] = None,
         already_welcomed: Optional[bool] = None,
         lead_capture_already_sent: Optional[bool] = None,
-        extra_context: Optional[Dict[str, Any]] = None,
+        extra_context: Optional[Any] = None,
         return_events: bool = False,
     ) -> Any:
         """

@@ -287,18 +287,54 @@ a {
 }
 
 .btn-reserva {
-    background: var(--accent-color);
-    color: #000000;
-    padding: 12px 28px;
-    border-radius: 25px;
-    font-weight: 600;
-    transition: var(--transition);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(130deg, rgba(255, 236, 180, 0.98), var(--accent-color) 45%, var(--accent-dark));
+    color: #0a0a0a;
+    padding: 12px 26px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.92rem;
+    letter-spacing: 0.4px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    transition: transform 200ms ease, filter 200ms ease, box-shadow 200ms ease;
+    overflow: hidden;
+}
+
+.btn-reserva::before {
+    content: "";
+    position: absolute;
+    inset: -120% 60% -120% -60%;
+    background: linear-gradient(110deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+    transform: translateX(-120%);
+    transition: transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-reserva:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(245, 158, 11, 0.4);
-    background: #fbbf24;
+    filter: brightness(1.05) saturate(1.05);
+    box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.35),
+        0 18px 36px rgba(212, 175, 55, 0.3);
+}
+
+.btn-reserva:hover::before {
+    transform: translateX(120%);
+}
+
+.btn-reserva:active {
+    transform: translateY(0);
+}
+
+.btn-reserva:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 4px rgba(212, 175, 55, 0.25),
+        0 16px 40px rgba(0, 0, 0, 0.35),
+        0 18px 36px rgba(212, 175, 55, 0.3);
 }
 
 .btn-map {
@@ -495,43 +531,58 @@ a {
 }
 
 .btn-primary {
-    display: inline-block;
-    background: var(--accent-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(130deg, rgba(255, 236, 180, 0.98), var(--accent-color) 45%, var(--accent-dark));
     color: #0a0a0a;
     padding: 18px 45px;
-    border-radius: 50px;
-    font-weight: 600;
-    font-size: 1.1rem;
-    transition: var(--transition);
-    border: none;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.4px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+    transition: transform 200ms ease, filter 200ms ease, box-shadow 200ms ease;
+    box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.3),
+        0 14px 28px rgba(212, 175, 55, 0.28);
 }
 
 .btn-primary::before {
-    content: '';
+    content: "";
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.btn-primary:hover::before {
-    width: 300px;
-    height: 300px;
+    inset: -120% 60% -120% -60%;
+    background: linear-gradient(110deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    transform: translateX(-120%);
+    transition: transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-primary:hover {
-    transform: translateY(-3px) scale(1.05);
-    background: var(--accent-light);
-    box-shadow: 0 15px 40px rgba(212, 175, 55, 0.6);
+    transform: translateY(-2px);
+    filter: brightness(1.06) saturate(1.05);
+    box-shadow:
+        0 20px 46px rgba(0, 0, 0, 0.35),
+        0 20px 44px rgba(212, 175, 55, 0.32);
+}
+
+.btn-primary:hover::before {
+    transform: translateX(120%);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-primary:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 4px rgba(212, 175, 55, 0.25),
+        0 20px 46px rgba(0, 0, 0, 0.35),
+        0 20px 44px rgba(212, 175, 55, 0.32);
 }
 
 .scroll-indicator {
@@ -1332,13 +1383,9 @@ section {
 }
 
 .btn-hernando {
-    background: var(--accent-color);
     width: 100%;
 }
 
-.btn-hernando:hover {
-    background: var(--accent-light);
-}
 
 /* ============================================
    FOOTER
@@ -1644,18 +1691,41 @@ section {
 }
 
 .chat-footer button {
-    background: var(--primary-color);
-    color: white;
-    border: none;
+    position: relative;
+    background: linear-gradient(130deg, rgba(255, 236, 180, 0.98), var(--accent-color) 45%, var(--accent-dark));
+    color: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.22);
     padding: 12px 25px;
-    border-radius: 25px;
+    border-radius: 999px;
     cursor: pointer;
-    font-weight: 600;
-    transition: var(--transition);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    overflow: hidden;
+    transition: transform 200ms ease, filter 200ms ease, box-shadow 200ms ease;
+    box-shadow:
+        0 14px 30px rgba(0, 0, 0, 0.3),
+        0 12px 24px rgba(212, 175, 55, 0.22);
+}
+
+.chat-footer button::before {
+    content: "";
+    position: absolute;
+    inset: -120% 60% -120% -60%;
+    background: linear-gradient(110deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+    transform: translateX(-120%);
+    transition: transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .chat-footer button:hover {
-    background: var(--secondary-color);
+    transform: translateY(-1px);
+    filter: brightness(1.05) saturate(1.05);
+    box-shadow:
+        0 16px 36px rgba(0, 0, 0, 0.35),
+        0 16px 30px rgba(212, 175, 55, 0.28);
+}
+
+.chat-footer button:hover::before {
+    transform: translateX(120%);
 }
 
 /* ============================================
@@ -2196,7 +2266,9 @@ section {
     padding: 12px 24px;
     font-size: 0.95rem;
     margin-top: 15px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* ============================================

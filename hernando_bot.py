@@ -65,6 +65,7 @@ class HernandoBot:
         source: str = "widget",
         message_id: Optional[str] = None,
         sentiment_data: Optional[Dict[str, Any]] = None,
+        extra_context: Optional[Any] = None,
     ) -> str:
         """
         Procesa un mensaje entrante del usuario
@@ -122,203 +123,215 @@ class HernandoBot:
 
             platform = platform_label
             lead_context = self._build_lead_context(conversation_history, conversation_id)
-            is_farewell = self._is_farewell_message(message_text)
+            extra_context_payload: Dict[str, Any] = {}
+            if isinstance(lead_context, dict):
+                extra_context_payload.update(lead_context)
+            if isinstance(extra_context, dict):
+                extra_context_payload.update(extra_context)
+            elif isinstance(extra_context, str) and extra_context.strip():
+                extra_context_payload["extra_context_note"] = extra_context.strip()
+            if source == "admin" and "admin_mode" not in extra_context_payload:
+                extra_context_payload["admin_mode"] = "true"
+            is_admin_mode = str(extra_context_payload.get("admin_mode", "")).strip().lower() in ("1", "true", "yes", "on")
+            is_farewell = self._is_farewell_message(message_text) if not is_admin_mode else False
 
-            # 4. Flujo determinístico de agendamiento (no depende del modelo)
-            booking_response = self._handle_booking_flow(
-                user_id=user_id,
-                conversation_id=conversation_id,
-                message_text=message_text,
-                conversation_history=conversation_history,
-                platform=platform,
-            )
-            if booking_response:
-                booking_response = self._sanitize_user_response(booking_response)
-                self.conversation_store.save_message(
-                    user_id=user_id,
-                    role="assistant",
-                    message=booking_response,
-                    conversation_id=conversation_id,
-                    metadata={"platform": platform_key, "source": "booking_flow"},
-                )
-                self._maybe_auto_lead_capture(
+            if not is_admin_mode:
+                # 4. Flujo determinístico de agendamiento (no depende del modelo)
+                booking_response = self._handle_booking_flow(
                     user_id=user_id,
                     conversation_id=conversation_id,
+                    message_text=message_text,
                     conversation_history=conversation_history,
                     platform=platform,
-                    lead_context=lead_context,
                 )
-                self._maybe_finalize_after_reply(
-                    platform_key=platform_key,
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    lead_context=lead_context,
-                    is_farewell=is_farewell,
-                )
-                return booking_response
+                if booking_response:
+                    booking_response = self._sanitize_user_response(booking_response)
+                    self.conversation_store.save_message(
+                        user_id=user_id,
+                        role="assistant",
+                        message=booking_response,
+                        conversation_id=conversation_id,
+                        metadata={"platform": platform_key, "source": "booking_flow"},
+                    )
+                    self._maybe_auto_lead_capture(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        platform=platform,
+                        lead_context=lead_context,
+                    )
+                    self._maybe_finalize_after_reply(
+                        platform_key=platform_key,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        lead_context=lead_context,
+                        is_farewell=is_farewell,
+                    )
+                    return booking_response
 
-            # 4.25 Respuesta determinística para fecha/día (evita errores del modelo)
-            date_response = self._handle_date_questions(message_text)
-            if date_response:
-                date_response = self._sanitize_user_response(date_response)
-                self.conversation_store.save_message(
-                    user_id=user_id,
-                    role="assistant",
-                    message=date_response,
-                    conversation_id=conversation_id,
-                    metadata={"platform": platform_key, "source": "date_flow"},
-                )
-                self._maybe_auto_lead_capture(
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    platform=platform,
-                    lead_context=lead_context,
-                )
-                self._maybe_finalize_after_reply(
-                    platform_key=platform_key,
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    lead_context=lead_context,
-                    is_farewell=is_farewell,
-                )
-                return date_response
+                # 4.25 Respuesta determinística para fecha/día (evita errores del modelo)
+                date_response = self._handle_date_questions(message_text)
+                if date_response:
+                    date_response = self._sanitize_user_response(date_response)
+                    self.conversation_store.save_message(
+                        user_id=user_id,
+                        role="assistant",
+                        message=date_response,
+                        conversation_id=conversation_id,
+                        metadata={"platform": platform_key, "source": "date_flow"},
+                    )
+                    self._maybe_auto_lead_capture(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        platform=platform,
+                        lead_context=lead_context,
+                    )
+                    self._maybe_finalize_after_reply(
+                        platform_key=platform_key,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        lead_context=lead_context,
+                        is_farewell=is_farewell,
+                    )
+                    return date_response
 
-            # 4.3 Flujo determinístico para eventos/producciones (coordinar con equipo)
-            admin_response = self._handle_admin_coordination(message_text)
-            if admin_response:
-                admin_response = self._sanitize_user_response(admin_response)
-                self.conversation_store.save_message(
-                    user_id=user_id,
-                    role="assistant",
-                    message=admin_response,
-                    conversation_id=conversation_id,
-                    metadata={"platform": platform_key, "source": "admin_flow"},
-                )
-                self._maybe_auto_lead_capture(
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    platform=platform,
-                    lead_context=lead_context,
-                )
-                self._maybe_finalize_after_reply(
-                    platform_key=platform_key,
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    lead_context=lead_context,
-                    is_farewell=is_farewell,
-                )
-                return admin_response
+                # 4.3 Flujo determinístico para eventos/producciones (coordinar con equipo)
+                admin_response = self._handle_admin_coordination(message_text)
+                if admin_response:
+                    admin_response = self._sanitize_user_response(admin_response)
+                    self.conversation_store.save_message(
+                        user_id=user_id,
+                        role="assistant",
+                        message=admin_response,
+                        conversation_id=conversation_id,
+                        metadata={"platform": platform_key, "source": "admin_flow"},
+                    )
+                    self._maybe_auto_lead_capture(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        platform=platform,
+                        lead_context=lead_context,
+                    )
+                    self._maybe_finalize_after_reply(
+                        platform_key=platform_key,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        lead_context=lead_context,
+                        is_farewell=is_farewell,
+                    )
+                    return admin_response
 
-            # 4.5 Respuesta determinística para tarifas públicas (evita respuestas genéricas del modelo)
-            pricing_response = self._handle_public_pricing(message_text)
-            if pricing_response:
-                pricing_response = self._sanitize_user_response(pricing_response)
-                self.conversation_store.save_message(
-                    user_id=user_id,
-                    role="assistant",
-                    message=pricing_response,
-                    conversation_id=conversation_id,
-                    metadata={"platform": platform_key, "source": "pricing_flow"},
-                )
-                self._maybe_auto_lead_capture(
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    platform=platform,
-                    lead_context=lead_context,
-                )
-                self._maybe_finalize_after_reply(
-                    platform_key=platform_key,
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    lead_context=lead_context,
-                    is_farewell=is_farewell,
-                )
-                return pricing_response
+                # 4.5 Respuesta determinística para tarifas públicas (evita respuestas genéricas del modelo)
+                pricing_response = self._handle_public_pricing(message_text)
+                if pricing_response:
+                    pricing_response = self._sanitize_user_response(pricing_response)
+                    self.conversation_store.save_message(
+                        user_id=user_id,
+                        role="assistant",
+                        message=pricing_response,
+                        conversation_id=conversation_id,
+                        metadata={"platform": platform_key, "source": "pricing_flow"},
+                    )
+                    self._maybe_auto_lead_capture(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        platform=platform,
+                        lead_context=lead_context,
+                    )
+                    self._maybe_finalize_after_reply(
+                        platform_key=platform_key,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        lead_context=lead_context,
+                        is_farewell=is_farewell,
+                    )
+                    return pricing_response
 
-            # 4.6 Respuesta determinística para visitas/turismo rural (evita depender del modelo)
-            visit_response = self._handle_visit_interest(message_text)
-            if visit_response:
-                visit_response = self._sanitize_user_response(visit_response)
-                self.conversation_store.save_message(
-                    user_id=user_id,
-                    role="assistant",
-                    message=visit_response,
-                    conversation_id=conversation_id,
-                    metadata={"platform": platform_key, "source": "visit_flow"},
-                )
-                self._maybe_auto_lead_capture(
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    platform=platform,
-                    lead_context=lead_context,
-                )
-                self._maybe_finalize_after_reply(
-                    platform_key=platform_key,
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    lead_context=lead_context,
-                    is_farewell=is_farewell,
-                )
-                return visit_response
+                # 4.6 Respuesta determinística para visitas/turismo rural (evita depender del modelo)
+                visit_response = self._handle_visit_interest(message_text)
+                if visit_response:
+                    visit_response = self._sanitize_user_response(visit_response)
+                    self.conversation_store.save_message(
+                        user_id=user_id,
+                        role="assistant",
+                        message=visit_response,
+                        conversation_id=conversation_id,
+                        metadata={"platform": platform_key, "source": "visit_flow"},
+                    )
+                    self._maybe_auto_lead_capture(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        platform=platform,
+                        lead_context=lead_context,
+                    )
+                    self._maybe_finalize_after_reply(
+                        platform_key=platform_key,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        lead_context=lead_context,
+                        is_farewell=is_farewell,
+                    )
+                    return visit_response
 
-            # 4.7 Respuesta determinística para preguntas frecuentes (baños/comida, etc.)
-            amenities_response = self._handle_amenities_questions(message_text)
-            if amenities_response:
-                amenities_response = self._sanitize_user_response(amenities_response)
-                self.conversation_store.save_message(
-                    user_id=user_id,
-                    role="assistant",
-                    message=amenities_response,
-                    conversation_id=conversation_id,
-                    metadata={"platform": platform_key, "source": "amenities_flow"},
-                )
-                self._maybe_auto_lead_capture(
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    platform=platform,
-                    lead_context=lead_context,
-                )
-                self._maybe_finalize_after_reply(
-                    platform_key=platform_key,
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    conversation_history=conversation_history,
-                    lead_context=lead_context,
-                    is_farewell=is_farewell,
-                )
-                return amenities_response
+                # 4.7 Respuesta determinística para preguntas frecuentes (baños/comida, etc.)
+                amenities_response = self._handle_amenities_questions(message_text)
+                if amenities_response:
+                    amenities_response = self._sanitize_user_response(amenities_response)
+                    self.conversation_store.save_message(
+                        user_id=user_id,
+                        role="assistant",
+                        message=amenities_response,
+                        conversation_id=conversation_id,
+                        metadata={"platform": platform_key, "source": "amenities_flow"},
+                    )
+                    self._maybe_auto_lead_capture(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        platform=platform,
+                        lead_context=lead_context,
+                    )
+                    self._maybe_finalize_after_reply(
+                        platform_key=platform_key,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        lead_context=lead_context,
+                        is_farewell=is_farewell,
+                    )
+                    return amenities_response
 
-            # 4.8 Saludo determinístico (evita depender del modelo en el primer mensaje)
-            greeting_response = self._handle_greeting(message_text)
-            if greeting_response:
-                greeting_response = self._sanitize_user_response(greeting_response)
-                self.conversation_store.save_message(
-                    user_id=user_id,
-                    role="assistant",
-                    message=greeting_response,
-                    conversation_id=conversation_id,
-                    metadata={"platform": platform_key, "source": "greeting_flow"},
-                )
-                return greeting_response
+                # 4.8 Saludo determinístico (evita depender del modelo en el primer mensaje)
+                greeting_response = self._handle_greeting(message_text)
+                if greeting_response:
+                    greeting_response = self._sanitize_user_response(greeting_response)
+                    self.conversation_store.save_message(
+                        user_id=user_id,
+                        role="assistant",
+                        message=greeting_response,
+                        conversation_id=conversation_id,
+                        metadata={"platform": platform_key, "source": "greeting_flow"},
+                    )
+                    return greeting_response
             
             # 5. Validar flujo conversacional antes de generar respuesta
             # Prevenir interrogatorio detectando preguntas consecutivas
-            recent_bot_messages = []
-            for msg in reversed(conversation_history[-5:]):  # Últimos 5 mensajes
-                if msg.get("role") == "assistant":
-                    recent_bot_messages.append(msg.get("message", ""))
-            
-            validation_prefix = get_validation_message_if_needed(recent_bot_messages)
+            validation_prefix = ""
+            if not is_admin_mode:
+                recent_bot_messages = []
+                for msg in reversed(conversation_history[-5:]):  # Últimos 5 mensajes
+                    if msg.get("role") == "assistant":
+                        recent_bot_messages.append(msg.get("message", ""))
+                validation_prefix = get_validation_message_if_needed(recent_bot_messages)
             
             # 6. Generar respuesta con OpenAI usando el contexto
             already_welcomed = any(
@@ -331,12 +344,16 @@ class HernandoBot:
             )
 
             # Para alinear el estilo con el chat web, no pasamos "Instagram" como plataforma al prompt del modelo.
-            prompt_platform = "Web"
+            prompt_platform = "Admin" if is_admin_mode else "Web"
             
             # Construir contexto adicional con validación si es necesario
-            extra_lead_context = lead_context
+            extra_lead_context: Dict[str, Any] = dict(extra_context_payload)
             if validation_prefix:
-                extra_lead_context = f"[IMPORTANTE: Detectadas múltiples preguntas consecutivas. DEBES empezar tu respuesta con una validación/comentario como: '{validation_prefix}' ANTES de continuar con más preguntas]\n\n{lead_context}"
+                extra_lead_context["validation_prefix"] = validation_prefix
+                extra_lead_context["validation_note"] = (
+                    "Detectadas múltiples preguntas consecutivas. "
+                    "Empieza con una validación/comentario breve antes de hacer nuevas preguntas."
+                )
 
             ai_result = self.chatbot_ai.generate_response(
                 user_message=message_text,
@@ -406,23 +423,24 @@ class HernandoBot:
                     events=events,
                 )
 
-            if not lead_handled:
-                self._maybe_auto_lead_capture(
+            if not is_admin_mode:
+                if not lead_handled:
+                    self._maybe_auto_lead_capture(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        conversation_history=conversation_history,
+                        platform=platform,
+                        lead_context=lead_context,
+                    )
+
+                self._maybe_finalize_after_reply(
+                    platform_key=platform_key,
                     user_id=user_id,
                     conversation_id=conversation_id,
                     conversation_history=conversation_history,
-                    platform=platform,
                     lead_context=lead_context,
+                    is_farewell=is_farewell,
                 )
-
-            self._maybe_finalize_after_reply(
-                platform_key=platform_key,
-                user_id=user_id,
-                conversation_id=conversation_id,
-                conversation_history=conversation_history,
-                lead_context=lead_context,
-                is_farewell=is_farewell,
-            )
             
             print(f"📤 Respuesta: {response_text}")
             

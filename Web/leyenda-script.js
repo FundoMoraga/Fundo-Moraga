@@ -4,6 +4,8 @@
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
     const prefersReducedMotion =
         window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
+    const forceMotion = true;
+    const motionEnabled = forceMotion || !prefersReducedMotion;
 
     const revealAll = () => {
         document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-visible'));
@@ -258,7 +260,7 @@
     const initPostFxCanvas = () => {
         const canvas = document.getElementById('postfx-canvas');
         if (!canvas) return () => {};
-        if (prefersReducedMotion) return () => {};
+        if (!motionEnabled) return () => {};
 
         const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
         if (!ctx) return () => {};
@@ -535,6 +537,7 @@
         const navbar = document.querySelector('.navbar');
         const chapterNav = document.querySelector('.chapter-nav');
         const root = document.documentElement;
+        if (motionEnabled) document.body?.classList.add('force-motion');
 
         const syncHeaderVars = () => {
             const navHeight = navbar?.getBoundingClientRect().height ?? 0;
@@ -577,7 +580,7 @@
         const heroVideo = document.getElementById('leyenda-hero-video');
 
         const initGlobalLantern = () => {
-            if (prefersReducedMotion) return () => {};
+        if (!motionEnabled) return () => {};
 
             let raf = 0;
             let currentX = 50;
@@ -626,11 +629,7 @@
             };
         };
 
-        const shouldDisableHeroVideo = () => {
-            if (prefersReducedMotion) return true;
-            const saveData = navigator.connection?.saveData ?? false;
-            return Boolean(saveData);
-        };
+        const shouldDisableHeroVideo = () => !motionEnabled;
 
         if (hero && heroVideo) {
             if (shouldDisableHeroVideo()) {
@@ -643,6 +642,11 @@
                 heroVideo.muted = true;
                 heroVideo.defaultMuted = true;
                 heroVideo.playsInline = true;
+                heroVideo.setAttribute('muted', '');
+                heroVideo.setAttribute('playsinline', '');
+                heroVideo.setAttribute('autoplay', '');
+                heroVideo.setAttribute('loop', '');
+                heroVideo.preload = 'auto';
 
                 const markVideoReady = () => hero.classList.add('has-video');
                 const unmarkVideo = () => hero.classList.remove('has-video');
@@ -669,6 +673,8 @@
                 };
 
                 tryPlay();
+                heroVideo.addEventListener('canplay', tryPlay, { once: true });
+                heroVideo.addEventListener('loadeddata', tryPlay, { once: true });
 
                 document.addEventListener('visibilitychange', () => {
                     if (document.hidden) {
@@ -690,7 +696,7 @@
             hero.style.setProperty('--hero-parallax', `${shift.toFixed(1)}px`);
         };
 
-        if (hero && !prefersReducedMotion) {
+        if (hero && motionEnabled) {
             let pointerRaf = 0;
             let lastEvent = null;
 

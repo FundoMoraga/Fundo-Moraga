@@ -10,8 +10,8 @@
         document.documentElement.classList.remove('no-js');
         document.documentElement.classList.add('js');
     </script>
-    <link rel="stylesheet" href="styles.css?v=20260107-2">
-    <link rel="stylesheet" href="mapa-styles.css?v=20260106-15">
+    <link rel="stylesheet" href="styles.css?v=20260107-4">
+    <link rel="stylesheet" href="mapa-styles.css?v=20260107-2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -58,6 +58,20 @@
                 <h1>Rutas Batuco Off Road</h1>
                 <p>Explora rutas reales del Fundo Moraga, con vista satelital y detalles.</p>
             </div>
+            <div class="mapa-header__stats" aria-label="Resumen de rutas">
+                <div class="mapa-stat">
+                    <span class="mapa-stat__label">Rutas</span>
+                    <span class="mapa-stat__value" id="mapaStatRoutes">—</span>
+                </div>
+                <div class="mapa-stat">
+                    <span class="mapa-stat__label">Kilómetros</span>
+                    <span class="mapa-stat__value" id="mapaStatKm">—</span>
+                </div>
+                <div class="mapa-stat">
+                    <span class="mapa-stat__label">Dificultad max</span>
+                    <span class="mapa-stat__value" id="mapaStatDifficulty">—</span>
+                </div>
+            </div>
             <div class="mapa-header__actions">
                 <button id="mapaRoutesToggle" class="mapa-btn" type="button" aria-expanded="true" aria-controls="mapaPanel">
                     Rutas
@@ -70,6 +84,20 @@
 
         <section class="mapa-stage" aria-label="Mapa">
             <div id="map" class="mapa-canvas" role="application" aria-label="Mapa de rutas"></div>
+
+            <section class="mapa-spotlight" aria-label="Ruta destacada">
+                <div class="mapa-spotlight__kicker">Ruta destacada</div>
+                <h3 id="mapaSpotlightTitle">Selecciona una ruta</h3>
+                <p id="mapaSpotlightDesc">Explora el listado para ver detalles y enfocar la ruta en el mapa.</p>
+                <div class="mapa-spotlight__meta">
+                    <span id="mapaSpotlightDistance">— km</span>
+                    <span id="mapaSpotlightDifficulty">Dificultad —</span>
+                </div>
+                <div class="mapa-spotlight__actions">
+                    <button id="mapaSpotlightFocus" class="mapa-btn" type="button" disabled>Enfocar</button>
+                    <button id="mapaSpotlightPlay" class="mapa-btn mapa-btn--ghost" type="button" disabled>Recorrido</button>
+                </div>
+            </section>
 
             <aside id="mapaPanel" class="mapa-panel" aria-label="Panel de rutas">
                 <div class="mapa-panel__top">
@@ -199,6 +227,6 @@
         })();
     </script>
     <script src="script.js?v=20260106-15"></script>
-    <script src="mapa-script.js?v=20260106-15"></script>
+    <script src="mapa-script.js?v=20260107-3"></script>
 </body>
 </html>

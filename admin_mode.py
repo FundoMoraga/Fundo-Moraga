@@ -66,6 +66,7 @@ class AdminMode:
                 f"• `/edit [id] [campo] [valor]` - Editar registro\n"
                 f"• `/delete [id]` - Eliminar registro\n"
                 f"• `/prompts` - Ver/editar prompts de Hernando\n"
+                f"• `/remember [scope] [key] [valor]` - Guardar instrucciones en memoria\n"
                 f"• `/search [texto]` - Buscar en Memoria\n"
                 f"• `/conversations [user_id]` - Ver conversaciones\n"
                 f"• `/error [conversation_id]` - Analizar error en conversación\n"
@@ -89,7 +90,7 @@ class AdminMode:
                 "details": details
             })
     
-    def process_admin_command(self, user_id: str, message: str) -> Optional[str]:
+    def process_admin_command(self, user_id: str, message: str, *, allow_passthrough: bool = False) -> Optional[str]:
         """
         Procesa comandos del modo desarrollador
         
@@ -110,6 +111,8 @@ class AdminMode:
             return self._cmd_delete(user_id, message)
         elif message.startswith("/prompts"):
             return self._cmd_prompts(user_id, message)
+        elif message.startswith("/remember"):
+            return self._cmd_remember(user_id, message)
         elif message.startswith("/search"):
             return self._cmd_search(user_id, message)
         elif message.startswith("/conversations"):
@@ -120,7 +123,14 @@ class AdminMode:
             return self._cmd_fix(user_id, message)
         else:
             # Análisis en lenguaje natural
-            return self._analyze_natural_request(user_id, message)
+            natural_response = self._analyze_natural_request(user_id, message)
+            if natural_response:
+                return natural_response
+            return None if allow_passthrough else (
+                "🤖 Estoy en modo desarrollador.\n\n"
+                "Usa `/view [categoria]` para explorar datos\n"
+                "o describe más específicamente qué necesitas corregir."
+            )
     
     def _cmd_view(self, user_id: str, message: str) -> str:
         """Ver datos de Cosmos DB por categoría"""
@@ -302,11 +312,62 @@ class AdminMode:
             prompt_name = parts[1]
             new_text = parts[2]
             
-            # Aquí deberías actualizar en Cosmos DB (container Hernando)
+            try:
+                loader = get_prompts_loader()
+                updated = loader.update_prompt(
+                    persona="Hernando",
+                    prompt_type=prompt_name,
+                    new_text=new_text,
+                )
+                self.increment_changes(user_id)
+                self.add_context(user_id, "prompt_update", {"prompt": prompt_name})
+                return (
+                    f"✅ Prompt actualizado: {prompt_name}\n"
+                    f"ID: {updated.get('id', 'N/A')}\n"
+                    f"Versión: {updated.get('version', 'N/A')}"
+                )
+            except Exception as e:
+                return f"❌ Error actualizando prompt: {e}"
+
+    def _slugify(self, text: str) -> str:
+        raw = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE).strip().lower()
+        raw = re.sub(r"[\s_-]+", "-", raw)
+        return raw[:48] or "nota"
+
+    def _store_fact(self, *, scope: str, key: str, value: str) -> Dict[str, Any]:
+        return self.memory_store.upsert_fact(key=key, value=value, scope=scope, tags=["admin"])
+
+    def _cmd_remember(self, user_id: str, message: str) -> str:
+        """
+        Guarda un hecho en Memoria.
+        Uso: /remember [scope] [key] [valor]
+        scope opcional: admin (default) o global.
+        """
+        parts = message.split(maxsplit=3)
+        if len(parts) < 3:
             return (
-                f"✅ **Prompt actualizado:** `{prompt_name}`\n\n"
-                f"Nota: Implementa actualización de prompts en Cosmos DB."
+                "Uso: /remember [scope] [key] [valor]\n"
+                "Ejemplo: /remember admin tono \"cercano, sin exceso de modismos\""
             )
+
+        scope = parts[1].lower()
+        if scope not in ("admin", "global"):
+            key = parts[1]
+            value = parts[2] if len(parts) == 3 else parts[2] + " " + parts[3]
+            scope = "admin"
+        else:
+            if len(parts) < 4:
+                return "Uso: /remember [scope] [key] [valor]"
+            key = parts[2]
+            value = parts[3]
+
+        try:
+            stored = self._store_fact(scope=scope, key=key, value=value)
+            self.increment_changes(user_id)
+            self.add_context(user_id, "remember", {"scope": scope, "key": key})
+            return f"✅ Guardado en memoria ({scope}): {stored.get('id', key)}"
+        except Exception as e:
+            return f"❌ Error guardando memoria: {e}"
     
     def _cmd_search(self, user_id: str, message: str) -> str:
         """Buscar en memoria por texto"""
@@ -415,6 +476,33 @@ class AdminMode:
     def _analyze_natural_request(self, user_id: str, message: str) -> str:
         """Analiza solicitudes en lenguaje natural"""
         msg_lower = message.lower()
+
+        # Intento de guardar instrucciones en memoria (admin)
+        memory_patterns = [
+            r"(guarda(?: esto)? en tu memoria(?: de cosmos db)?)[\s:]+(.+)",
+            r"(recuerda|memoriza|registra)[\s:]+(.+)",
+            r"(guarda|recuerda|memoriza)\s+que\s+(.+)",
+        ]
+        for pattern in memory_patterns:
+            m = re.search(pattern, message, re.IGNORECASE)
+            if m:
+                raw_value = (m.group(2) or "").strip()
+                if raw_value:
+                    key = "admin_note_" + self._slugify(raw_value.split(".")[0])
+                    scope = "admin"
+                    if "credencial" in msg_lower or "clave" in msg_lower:
+                        key = "admin_mode_not_client"
+                    if "lenguaje" in msg_lower or "modismo" in msg_lower:
+                        key = "tone_guidelines"
+                        scope = "global"
+                    try:
+                        stored = self._store_fact(scope=scope, key=key, value=raw_value)
+                        self.increment_changes(user_id)
+                        self.add_context(user_id, "remember", {"scope": scope, "key": key})
+                        return f"✅ Guardado en memoria {scope}: {stored.get('id', key)}"
+                    except Exception as e:
+                        return f"❌ Error guardando memoria: {e}"
+                break
         
         # Detección de intenciones comunes
         if any(word in msg_lower for word in ["precio", "tarifa", "costo"]):
@@ -438,12 +526,7 @@ class AdminMode:
                 "`/search [texto_error]` - Buscar en base de datos"
             )
         
-        # Respuesta genérica
-        return (
-            "🤖 Estoy en modo desarrollador.\n\n"
-            "Usa `/view [categoria]` para explorar datos\n"
-            "o describe más específicamente qué necesitas corregir."
-        )
+        return ""
 
 
 # Instancia global
