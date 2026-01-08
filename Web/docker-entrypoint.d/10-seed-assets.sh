@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+ASSETS_VOLUME_PATH="${ASSETS_VOLUME_PATH:-/usr/share/nginx/html/assets}"
+ASSETS_SEED_PATH="${ASSETS_SEED_PATH:-/seed/assets}"
+
+if [ ! -d "$ASSETS_SEED_PATH" ]; then
+  echo "[seed-assets] Seed no existe: $ASSETS_SEED_PATH (omitido)"
+  exit 0
+fi
+
+mkdir -p "$ASSETS_VOLUME_PATH"
+
+echo "[seed-assets] Seed:   $ASSETS_SEED_PATH"
+echo "[seed-assets] Volumen:$ASSETS_VOLUME_PATH"
+
+# Algunos proveedores crean 'lost+found' en el root del volumen; no debe bloquear el seed.
+HAS_REAL_CONTENT="$(find "$ASSETS_VOLUME_PATH" -mindepth 1 -maxdepth 1 ! -name 'lost+found' -print -quit 2>/dev/null || true)"
+
+if [ -z "$HAS_REAL_CONTENT" ]; then
+  echo "[seed-assets] Inicializando volumen: $ASSETS_VOLUME_PATH"
+  cp -a "$ASSETS_SEED_PATH/." "$ASSETS_VOLUME_PATH/"
+  echo "[seed-assets] Ejemplos:"
+  find "$ASSETS_VOLUME_PATH" -type f -maxdepth 3 | head -n 5 | sed 's/^/[seed-assets] - /' || true
+else
+  echo "[seed-assets] Volumen ya contiene archivos: $ASSETS_VOLUME_PATH"
+fi
