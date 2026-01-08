@@ -22,6 +22,16 @@ if [ "$FORCE_ASSETS_SEED" = "1" ]; then
   echo "[seed-assets] FORCE_ASSETS_SEED=1; re-seed activado"
   rm -rf "$ASSETS_VOLUME_PATH"/*
   cp -a "$ASSETS_SEED_PATH/." "$ASSETS_VOLUME_PATH/"
+  echo "[seed-assets] Re-seed completo. Conteo:"
+  echo "[seed-assets] - dirs:  $(find "$ASSETS_VOLUME_PATH" -type d | wc -l | tr -d ' ')"
+  echo "[seed-assets] - files: $(find "$ASSETS_VOLUME_PATH" -type f | wc -l | tr -d ' ')"
+  for f in "images/Logo Fundo Moraga.png" "images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG" "images/Hernando.PNG" "videos/Fundo Moraga.mp4" "videos/Leyenda Fundo Moraga.mp4"; do
+    if [ -f "$ASSETS_VOLUME_PATH/$f" ]; then
+      echo "[seed-assets] OK: $f"
+    else
+      echo "[seed-assets] MISSING: $f"
+    fi
+  done
 elif [ -z "$HAS_REAL_CONTENT" ]; then
   echo "[seed-assets] Inicializando volumen: $ASSETS_VOLUME_PATH"
   cp -a "$ASSETS_SEED_PATH/." "$ASSETS_VOLUME_PATH/"
