@@ -273,8 +273,8 @@
         };
 
         const kmlSources = [
-            'assets/data/rutas-batuco-off-road.kml',
-            'assets/images/Rutas%20Batuco%20Off%20Road%20(1).kml',
+            'https://fundomoragastorage.blob.core.windows.net/assets/data/rutas-batuco-off-road.kml',
+            'https://fundomoragastorage.blob.core.windows.net/assets/images/Rutas%20Batuco%20Off%20Road%20%281).kml',
         ];
         let geojson = null;
 
@@ -484,3 +484,4 @@
         else init();
     } catch (e) {}
 })();
+

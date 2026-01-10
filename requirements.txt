@@ -34,3 +34,6 @@ opentelemetry-sdk>=1.20.0
 
 # Azure AI Language (Text Analytics)
 azure-ai-textanalytics>=5.3.0
+
+# Azure Storage Blob SDK
+azure-storage-blob>=12.19.0

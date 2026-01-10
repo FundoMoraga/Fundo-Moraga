@@ -462,7 +462,7 @@ a {
     height: 100svh;
     min-height: 600px;
     background: linear-gradient(135deg, rgba(10, 10, 10, 0.85) 0%, rgba(28, 28, 28, 0.7) 100%),
-                url('assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG') center/cover fixed;
+                url('https://fundomoragastorage.blob.core.windows.net/assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG') center/cover fixed;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2674,3 +2674,4 @@ body.chat-open .scroll-to-top {
 .scale-in {
     animation-name: scaleIn;
 }
+

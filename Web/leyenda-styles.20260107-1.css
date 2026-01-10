@@ -253,7 +253,7 @@ html.js {
     content: "";
     position: absolute;
     inset: -14%;
-    background-image: url('assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG');
+    background-image: url('https://fundomoragastorage.blob.core.windows.net/assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG');
     background-size: cover;
     background-position: var(--hero-media-x) var(--hero-media-y);
     transform: translate3d(0, var(--hero-parallax), 0) scale(1.08);
@@ -1271,3 +1271,4 @@ html.js {
 .leyenda-page.force-motion .experience-box::before {
     animation: lightLeak 10s ease-in-out infinite !important;
 }
+

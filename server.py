@@ -13,6 +13,9 @@ from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
 import json
 
+# Cliente de Azure Storage (opcional)
+import azure_storage_client as storage_client
+from azure_storage_client import get_blob_url, list_blobs
 
 def _config_status() -> Tuple[bool, list[str], list[str]]:
     """
@@ -43,6 +46,12 @@ def _config_status() -> Tuple[bool, list[str], list[str]]:
         warnings.append("INSTAGRAM_ACCESS_TOKEN (instagram)")
     if not os.getenv("INSTAGRAM_PAGE_ID"):
         warnings.append("INSTAGRAM_PAGE_ID (instagram)")
+
+    # Storage opcional: avisar si falta (para /media y assets remotos)
+    if not storage_client.AZURE_STORAGE_CONNECTION_STRING or not storage_client.AZURE_STORAGE_CONTAINER:
+        warnings.append("AZURE_STORAGE_CONNECTION_STRING/AZURE_STORAGE_CONTAINER (storage)")
+    if not storage_client.AZURE_STORAGE_URL_BASE:
+        warnings.append("AZURE_STORAGE_URL_BASE (storage)")
 
     return (len(missing_required) == 0, missing_required, warnings)
 
@@ -248,7 +257,31 @@ def static_assets(filename: str):
     """Servir assets del chat (hernando.jpg/mp4) desde /static."""
     return send_from_directory('static', filename)
 
+# Nuevo endpoint para servir archivos multimedia desde Azure Storage
+@app.route('/media/<tipo>/<path:filename>')
+def media_from_azure(tipo, filename):
+    """
+    Redirige a la URL pública del blob en Azure Storage.
+    tipo: images, videos, data
+    filename: nombre del archivo
+    """
+    storage_ready = (
+        storage_client.blob_service_client
+        and storage_client.container_client
+        and storage_client.AZURE_STORAGE_URL_BASE
+    )
+    if not storage_ready:
+        return jsonify({"error": "storage_not_configured"}), 503
 
+    # Validar tipo permitido
+    if tipo not in ("images", "videos", "data"):
+        return jsonify({"error": "Tipo no permitido"}), 400
+    blob_path = f"{tipo}/{filename}"
+    try:
+        url = get_blob_url(blob_path)
+    except Exception as exc:
+        return jsonify({"error": "storage_error", "message": str(exc)}), 502
+    return jsonify({"url": url})
 @app.route('/status')
 def status():
     """Estado JSON (útil para monitoreo)."""

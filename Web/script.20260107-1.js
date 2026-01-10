@@ -10,13 +10,43 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const setChatOpen = (isOpen) => {
     document.body.classList.toggle('chat-open', Boolean(isOpen));
 };
+// Prefijo para servir assets directamente desde el contenedor remoto
+const ASSETS_BASE = 'https://fundomoragastorage.blob.core.windows.net/assets';
+const toAssetUrl = (url) => {
+    if (!url || /^https?:\/\//i.test(url) || /^data:/i.test(url) || /^blob:/i.test(url)) return url;
+    const clean = url.replace(/^\\/+/, '');
+    const trimmed = clean.startsWith('assets/') ? clean.slice(7) : clean;
+    return `${ASSETS_BASE}/${encodeURI(trimmed)}`;
+};
+const rewriteAssetUrls = () => {
+    // img/src
+    document.querySelectorAll('img[src]').forEach((el) => {
+        const newUrl = toAssetUrl(el.getAttribute('src'));
+        if (newUrl) el.setAttribute('src', newUrl);
+    });
+    // video poster
+    document.querySelectorAll('video[poster]').forEach((el) => {
+        const newUrl = toAssetUrl(el.getAttribute('poster'));
+        if (newUrl) el.setAttribute('poster', newUrl);
+    });
+    // source/src
+    document.querySelectorAll('source[src]').forEach((el) => {
+        const newUrl = toAssetUrl(el.getAttribute('src'));
+        if (newUrl) el.setAttribute('src', newUrl);
+    });
+    // preload links con assets locales
+    document.querySelectorAll('link[rel="preload"][href]').forEach((el) => {
+        const href = el.getAttribute('href') || '';
+        if (href.includes('assets/')) {
+            const newUrl = toAssetUrl(href);
+            if (newUrl) el.setAttribute('href', newUrl);
+        }
+    });
+};
 
 const initIntro = () => {
     const introOverlay = document.getElementById('introOverlay');
     const introVideo = document.getElementById('introVideo');
-    const introSkip = document.getElementById('introSkip');
-    const introSound = document.getElementById('introSound');
-    const introStart = document.getElementById('introStart');
 
     const startAfterIntro = () => {
         document.body.classList.remove('is-intro-playing');
@@ -74,24 +104,17 @@ const initIntro = () => {
         hideIntro();
     };
 
-    const setSoundLabel = () => {
-        if (!introSound) return;
-        introSound.textContent = introVideo.muted ? 'Sonido: OFF' : 'Sonido: ON';
-    };
-
     const tryPlay = () => {
-        introStart?.setAttribute('hidden', '');
-        setSoundLabel();
-
+        introVideo.muted = true;
+        introVideo.defaultMuted = true;
+        introVideo.setAttribute('muted', '');
+        introVideo.setAttribute('playsinline', '');
+        introVideo.playsInline = true;
         const p = introVideo.play();
         if (!p || typeof p.then !== 'function') return;
 
         p.catch(() => {
-            introStart?.removeAttribute('hidden');
-            introSkip?.removeAttribute('hidden');
-            if (!introStart && !introSkip) {
-                finishIntro();
-            }
+            finishIntro();
         });
     };
 
@@ -99,31 +122,6 @@ const initIntro = () => {
 
     introVideo.addEventListener('ended', onEnd);
     introVideo.addEventListener('error', () => {
-        introSkip?.removeAttribute('hidden');
-        finishIntro();
-    });
-
-    introSkip?.addEventListener('click', () => {
-        try { introVideo.pause(); } catch {}
-        finishIntro();
-    });
-
-    introStart?.addEventListener('click', () => {
-        introVideo.muted = true;
-        setSoundLabel();
-        tryPlay();
-    });
-
-    introSound?.addEventListener('click', () => {
-        const wasMuted = introVideo.muted;
-        introVideo.muted = !wasMuted;
-        setSoundLabel();
-        tryPlay();
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape') return;
-        try { introVideo.pause(); } catch {}
         finishIntro();
     });
 
@@ -149,7 +147,6 @@ const initIntro = () => {
             const stalledFor = Date.now() - lastProgressAt;
             if (stalledFor > 9000) {
                 introVideo.removeEventListener('timeupdate', onProgress);
-                introSkip?.removeAttribute('hidden');
                 finishIntro();
                 return;
             }
@@ -169,16 +166,7 @@ const initIntro = () => {
     } else {
         introVideo.addEventListener('loadedmetadata', scheduleFallback, { once: true });
     }
-    if (introVideo.readyState >= 3) {
-        window.setTimeout(() => introSkip?.removeAttribute('hidden'), 7000);
-    } else {
-        introVideo.addEventListener('canplay', () => {
-            // Mostrar "Saltar" solo después de unos segundos (por si el usuario lo necesita)
-            window.setTimeout(() => introSkip?.removeAttribute('hidden'), 7000);
-        }, { once: true });
-    }
 
-    setSoundLabel();
     tryPlay();
     if (introVideo.ended) finishIntro();
 };
@@ -666,7 +654,7 @@ const videoSupport = (() => {
     };
 })();
 
-const fallbackPoster = 'assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG';
+const fallbackPoster = 'https://fundomoragastorage.blob.core.windows.net/assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG';
 
 const pickClipSource = (clip) => {
     if (!clip || !clip.src) return null;
@@ -692,7 +680,7 @@ const setPlayButtonState = (isEnabled) => {
 
 const videoClips = [
     {
-        src: 'assets/videos/IMG_2274.mov',
+        src: 'https://fundomoragastorage.blob.core.windows.net/assets/videos/IMG_2274.mov',
         title: 'Ruta bosque norte',
         description: 'Senderos cerrados, curvas y tracción total entre pinos.',
         tag: 'Ruta forestal',
@@ -700,7 +688,7 @@ const videoClips = [
         orientation: 'portrait'
     },
     {
-        src: 'assets/videos/IMG_2275.mov',
+        src: 'https://fundomoragastorage.blob.core.windows.net/assets/videos/IMG_2275.mov',
         title: 'Cruce de arroyos',
         description: 'Agua, barro y torque controlado en bajadas técnicas.',
         tag: 'Agua y barro',
@@ -708,7 +696,7 @@ const videoClips = [
         orientation: 'portrait'
     },
     {
-        src: 'assets/videos/IMG_2803.mov',
+        src: 'https://fundomoragastorage.blob.core.windows.net/assets/videos/IMG_2803.mov',
         title: 'Cumbre al atardecer',
         description: 'Vista 360° de Batuco con luz dorada y polvo en suspensión.',
         tag: 'Golden hour',
@@ -716,23 +704,7 @@ const videoClips = [
         orientation: 'portrait'
     },
     {
-        src: 'assets/videos/IMG_3103.mov',
-        title: 'Rocas y escalones',
-        description: 'Trayectoria técnica con spotter y control fino del gas.',
-        tag: 'Técnico',
-        duration: '0:44',
-        orientation: 'portrait'
-    },
-    {
-        src: 'assets/videos/IMG_3140.mov',
-        title: 'Llanos rápidos',
-        description: 'Aceleración en rectas de tierra con ripio suelto.',
-        tag: 'Speed run',
-        duration: '0:33',
-        orientation: 'portrait'
-    },
-    {
-        src: 'assets/videos/IMG_3326.mov',
+        src: 'https://fundomoragastorage.blob.core.windows.net/assets/videos/IMG_3326.mov',
         title: 'Noche en el fundo',
         description: 'Cielo estrellado y luces de vehículos en caravana.',
         tag: 'Nocturno',
@@ -1685,3 +1657,4 @@ if (window.location.pathname.includes('historia.html')) {
     console.log('✅ Historia page enhancements loaded');
 }
 })();
+
