@@ -50,3 +50,6 @@ htmlcov/
 Web/assets/videos/*.mov
 Web/assets/videos/*.mp4
 Web/assets/videos/*.m4v
+
+# Local exports / scratch
+assets-list.xml
