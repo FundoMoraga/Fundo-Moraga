@@ -13,6 +13,13 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from cosmos_client import get_memory_store
 
+SPECIAL_PERSONA_PROMPTS = {
+    "efrain_moraga": {
+        "system": """Eres un asistente tradicional tipo ChatGPT (modelo GPT-5.2). Mantienes plena consciencia de Fundo Moraga, su historia, actividades y contactos oficiales; cuando el contexto lo requiere puedes compartir esa información, pero tu rol principal es ayudar con cualquier otra tarea que el usuario solicite sin estar atado a un personaje específico. Mantén un tono amable, profesional y flexible, evita ventas agresivas y deriva suavemente a contacto@fundomoraga.com o WhatsApp +5699 9392122 cuando la conversación requiera coordinación formal (eventos, cotizaciones personalizadas, producciones). Usa español natural y no repitas saludos innecesarios ni listas extensas a menos que te lo pidan.""",
+        "operational": """Responde con claridad en 1-3 párrafos, pide datos adicionales solo si son estrictamente necesarios y siempre contextualiza por qué los necesitas. Si no conoces algo, dilo honestamente y ofrece opciones para continuar. Evita Markdown o asteriscos; escribe texto plano. Si el usuario da un dato nuevo (nombre, contacto, fecha), recuérdalo brevemente y avanza con la siguiente pregunta útil. Mantente centrado en el contenido de la solicitud y utiliza ejemplos concretos cuando sean útiles.""",
+    }
+}
+
 
 class ChatbotAI:
     """Gestiona la generación de respuestas con OpenAI"""
@@ -99,11 +106,19 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             fallback_tools=self.tools_manager.tools,
         )
         
-        self.system_prompt = prompts["system"]
-        self.operational_prompt = prompts["operational"]
-        self.dynamic_tools: List[Dict[str, Any]] = prompts.get("tools", [])
+        self._base_persona_name = "hernando"
+        base_tools = prompts.get("tools") or []
+        self._base_persona_prompts = {
+            "system": prompts["system"],
+            "operational": prompts["operational"],
+            "tools": base_tools,
+        }
+        self.system_prompt = self._base_persona_prompts["system"]
+        self.operational_prompt = self._base_persona_prompts["operational"]
+        self.dynamic_tools: List[Dict[str, Any]] = base_tools
         # Preferir tools desde Cosmos; fallback a definiciones locales
         self.tools: List[Dict[str, Any]] = self.dynamic_tools if self.dynamic_tools else self.tools_manager.tools
+        self._special_persona_prompts = {k.lower(): v for k, v in SPECIAL_PERSONA_PROMPTS.items()}
 
     def _now_local(self) -> datetime:
         tz_name = getattr(config, "GOOGLE_CALENDAR_TIMEZONE", None) or "America/Santiago"
@@ -127,8 +142,11 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         already_welcomed: Optional[bool] = None,
         lead_capture_already_sent: Optional[bool] = None,
         extra_context: Optional[Any] = None,
+        *,
+        system_prompt: str,
+        operational_prompt: str,
     ) -> List[Dict[str, str]]:
-        messages: List[Dict[str, str]] = [{"role": "system", "content": self.system_prompt}]
+        messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
 
         context_lines = []
         now_local = self._now_local()
@@ -246,7 +264,7 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         if context_lines:
             messages.append({"role": "system", "content": "CONTEXTO\n" + "\n".join(context_lines)})
 
-        messages.append({"role": "system", "content": self.operational_prompt})
+        messages.append({"role": "system", "content": operational_prompt})
 
         if conversation_history:
             for msg in conversation_history[-config.MAX_CONVERSATION_HISTORY :]:
@@ -266,6 +284,27 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
 
         messages.append({"role": "user", "content": user_message})
         return messages
+
+    def _resolve_persona_prompts(self, persona_override: Optional[str]) -> Dict[str, Any]:
+        """
+        Devuelve prompts específicos cuando el sistema debe usar una personalidad alterna.
+        """
+        if not persona_override:
+            return self._base_persona_prompts
+
+        normalized = persona_override.strip().lower()
+        if normalized == self._base_persona_name:
+            return self._base_persona_prompts
+
+        special = self._special_persona_prompts.get(normalized)
+        if not special:
+            return self._base_persona_prompts
+
+        return {
+            "system": special["system"],
+            "operational": special["operational"],
+            "tools": special.get("tools") or self._base_persona_prompts["tools"],
+        }
 
     def _openai_now(self) -> datetime:
         return datetime.now(timezone.utc)
@@ -464,6 +503,7 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         already_welcomed: Optional[bool] = None,
         lead_capture_already_sent: Optional[bool] = None,
         extra_context: Optional[Any] = None,
+        persona_override: Optional[str] = None,
         return_events: bool = False,
     ) -> Any:
         """
@@ -472,6 +512,7 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         Args:
             user_message: Mensaje del usuario
             conversation_history: Historial de conversación (opcional)
+            persona_override: Nombre de la personalidad especial que debe usarse para este turno.
         
         Returns:
             Respuesta generada por el modelo
@@ -485,6 +526,7 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             result = {"text": error_text, "events": [], "model_used": None, "error": skipped}
             return result if return_events else error_text
 
+        persona_prompts = self._resolve_persona_prompts(persona_override)
         messages = self._build_messages(
             user_message=user_message,
             conversation_history=conversation_history,
@@ -494,6 +536,8 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             already_welcomed=already_welcomed,
             lead_capture_already_sent=lead_capture_already_sent,
             extra_context=extra_context,
+            system_prompt=persona_prompts["system"],
+            operational_prompt=persona_prompts["operational"],
         )
 
         last_error: Optional[Exception] = None

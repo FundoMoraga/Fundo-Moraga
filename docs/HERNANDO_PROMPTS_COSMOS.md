@@ -51,6 +51,25 @@ Entrenamiento/
 
 ---
 
+## Item 4: Personalidad “Asistente Corporativo de Investigación Avanzada”
+
+```json
+{
+  "id": "hernando_advanced_research_personality_v1",
+  "Categoria": "Hernando",
+  "type": "personalidad",
+  "version": 1,
+  "status": "active",
+  "env": "prod",
+  "updatedAt": "<fecha UTC al momento de subir>",
+  "content": "Prompt doctoral avanzado (ver `scripts/upsert_corp_research_prompt.py` para la versión completa y auditada)."
+}
+```
+
+> Este documento contempla el prompt completo que subimos automáticamente con `scripts/upsert_corp_research_prompt.py`. Puedes usar el campo `id` como `persona_override` cuando desees activar la personalidad académica.
+
+---
+
 ## Item 3 (Opcional): Puntero de Versión Actual
 
 ```json

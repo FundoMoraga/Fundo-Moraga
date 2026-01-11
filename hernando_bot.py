@@ -14,6 +14,7 @@ from resend_client import get_resend_client
 from language_client import analyze_sentiment
 import json
 import re
+import unicodedata
 from zoneinfo import ZoneInfo
 from html import escape
 
@@ -354,6 +355,7 @@ class HernandoBot:
                     "Detectadas múltiples preguntas consecutivas. "
                     "Empieza con una validación/comentario breve antes de hacer nuevas preguntas."
                 )
+            persona_override = self._persona_override_for_lead(lead_context, message_text)
 
             ai_result = self.chatbot_ai.generate_response(
                 user_message=message_text,
@@ -364,6 +366,7 @@ class HernandoBot:
                 already_welcomed=already_welcomed,
                 lead_capture_already_sent=lead_capture_already_sent,
                 extra_context=extra_lead_context,
+                persona_override=persona_override,
                 return_events=True,
             )
 
@@ -382,16 +385,19 @@ class HernandoBot:
                     response_text = self._sanitize_user_response(fallback)
             
             # 7. Guardar respuesta del asistente en Cosmos DB
+            assistant_metadata = {
+                "platform": platform_key,
+                "model": model_to_store,
+                "model_requested": model_requested,
+            }
+            if persona_override:
+                assistant_metadata["persona"] = persona_override
             self.conversation_store.save_message(
                 user_id=user_id,
                 role="assistant",
                 message=response_text,
                 conversation_id=conversation_id,
-                metadata={
-                    "platform": platform_key,
-                    "model": model_to_store,
-                    "model_requested": model_requested,
-                }
+                metadata=assistant_metadata,
             )
 
             # Guardar resumen corto en Memoria para reutilizar contexto
@@ -1045,6 +1051,30 @@ class HernandoBot:
                 return True
 
         return False
+
+    def _normalize_person_name(self, text: str) -> str:
+        if not text:
+            return ""
+        normalized = unicodedata.normalize("NFD", text)
+        without_accents = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+        return without_accents.lower().strip()
+
+    def _is_special_persona_name(self, text: str) -> bool:
+        normalized = self._normalize_person_name(text)
+        if not normalized:
+            return False
+        candidates = {"efrain", "efrain moraga", "efrainmoraga"}
+        if normalized in candidates:
+            return True
+        return "efrain" in normalized and "moraga" in normalized
+
+    def _persona_override_for_lead(self, lead_context: Dict[str, str], message_text: str) -> Optional[str]:
+        if self._is_special_persona_name(lead_context.get("known_name", "")):
+            return "efrain_moraga"
+        normalized_message = self._normalize_person_name(message_text or "")
+        if "efrain" in normalized_message and "moraga" in normalized_message:
+            return "efrain_moraga"
+        return None
 
     def _build_lead_context(self, conversation_history: list, conversation_id: str) -> Dict[str, str]:
         """
