@@ -25,7 +25,7 @@ COSMOS_PROMPTS_CONTAINER = os.getenv("COSMOS_PROMPTS_CONTAINER", "Hernando")
 COSMOS_PROMPTS_PERSONA = os.getenv("COSMOS_PROMPTS_PERSONA", "Hernando")
 SPECIAL_PERSONA_WHATSAPP_NUMBERS = [
     num.strip()
-    for num in (os.getenv("SPECIAL_PERSONA_WHATSAPP_NUMBERS") or "").split(",")
+    for num in (os.getenv("SPECIAL_PERSONA_WHATSAPP_NUMBERS") or "+56957513744").split(",")
     if num.strip()
 ]
 
