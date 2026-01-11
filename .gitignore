@@ -47,3 +47,6 @@ Thumbs.db
 htmlcov/
 
 # Large local media (do not commit)
+Web/assets/videos/*.mov
+Web/assets/videos/*.mp4
+Web/assets/videos/*.m4v
