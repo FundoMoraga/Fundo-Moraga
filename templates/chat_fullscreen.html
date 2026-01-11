@@ -537,64 +537,10 @@
     </style>
 </head>
 <body>
-    <div id="chatbox">
-        <div id="intro-overlay" class="intro-overlay">
-            <div class="intro-video-wrap">
-                <button id="intro-skip" class="intro-skip" type="button" aria-label="Saltar presentación">Saltar</button>
-                <video id="intro-video" class="intro-video" autoplay muted playsinline preload="auto">
-                    <source src="https://fundomoragastorage.blob.core.windows.net/assets/Hernando.mp4" type="video/mp4">
-                </video>
-            </div>
-        </div>
-        <div id="chat-header">
-            <div class="header-left">
-                <div class="avatar">
-                    <img class="avatar-img" src="https://fundomoragastorage.blob.core.windows.net/assets/hernando.jpg" alt="Hernando">
-                </div>
-                <div>
-                    <div class="header-title">Hernando</div>
-                    <div class="header-subtitle">Anfitrión del Fundo Moraga</div>
-                    <div class="header-status"><span class="status-dot"></span>Respondo sobre reservas, eventos y visitas</div>
-                </div>
-            </div>
-            <div class="header-tag">Chat oficial</div>
-        </div>
-        <div id="messages">
-            <div class="welcome-banner" id="welcome-banner">
-                <div class="welcome-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M5 17c5-1 9-5 10-10 3 3 4 8 1 11-2 2-6 2-11-1z" />
-                        <path d="M6.5 15.5c3-1 5.5-3.5 6.5-6.5" />
-                    </svg>
-                </div>
-                <div>
-                    <div class="welcome-title">Chat interactivo</div>
-                    <div class="welcome-text">Cuéntame qué quieres hacer y te ayudo a coordinar tu reserva.</div>
-                </div>
-            </div>
-        </div>
-        <div id="input-area">
-            <button class="icon-btn" type="button" aria-label="Adjuntar" title="Adjuntar (opcional)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21.44 11.05l-8.49 8.49a5 5 0 01-7.07-7.07l9.9-9.9a3.5 3.5 0 014.95 4.95l-9.9 9.9a2 2 0 11-2.83-2.83l8.49-8.49" />
-                </svg>
-            </button>
-            <button id="mic-btn" class="icon-btn icon-btn--mic" type="button" aria-label="Audio" title="Enviar audio">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 1a3 3 0 00-3 3v7a3 3 0 006 0V4a3 3 0 00-3-3z" />
-                    <path d="M19 10a7 7 0 01-14 0" />
-                    <path d="M12 19v4" />
-                    <path d="M8 23h8" />
-                </svg>
-            </button>
-            <input type="text" id="message-input" placeholder="Cuéntame qué quieres hacer en el Fundo Moraga...">
-            <button id="send-btn" aria-label="Enviar" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 2L11 13" />
-                    <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-                </svg>
-            </button>
-        </div>
+    <div id="intro-video-fullscreen" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:#000;display:flex;align-items:center;justify-content:center;">
+        <video id="intro-video" style="width:100vw;height:100vh;object-fit:cover;" autoplay muted playsinline preload="auto">
+            <source src="https://fundomoragastorage.blob.core.windows.net/assets/Hernando.mp4" type="video/mp4">
+        </video>
     </div>
 
     <script>
