@@ -355,7 +355,7 @@ class HernandoBot:
                     "Detectadas múltiples preguntas consecutivas. "
                     "Empieza con una validación/comentario breve antes de hacer nuevas preguntas."
                 )
-            persona_override = self._persona_override_for_lead(lead_context, message_text)
+            persona_override = self._persona_override_for_lead(lead_context, message_text, user_id)
 
             ai_result = self.chatbot_ai.generate_response(
                 user_message=message_text,
@@ -1068,13 +1068,32 @@ class HernandoBot:
             return True
         return "efrain" in normalized and "moraga" in normalized
 
-    def _persona_override_for_lead(self, lead_context: Dict[str, str], message_text: str) -> Optional[str]:
+    def _persona_override_for_lead(
+        self,
+        lead_context: Dict[str, str],
+        message_text: str,
+        user_id: Optional[str],
+    ) -> Optional[str]:
+        if self._is_special_persona_by_user_id(user_id):
+            return "efrain_moraga"
         if self._is_special_persona_name(lead_context.get("known_name", "")):
             return "efrain_moraga"
         normalized_message = self._normalize_person_name(message_text or "")
         if "efrain" in normalized_message and "moraga" in normalized_message:
             return "efrain_moraga"
         return None
+
+    def _is_special_persona_by_user_id(self, user_id: Optional[str]) -> bool:
+        if not user_id:
+            return False
+        normalized_id = user_id.lower()
+        for known in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
+            candidate = known.lower()
+            if not candidate:
+                continue
+            if candidate in normalized_id or normalized_id in candidate:
+                return True
+        return False
 
     def _build_lead_context(self, conversation_history: list, conversation_id: str) -> Dict[str, str]:
         """
