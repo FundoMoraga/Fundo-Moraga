@@ -69,47 +69,89 @@ const initLegendGate = () => {
         document.body.style.overflow = 'hidden';
         overlay.classList.add('active');
 
-        // Preparar el video
+        // Preparar el video para pantalla completa y reproducción completa
         video.muted = true;
         video.defaultMuted = true;
         video.setAttribute('muted', '');
         video.setAttribute('playsinline', '');
         video.playsInline = true;
         video.currentTime = 0;
+        video.controls = false;
+        
+        // Forzar dimensiones de pantalla completa
+        video.style.width = '100vw';
+        video.style.height = '100vh';
+        video.style.maxWidth = '100vw';
+        video.style.maxHeight = '100vh';
+        video.style.objectFit = 'contain';
+        
         video.load();
 
         const finish = () => navigate(targetUrl);
 
         let failSafe = 0;
+        let hasEnded = false;
+        
         const setFailSafe = () => {
             if (failSafe) window.clearTimeout(failSafe);
             const d = Number(video.duration);
             const timeout = Number.isFinite(d) && d > 0
-                ? Math.min(Math.max(d * 1000 + 4000, 8000), 180000) // dur+4s, entre 8s y 3min
-                : 90000; // 90s si no hay duración
-            failSafe = window.setTimeout(() => finish(), timeout);
+                ? Math.min(Math.max(d * 1000 + 5000, 10000), 240000) // dur+5s, entre 10s y 4min
+                : 120000; // 120s si no hay duración
+            failSafe = window.setTimeout(() => {
+                if (!hasEnded) {
+                    console.log('Leyenda video: fail-safe timeout alcanzado');
+                    finish();
+                }
+            }, timeout);
         };
 
         const clearTimers = () => {
             if (failSafe) { window.clearTimeout(failSafe); failSafe = 0; }
         };
 
+        // Intentar reproducir
         const p = video.play();
         if (p && typeof p.then === 'function') {
-            p.then(() => setFailSafe()).catch(() => finish());
+            p.then(() => {
+                console.log('Leyenda video: reproduciendo');
+                setFailSafe();
+            }).catch((err) => {
+                console.error('Leyenda video: error al reproducir', err);
+                finish();
+            });
+        } else {
+            setFailSafe();
         }
 
         // Si la metadata llega después, ajustamos el fail-safe
-        video.addEventListener('loadedmetadata', setFailSafe, { once: true });
+        video.addEventListener('loadedmetadata', () => {
+            console.log('Leyenda video: metadata cargada, duración:', video.duration);
+            setFailSafe();
+        }, { once: true });
 
-        const onEnd = () => { clearTimers(); finish(); };
-        const onError = () => { clearTimers(); finish(); };
+        const onEnd = () => {
+            console.log('Leyenda video: terminado naturalmente');
+            hasEnded = true;
+            clearTimers();
+            finish();
+        };
+        
+        const onError = (e) => {
+            console.error('Leyenda video: error durante reproducción', e);
+            clearTimers();
+            finish();
+        };
 
         video.addEventListener('ended', onEnd, { once: true });
         video.addEventListener('error', onError, { once: true });
 
         if (skipBtn) {
-            skipBtn.onclick = () => { clearTimers(); finish(); };
+            skipBtn.onclick = () => {
+                console.log('Leyenda video: usuario saltó el video');
+                clearTimers();
+                finish();
+            };
         }
     };
 
