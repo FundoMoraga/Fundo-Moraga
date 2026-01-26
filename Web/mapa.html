@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es" class="no-js">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Mapa virtual del Fundo Moraga: rutas Batuco Off Road con vista satelital y detalles.">
+    <title>Mapa Virtual | Fundo Moraga</title>
+    <link rel="icon" type="image/png" href="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png">
+    <script>
+        document.documentElement.classList.remove('no-js');
+        document.documentElement.classList.add('js');
+    </script>
+    <link rel="stylesheet" href="styles.20260107-1.css">
+    <link rel="stylesheet" href="mapa-styles.20260107-1.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    >
+</head>
+<body class="mapa-page">
+    <a class="skip-link" href="#mapa-main">Saltar al mapa</a>
+
+    <nav class="navbar dark-nav">
+        <div class="container">
+            <div class="nav-wrapper">
+                <a href="index.html">
+                    <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png" alt="Fundo Moraga" class="logo">
+                </a>
+                <button class="mobile-menu-toggle" aria-label="Menú">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <ul class="nav-links">
+                    <li><a href="index.html#inicio" class="btn-primary">Inicio</a></li>
+                    <li><a href="index.html#nosotros" class="btn-primary">Nosotros</a></li>
+                    <li><a href="historia.html" class="btn-primary">Historia</a></li>
+                    <li><a href="leyenda.html" class="btn-primary">La Leyenda</a></li>
+                    <li><a href="mapa.html" class="btn-primary active">Mapa Virtual</a></li>
+                    <li><a href="index.html#servicios" class="btn-primary">Servicios</a></li>
+                    <li><a href="index.html#contacto" class="btn-primary">Contacto</a></li>
+                    <li><a href="https://hernando.fundomoraga.com" class="btn-primary" target="_blank" rel="noopener noreferrer">Reservar con Hernando</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main id="mapa-main" class="mapa-shell">
+        <header class="mapa-header" role="banner">
+            <div class="mapa-header__title">
+                <div class="mapa-kicker">Mapa Virtual</div>
+                <h1>Rutas Batuco Off Road</h1>
+                <p>Explora rutas reales del Fundo Moraga, con vista satelital y detalles.</p>
+            </div>
+            <div class="mapa-header__stats" aria-label="Resumen de rutas">
+                <div class="mapa-stat">
+                    <span class="mapa-stat__label">Rutas</span>
+                    <span class="mapa-stat__value" id="mapaStatRoutes">—</span>
+                </div>
+                <div class="mapa-stat">
+                    <span class="mapa-stat__label">Kilómetros</span>
+                    <span class="mapa-stat__value" id="mapaStatKm">—</span>
+                </div>
+                <div class="mapa-stat">
+                    <span class="mapa-stat__label">Dificultad max</span>
+                    <span class="mapa-stat__value" id="mapaStatDifficulty">—</span>
+                </div>
+            </div>
+            <div class="mapa-header__actions">
+                <button id="mapaRoutesToggle" class="mapa-btn" type="button" aria-expanded="true" aria-controls="mapaPanel">
+                    Rutas
+                </button>
+                <button id="mapaRecenter" class="mapa-btn mapa-btn--ghost" type="button">
+                    Recentrar
+                </button>
+            </div>
+        </header>
+
+        <section class="mapa-stage" aria-label="Mapa">
+            <div id="map" class="mapa-canvas" role="application" aria-label="Mapa de rutas"></div>
+
+            <section class="mapa-spotlight" aria-label="Ruta destacada">
+                <div class="mapa-spotlight__kicker">Ruta destacada</div>
+                <h3 id="mapaSpotlightTitle">Selecciona una ruta</h3>
+                <p id="mapaSpotlightDesc">Explora el listado para ver detalles y enfocar la ruta en el mapa.</p>
+                <div class="mapa-spotlight__meta">
+                    <span id="mapaSpotlightDistance">— km</span>
+                    <span id="mapaSpotlightDifficulty">Dificultad —</span>
+                </div>
+                <div class="mapa-spotlight__actions">
+                    <button id="mapaSpotlightFocus" class="mapa-btn" type="button" disabled>Enfocar</button>
+                    <button id="mapaSpotlightPlay" class="mapa-btn mapa-btn--ghost" type="button" disabled>Recorrido</button>
+                </div>
+            </section>
+
+            <aside id="mapaPanel" class="mapa-panel" aria-label="Panel de rutas">
+                <div class="mapa-panel__top">
+                    <div class="mapa-panel__heading">
+                        <h2>Rutas</h2>
+                        <span id="mapaCount" class="mapa-count">—</span>
+                    </div>
+                    <label class="mapa-search">
+                        <span class="sr-only">Buscar ruta</span>
+                        <input id="mapaSearch" type="search" placeholder="Buscar (ej: Mina, Dificultad 2)" autocomplete="off">
+                    </label>
+                </div>
+                <div id="mapaRoutes" class="mapa-routes" role="list"></div>
+                <div class="mapa-panel__footer">
+                    <div class="mapa-legend" aria-label="Leyenda de dificultad">
+                        <span class="mapa-chip mapa-chip--d1">D1</span>
+                        <span class="mapa-chip mapa-chip--d2">D2</span>
+                        <span class="mapa-chip mapa-chip--d3">D3+</span>
+                        <span class="mapa-legend__text">Dificultad estimada</span>
+                    </div>
+                    <div class="mapa-attrib">
+                        Imágenes © Esri, OSM.
+                    </div>
+                </div>
+            </aside>
+
+            <div id="mapaToast" class="mapa-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+        </section>
+    </main>
+
+    <!-- Transición antigua (logo + spinner) -->
+    <div id="pageTransition" class="preloader hidden" aria-hidden="true">
+        <div class="preloader-content">
+            <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png" alt="" class="preloader-logo">
+            <div class="preloader-spinner"></div>
+        </div>
+    </div>
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""
+    ></script>
+    <script src="https://unpkg.com/@tmcw/togeojson@0.16.0/dist/togeojson.umd.js"></script>
+    <script>
+        (function () {
+            'use strict';
+
+            const transitionEl = document.getElementById('pageTransition');
+            if (!transitionEl) return;
+
+            const isModifiedClick = (e) => e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+
+            const shouldHandleLink = (a) => {
+                if (!a) return false;
+                if (a.target && a.target !== '_self') return false;
+                if (a.hasAttribute('download')) return false;
+                const href = a.getAttribute('href');
+                if (!href || href === '#') return false;
+                if (href.startsWith('mailto:') || href.startsWith('tel:')) return false;
+                if (/^https?:\/\//i.test(href)) {
+                    try {
+                        const url = new URL(href, window.location.href);
+                        if (url.origin !== window.location.origin) return false;
+                    } catch {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            const show = () => {
+                transitionEl.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            };
+
+            const hide = () => {
+                transitionEl.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            };
+
+            const scrollToHash = (hash) => {
+                const target = document.querySelector(hash);
+                if (!target) return;
+                const y = (window.scrollY || window.pageYOffset || 0) + target.getBoundingClientRect().top - 80;
+                window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+            };
+
+            document.addEventListener('click', (e) => {
+                if (isModifiedClick(e)) return;
+                const a = e.target instanceof Element ? e.target.closest('a') : null;
+                if (!a || !shouldHandleLink(a)) return;
+
+                const href = a.getAttribute('href');
+                if (!href) return;
+
+                const url = new URL(href, window.location.href);
+
+                const isSamePath = url.origin === window.location.origin && url.pathname === window.location.pathname;
+                const isHashOnly = isSamePath && url.hash;
+
+                show();
+
+                if (isHashOnly) {
+                    e.preventDefault();
+                    window.setTimeout(() => {
+                        try {
+                            history.pushState(null, '', url.hash);
+                        } catch {}
+                        scrollToHash(url.hash);
+                        window.setTimeout(() => hide(), 650);
+                    }, 420);
+                    return;
+                }
+
+                if (url.origin === window.location.origin) {
+                    e.preventDefault();
+                    window.setTimeout(() => {
+                        window.location.href = url.href;
+                    }, 420);
+                }
+            });
+
+            window.addEventListener('pageshow', () => {
+                hide();
+            });
+        })();
+    </script>
+    <script src="script.20260107-1.js"></script>
+    <script src="mapa-script.20260107-1.js"></script>
+</body>
+</html>
+
+
+

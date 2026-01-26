@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fundo Moraga - Batuco Off Road. Experiencias 4x4, eventos corporativos, test drive y más en Lampa, a minutos de Santiago.">
+    <meta name="keywords" content="off road, 4x4, batuco, lampa, santiago, eventos corporativos, test drive">
+    <link rel="icon" type="image/png" href="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://fundomoraga.com/">
+    <meta property="og:title" content="Fundo Moraga - Batuco Off Road | Tu próxima aventura">
+    <meta property="og:description" content="Experiencias 4x4, eventos corporativos y aventuras off road en Batuco, Lampa. A minutos de Santiago.">
+    <meta property="og:image" content="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png">
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://fundomoraga.com/">
+    <meta property="twitter:title" content="Fundo Moraga - Batuco Off Road">
+    <meta property="twitter:description" content="Experiencias 4x4, eventos corporativos y aventuras off road en Batuco, Lampa.">
+    <meta property="twitter:image" content="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png">
+    
+    <title>Fundo Moraga - Batuco Off Road | Tu próxima aventura</title>
+    <link rel="stylesheet" href="styles.20260107-1.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+</head>
+<body>
+    <!-- Intro (fullscreen video, solo 1 vez) -->
+    <div id="introOverlay" class="preloader intro-preloader" aria-label="Intro Fundo Moraga">
+        <video
+            id="introVideo"
+            class="intro-video"
+            autoplay
+            muted
+            playsinline
+            preload="auto"
+            disablepictureinpicture
+            controlslist="nodownload noplaybackrate noremoteplayback"
+            aria-hidden="true"
+        >
+            <source src="https://fundomoragastorage.blob.core.windows.net/assets/videos/Intro%20Fundo%20Moraga.mp4" type="video/mp4">
+        </video>
+        <div id="introError" style="display:none;color:#fff;background:#b00;padding:16px;margin-top:16px;border-radius:8px;text-align:center;max-width:400px;margin-left:auto;margin-right:auto;">
+            No se pudo reproducir el video de inicio. Por favor verifica la conexión o el archivo.
+        </div>
+    </div>
+
+    <!-- Transición antigua (logo + spinner) -->
+    <div id="pageTransition" class="preloader hidden" aria-hidden="true">
+        <div class="preloader-content">
+            <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png" alt="" class="preloader-logo">
+            <div class="preloader-spinner"></div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-legend">
+        <div class="container">
+            <div class="nav-wrapper">
+                <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png" alt="Fundo Moraga" class="logo">
+                <button class="mobile-menu-toggle" aria-label="Menú">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <ul class="nav-links">
+                    <li><a href="#inicio" class="btn-primary">Inicio</a></li>
+                    <li><a href="#nosotros" class="btn-primary">Nosotros</a></li>
+                    <li><a href="historia.html" class="btn-primary">Historia</a></li>
+                    <li><a href="leyenda.html" class="btn-primary">La Leyenda</a></li>
+                    <li><a href="mapa.html" class="btn-primary">Mapa Virtual</a></li>
+                    <li><a href="#servicios" class="btn-primary">Servicios</a></li>
+                    <li><a href="#contacto" class="btn-primary">Contacto</a></li>
+                    <li><a href="https://hernando.fundomoraga.com" class="btn-primary" target="_blank" rel="noopener noreferrer">Reservar con Hernando</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="inicio" class="hero">
+        <div id="particles-js" class="particles-container"></div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1 class="hero-title animate-fade-in">Es hora de tu próxima <span class="highlight">aventura</span></h1>
+            <p class="hero-subtitle animate-fade-in-delay">¡Vívela junto a nosotros!</p>
+            <a href="#servicios" class="btn-primary animate-fade-in-delay-2">Conoce más</a>
+        </div>
+        <div class="scroll-indicator">
+            <span>Scroll</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="nosotros" class="about-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Conoce Fundo Moraga</h2>
+                <div class="title-underline"></div>
+            </div>
+            <div class="about-content">
+                <div class="about-text">
+                    <p class="about-intro">
+                        Somos una empresa que es fruto de la herencia de una larga tradición de la Familia Moraga con la tierra. 
+                        Junto con un pasado ligado a la agricultura y construcción, hoy abrimos como espacio único de conexión 
+                        con la naturaleza, y a solo minutos de Santiago.
+                    </p>
+                    <p>
+                        Fundo Moraga posee rutas, rincones y miradores que llevarán tu experiencia y la de tus invitados, 
+                        a otro nivel; siempre en comunión y respeto por el rico e inigualable ecosistema de Batuco, Lampa.
+                    </p>
+                </div>
+                <div class="about-image">
+                    <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG" alt="Fundo Moraga Batuco" loading="lazy">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" data-target="475">0</div>
+                    <div class="stat-label">Años de Historia</div>
+                    <p class="stat-desc">Desde 1551</p>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-target="150">0</div>
+                    <div class="stat-label">Hectáreas</div>
+                    <p class="stat-desc">De naturaleza pura</p>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-target="500">0</div>
+                    <div class="stat-label">Clientes Satisfechos</div>
+                    <p class="stat-desc">Experiencias únicas</p>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-target="15">0</div>
+                    <div class="stat-label">Min. de Santiago</div>
+                    <p class="stat-desc">Fácil acceso</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="servicios" class="services-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Nuestros Servicios</h2>
+                <div class="title-underline"></div>
+            </div>
+            <div class="services-grid">
+                <!-- Servicio 1 -->
+                <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+                        </svg>
+                    </div>
+                    <h3>Test Drive</h3>
+                    <p>Visitas técnicas con múltiples spots para tu evento. Pistas 4x4 reales para probar tu vehículo con diferentes niveles de dificultad.</p>
+                </div>
+
+                <!-- Servicio 2 -->
+                <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+                        </svg>
+                    </div>
+                    <h3>Eventos Corporativos</h3>
+                    <p>Lanzamiento de productos y eventos empresariales. Elaboración de espacios personalizados con una vista privilegiada a Santiago.</p>
+                </div>
+
+                <!-- Servicio 3 -->
+                <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                        </svg>
+                    </div>
+                    <h3>Arriendo Privado</h3>
+                    <p>Solo tú, tus amigos y más de 150 hectáreas para disfrutar. Experiencia exclusiva personalizada.</p>
+                </div>
+
+                <!-- Servicio 4 -->
+                <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"/>
+                        </svg>
+                    </div>
+                    <h3>Fechas Libres Sorpresa</h3>
+                    <p>Avisaremos para que puedas venir los fines de semana, con actividades e instructores.</p>
+                </div>
+
+                <!-- Servicio 5 -->
+                <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/>
+                        </svg>
+                    </div>
+                    <h3>Clases de 4x4</h3>
+                    <p>¿Tienes el vehículo pero quieres aprender manejo 4x4? Nosotros te enseñamos junto a instructores acreditados.</p>
+                </div>
+
+                <!-- Servicio 6 -->
+                <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/>
+                        </svg>
+                    </div>
+                    <h3>Merchandising</h3>
+                    <p>La experiencia Batuco Off Road es difícil de olvidar. Tenemos merchandising para que no nos olvides.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Video Section -->
+    <section class="video-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Vive la experiencia Fundo Moraga</h2>
+                <div class="title-underline"></div>
+                <p class="section-subtitle">Descubre todo lo que tenemos para ti</p>
+            </div>
+            <div class="video-container-wrapper">
+                <div class="video-player">
+                    <video id="mainVideo" class="main-video" poster="https://fundomoragastorage.blob.core.windows.net/assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG" autoplay muted playsinline>
+                            <source src="https://fundomoragastorage.blob.core.windows.net/assets/videos/Fundo%20Moraga.mp4" type="video/mp4">
+                        Tu navegador no soporta el elemento de video.
+                    </video>
+                    <div class="video-overlay" id="videoOverlay">
+                        <button class="play-button" id="playButton" aria-label="Reproducir video">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </button>
+                        <div class="video-title">
+                            <h3>Aventura Off Road</h3>
+                            <p>Naturaleza, adrenalina y experiencias únicas</p>
+                        </div>
+                    </div>
+                    <div class="video-controls" id="videoControls">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-filled" id="progressFilled"></div>
+                        </div>
+                        <div class="controls-row">
+                            <button class="control-btn" id="playPauseBtn" aria-label="Play/Pause">
+                                <svg class="play-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8 5v14l11-7z"/>
+                                </svg>
+                                <svg class="pause-icon" style="display:none;" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                                </svg>
+                            </button>
+                            <div class="time-display">
+                                <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                            </div>
+                            <button class="control-btn" id="muteBtn" aria-label="Mute/Unmute">
+                                <svg class="volume-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                                </svg>
+                                <svg class="mute-icon" style="display:none;" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                                </svg>
+                            </button>
+                            <button class="control-btn" id="fullscreenBtn" aria-label="Fullscreen">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Video Gallery Section -->
+    <section class="video-gallery-section" id="videos">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Galería de videos</h2>
+                <div class="title-underline"></div>
+                <p class="section-subtitle">Escenas reales de Fundo Moraga: rutas, barro, cielos y adrenalina</p>
+            </div>
+
+            <div class="video-gallery-grid" id="videoGalleryGrid">
+                <!-- JS inyecta las tarjetas de video -->
+            </div>
+
+            <div class="video-gallery-hint">
+                <span class="hint-label">Tip</span>
+                Haz clic en cualquier clip para reproducirlo en el reproductor principal.
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Lo que dicen nuestros clientes</h2>
+                <div class="title-underline"></div>
+            </div>
+            <div class="testimonials-carousel">
+                <div class="testimonial-track">
+                    <div class="testimonial-card active">
+                        <div class="testimonial-stars">★★★★★</div>
+                        <p class="testimonial-text">"Una experiencia increíble. El terreno es desafiante y el equipo muy profesional. Definitivamente volveremos con más amigos."</p>
+                        <div class="testimonial-author">
+                            <div class="author-info">
+                                <h4>Carlos Mendoza</h4>
+                                <span>Test Drive 4x4</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="testimonial-stars">★★★★★</div>
+                        <p class="testimonial-text">"Organizamos nuestro evento corporativo aquí y fue un éxito total. Las instalaciones son de primer nivel y la atención impecable."</p>
+                        <div class="testimonial-author">
+                            <div class="author-info">
+                                <h4>María José Silva</h4>
+                                <span>Evento Corporativo</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="testimonial-stars">★★★★★</div>
+                        <p class="testimonial-text">"El lugar perfecto para desconectarse de la ciudad. La naturaleza, las rutas y la historia del lugar lo hacen único."</p>
+                        <div class="testimonial-author">
+                            <div class="author-info">
+                                <h4>Roberto Fuentes</h4>
+                                <span>Arriendo Privado</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-dots">
+                    <button class="dot active" data-index="0"></button>
+                    <button class="dot" data-index="1"></button>
+                    <button class="dot" data-index="2"></button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contacto" class="contact-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Planifiquemos tu visita</h2>
+                <div class="title-underline"></div>
+            </div>
+            <div class="contact-grid">
+                <div class="contact-form-container">
+                    <form id="contactForm" class="contact-form">
+                        <div class="form-group">
+                            <label for="name">Nombre completo *</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="email">Email *</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Teléfono *</label>
+                                <input type="tel" id="phone" name="phone" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="service">Servicio de interés *</label>
+                            <select id="service" name="service" required>
+                                <option value="">Selecciona un servicio</option>
+                                <option value="test-drive">Test Drive 4x4</option>
+                                <option value="evento-corporativo">Evento Corporativo</option>
+                                <option value="arriendo-privado">Arriendo Privado</option>
+                                <option value="clases-4x4">Clases de 4x4</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="message">Mensaje *</label>
+                            <textarea id="message" name="message" rows="4" required></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">Enviar mensaje</button>
+                        <div class="form-status"></div>
+                    </form>
+                </div>
+                <div class="contact-info">
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                            </svg>
+                        </div>
+                        <h3>Dirección</h3>
+                        <p>Camino Coquimbo SN, Batuco, Lampa</p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                            </svg>
+                        </div>
+                        <h3>Contacto</h3>
+                        <p>Teléfono: <a href="tel:+56941242609">+56 9 4124 2609</a></p>
+                        <p>Email: <a href="mailto:contacto@fundomoraga.com">contacto@fundomoraga.com</a></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                            </svg>
+                        </div>
+                        <h3>Horario de oficina</h3>
+                        <p>Lunes a Viernes<br>8:30 a.m. - 5:00 p.m.</p>
+                    </div>
+                </div>
+                <div class="contact-cta">
+                    <h3>¿Listo para tu aventura?</h3>
+                    <p>Habla con Hernando, nuestro asistente virtual, y reserva tu experiencia ahora.</p>
+                    <button class="btn-primary btn-hernando">Reservar con Hernando</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Map Section -->
+    <section class="map-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Cómo llegar</h2>
+                <div class="title-underline"></div>
+            </div>
+        </div>
+        <div class="map-container">
+            <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3328.9876543210!2d-70.7423456!3d-33.3456789!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzPCsDIwJzQ0LjQiUyA3MMKwNDQnMzIuNCJX!5e0!3m2!1ses!2scl!4v1234567890" 
+                width="100%" 
+                height="450" 
+                style="border:0;" 
+                allowfullscreen="" 
+                loading="lazy" 
+                referrerpolicy="no-referrer-when-downgrade"
+                title="Ubicación Fundo Moraga">
+            </iframe>
+            <div class="map-overlay">
+                <div class="map-info-card">
+                    <h3>Fundo Moraga</h3>
+                    <p><strong>Dirección:</strong> Camino Coquimbo SN, Batuco, Lampa</p>
+                    <p><strong>A solo 15 minutos de Santiago</strong></p>
+                    <a href="https://maps.google.com/?q=Fundo+Moraga+Batuco+Lampa" target="_blank" rel="noopener" class="btn-primary btn-small">Abrir en Google Maps</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png" alt="Fundo Moraga">
+                    <p>Tu próxima aventura comienza aquí</p>
+                    <div class="social-links">
+                        <a href="https://instagram.com/fundomoraga" target="_blank" rel="noopener" aria-label="Instagram">
+                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                            </svg>
+                        </a>
+                        <a href="https://facebook.com/fundomoraga" target="_blank" rel="noopener" aria-label="Facebook">
+                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                        </a>
+                        <a href="https://wa.me/56941242609" target="_blank" rel="noopener" aria-label="WhatsApp">
+                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h4>Enlaces</h4>
+                    <ul>
+                        <li><a href="#inicio">Inicio</a></li>
+                        <li><a href="#nosotros">Nosotros</a></li>
+                        <li><a href="#servicios">Servicios</a></li>
+                        <li><a href="historia.html">Historia Familia</a></li>
+                        <li><a href="#contacto">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="footer-contact">
+                    <h4>Contacto</h4>
+                    <p>
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                        </svg>
+                        contacto@fundomoraga.com
+                    </p>
+                    <p>
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                        </svg>
+                        +56 9 4124 2609
+                    </p>
+                    <p>
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        Camino Coquimbo SN<br>Batuco, Lampa
+                    </p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Fundo Moraga. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Hernando Chat Widget -->
+    <div id="hernando-widget" class="chat-widget">
+        <button class="chat-toggle" id="chatToggle">
+            <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/Hernando.PNG" alt="Hernando">
+            <span class="chat-badge">1</span>
+        </button>
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/Hernando.PNG" alt="Hernando">
+                <div>
+                    <h4>Hernando</h4>
+                    <span class="status">En línea</span>
+                </div>
+                <button class="chat-close" id="chatClose">✕</button>
+            </div>
+            <div class="chat-body" id="chatBody"></div>
+            <div class="chat-footer">
+                <input type="text" id="chatInput" placeholder="Escribe tu mensaje...">
+                <button id="chatSend">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Particles.js -->
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script>
+        (function () {
+            'use strict';
+
+            const transitionEl = document.getElementById('pageTransition');
+            if (!transitionEl) return;
+
+            const isModifiedClick = (e) => e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+
+            const shouldHandleLink = (a) => {
+                if (!a) return false;
+                if (a.target && a.target !== '_self') return false;
+                if (a.hasAttribute('download')) return false;
+                const href = a.getAttribute('href');
+                if (!href || href === '#') return false;
+                if (href.startsWith('mailto:') || href.startsWith('tel:')) return false;
+                if (/^https?:\/\//i.test(href)) {
+                    try {
+                        const url = new URL(href, window.location.href);
+                        if (url.origin !== window.location.origin) return false;
+                    } catch {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            const show = () => {
+                transitionEl.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            };
+
+            const hide = () => {
+                transitionEl.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            };
+
+            const scrollToHash = (hash) => {
+                const target = document.querySelector(hash);
+                if (!target) return;
+                const y = (window.scrollY || window.pageYOffset || 0) + target.getBoundingClientRect().top - 80;
+                window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+            };
+
+            document.addEventListener('click', (e) => {
+                if (isModifiedClick(e)) return;
+                const a = e.target instanceof Element ? e.target.closest('a') : null;
+                if (!a || !shouldHandleLink(a)) return;
+
+                const href = a.getAttribute('href');
+                if (!href) return;
+
+                const url = new URL(href, window.location.href);
+
+                const isSamePath = url.origin === window.location.origin && url.pathname === window.location.pathname;
+                const isHashOnly = isSamePath && url.hash;
+
+                show();
+
+                if (isHashOnly) {
+                    e.preventDefault();
+                    window.setTimeout(() => {
+                        try {
+                            history.pushState(null, '', url.hash);
+                        } catch {}
+                        scrollToHash(url.hash);
+                        window.setTimeout(() => hide(), 650);
+                    }, 420);
+                    return;
+                }
+
+                if (url.origin === window.location.origin) {
+                    e.preventDefault();
+                    window.setTimeout(() => {
+                        window.location.href = url.href;
+                    }, 420);
+                }
+            });
+
+            window.addEventListener('pageshow', () => {
+                hide();
+            });
+        })();
+    </script>
+    <script src="script.20260107-1.js"></script>
+</body>
+</html>
+
