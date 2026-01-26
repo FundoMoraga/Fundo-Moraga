@@ -670,7 +670,7 @@ document.querySelectorAll('.btn-reserva, .btn-hernando').forEach(button => {
 });
 
 // ============================================
-// PERFORMANCE: Lazy Loading Images
+// PERFORMANCE: Lazy Loading Images (Native)
 // ============================================
 if ('loading' in HTMLImageElement.prototype) {
     const images = document.querySelectorAll('img[loading="lazy"]');
@@ -678,10 +678,20 @@ if ('loading' in HTMLImageElement.prototype) {
         img.src = img.dataset.src || img.src;
     });
 } else {
-    // Fallback for browsers that don't support lazy loading
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lazysizes/5.3.2/lazysizes.min.js';
-    document.body.appendChild(script);
+    // Fallback: IntersectionObserver para browsers antiguos
+    const imageObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src || img.src;
+                imageObserver.unobserve(img);
+            }
+        });
+    });
+    
+    document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+        imageObserver.observe(img);
+    });
 }
 
 // ============================================
