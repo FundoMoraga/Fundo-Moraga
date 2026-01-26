@@ -608,8 +608,9 @@
     <div class="custom-cursor" id="customCursor"></div>
     <div class="custom-cursor-follower" id="customCursorFollower"></div>
 
-    <!-- Particles.js -->
-    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <!-- Canvas para partículas personalizadas (sin eval) -->
+    <canvas id="particlesCanvas" class="particles-canvas" aria-hidden="true"></canvas>
+
     <script>
         (function () {
             'use strict';
