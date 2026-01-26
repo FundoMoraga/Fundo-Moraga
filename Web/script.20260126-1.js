@@ -66,6 +66,8 @@ const initLegendGate = () => {
 
     const playLegend = (targetUrl) => {
         if (overlay.classList.contains('active')) return;
+        
+        console.log('🎬 Leyenda: Iniciando reproducción del video');
         document.body.style.overflow = 'hidden';
         overlay.classList.add('active');
 
@@ -75,8 +77,8 @@ const initLegendGate = () => {
         video.setAttribute('muted', '');
         video.setAttribute('playsinline', '');
         video.playsInline = true;
-        video.currentTime = 0;
         video.controls = false;
+        video.currentTime = 0;
         
         // Forzar dimensiones de pantalla completa
         video.style.width = '100vw';
@@ -84,72 +86,91 @@ const initLegendGate = () => {
         video.style.maxWidth = '100vw';
         video.style.maxHeight = '100vh';
         video.style.objectFit = 'contain';
-        
-        video.load();
 
-        const finish = () => navigate(targetUrl);
+        const finish = () => {
+            console.log('✅ Leyenda: Navegando a', targetUrl);
+            navigate(targetUrl);
+        };
 
         let failSafe = 0;
         let hasEnded = false;
+        let hasStarted = false;
         
-        const setFailSafe = () => {
-            if (failSafe) window.clearTimeout(failSafe);
-            const d = Number(video.duration);
-            const timeout = Number.isFinite(d) && d > 0
-                ? Math.min(Math.max(d * 1000 + 5000, 10000), 240000) // dur+5s, entre 10s y 4min
-                : 120000; // 120s si no hay duración
+        const clearTimers = () => {
+            if (failSafe) { 
+                window.clearTimeout(failSafe); 
+                failSafe = 0;
+                console.log('⏰ Leyenda: Timers limpiados');
+            }
+        };
+        
+        const setFailSafe = (durationSec) => {
+            clearTimers();
+            const timeout = Number.isFinite(durationSec) && durationSec > 0
+                ? Math.min(Math.max(durationSec * 1000 + 5000, 10000), 240000)
+                : 120000;
+            console.log(`⏰ Leyenda: Fail-safe configurado a ${Math.round(timeout/1000)}s (duración: ${durationSec}s)`);
             failSafe = window.setTimeout(() => {
                 if (!hasEnded) {
-                    console.log('Leyenda video: fail-safe timeout alcanzado');
+                    console.warn('⚠️ Leyenda: Fail-safe timeout alcanzado');
                     finish();
                 }
             }, timeout);
         };
 
-        const clearTimers = () => {
-            if (failSafe) { window.clearTimeout(failSafe); failSafe = 0; }
-        };
-
-        // Intentar reproducir
-        const p = video.play();
-        if (p && typeof p.then === 'function') {
-            p.then(() => {
-                console.log('Leyenda video: reproduciendo');
-                setFailSafe();
-            }).catch((err) => {
-                console.error('Leyenda video: error al reproducir', err);
-                finish();
-            });
-        } else {
-            setFailSafe();
-        }
-
-        // Si la metadata llega después, ajustamos el fail-safe
-        video.addEventListener('loadedmetadata', () => {
-            console.log('Leyenda video: metadata cargada, duración:', video.duration);
-            setFailSafe();
-        }, { once: true });
-
         const onEnd = () => {
-            console.log('Leyenda video: terminado naturalmente');
+            if (hasEnded) return;
+            console.log('🏁 Leyenda: Video terminado naturalmente');
             hasEnded = true;
             clearTimers();
             finish();
         };
         
         const onError = (e) => {
-            console.error('Leyenda video: error durante reproducción', e);
+            console.error('❌ Leyenda: Error durante reproducción', e);
             clearTimers();
             finish();
         };
 
+        const onTimeUpdate = () => {
+            if (!hasStarted && video.currentTime > 0) {
+                hasStarted = true;
+                console.log('▶️ Leyenda: Video comenzó a reproducirse');
+            }
+        };
+
+        // Configurar listeners ANTES de load()
         video.addEventListener('ended', onEnd, { once: true });
         video.addEventListener('error', onError, { once: true });
+        video.addEventListener('timeupdate', onTimeUpdate);
+        
+        video.addEventListener('loadedmetadata', () => {
+            console.log(`📊 Leyenda: Metadata cargada - Duración: ${video.duration}s, Estado: ${video.readyState}`);
+            setFailSafe(video.duration);
+        }, { once: true });
+
+        // Cargar y reproducir
+        video.load();
+        
+        const p = video.play();
+        if (p && typeof p.then === 'function') {
+            p.then(() => {
+                console.log('✅ Leyenda: play() completado exitosamente');
+                // Si ya tenemos duración, configurar fail-safe
+                if (video.duration && Number.isFinite(video.duration)) {
+                    setFailSafe(video.duration);
+                }
+            }).catch((err) => {
+                console.error('❌ Leyenda: Error en play():', err);
+                finish();
+            });
+        }
 
         if (skipBtn) {
             skipBtn.onclick = () => {
-                console.log('Leyenda video: usuario saltó el video');
+                console.log('⏭️ Leyenda: Usuario saltó el video');
                 clearTimers();
+                video.removeEventListener('timeupdate', onTimeUpdate);
                 finish();
             };
         }
