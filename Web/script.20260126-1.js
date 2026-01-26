@@ -69,29 +69,45 @@ const initLegendGate = () => {
         document.body.style.overflow = 'hidden';
         overlay.classList.add('active');
 
-        // Asegurar flags de autoplay silencioso
+        // Preparar el video
         video.muted = true;
         video.defaultMuted = true;
         video.setAttribute('muted', '');
         video.setAttribute('playsinline', '');
         video.playsInline = true;
         video.currentTime = 0;
+        video.load();
 
         const finish = () => navigate(targetUrl);
 
+        let failSafe = window.setTimeout(() => finish(), 45000); // máximo 45s
+        let startTimeout = window.setTimeout(() => finish(), 2500); // si no inicia en 2.5s
+
+        const clearTimers = () => {
+            if (failSafe) { window.clearTimeout(failSafe); failSafe = 0; }
+            if (startTimeout) { window.clearTimeout(startTimeout); startTimeout = 0; }
+        };
+
         const p = video.play();
         if (p && typeof p.then === 'function') {
-            p.catch(() => finish());
+            p.then(() => {
+                clearTimers();
+                // Dejar fail-safe solo por duración + 2s si se conoce
+                const d = Number(video.duration);
+                if (Number.isFinite(d) && d > 0) {
+                    failSafe = window.setTimeout(() => finish(), Math.min(Math.max(d * 1000 + 2000, 5000), 60000));
+                }
+            }).catch(() => finish());
         }
 
-        const onEnd = () => finish();
-        const onError = () => finish();
+        const onEnd = () => { clearTimers(); finish(); };
+        const onError = () => { clearTimers(); finish(); };
 
         video.addEventListener('ended', onEnd, { once: true });
         video.addEventListener('error', onError, { once: true });
 
         if (skipBtn) {
-            skipBtn.onclick = () => finish();
+            skipBtn.onclick = () => { clearTimers(); finish(); };
         }
     };
 

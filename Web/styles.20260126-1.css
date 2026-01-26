@@ -103,18 +103,21 @@ body {
         inset: 0;
         background: rgba(0, 0, 0, 0.94);
         z-index: 12000;
-        display: none;
+        display: flex;
         align-items: center;
         justify-content: center;
         flex-direction: column;
         gap: 18px;
         padding: 24px;
         backdrop-filter: blur(4px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 240ms ease;
     }
 
     .legend-overlay.active {
-        display: flex;
-        animation: fadeInLegend 260ms ease;
+        opacity: 1;
+        pointer-events: auto;
     }
 
     .legend-video {
