@@ -80,25 +80,27 @@ const initLegendGate = () => {
 
         const finish = () => navigate(targetUrl);
 
-        let failSafe = window.setTimeout(() => finish(), 45000); // máximo 45s
-        let startTimeout = window.setTimeout(() => finish(), 2500); // si no inicia en 2.5s
+        let failSafe = 0;
+        const setFailSafe = () => {
+            if (failSafe) window.clearTimeout(failSafe);
+            const d = Number(video.duration);
+            const timeout = Number.isFinite(d) && d > 0
+                ? Math.min(Math.max(d * 1000 + 4000, 8000), 180000) // dur+4s, entre 8s y 3min
+                : 90000; // 90s si no hay duración
+            failSafe = window.setTimeout(() => finish(), timeout);
+        };
 
         const clearTimers = () => {
             if (failSafe) { window.clearTimeout(failSafe); failSafe = 0; }
-            if (startTimeout) { window.clearTimeout(startTimeout); startTimeout = 0; }
         };
 
         const p = video.play();
         if (p && typeof p.then === 'function') {
-            p.then(() => {
-                clearTimers();
-                // Dejar fail-safe solo por duración + 2s si se conoce
-                const d = Number(video.duration);
-                if (Number.isFinite(d) && d > 0) {
-                    failSafe = window.setTimeout(() => finish(), Math.min(Math.max(d * 1000 + 2000, 5000), 60000));
-                }
-            }).catch(() => finish());
+            p.then(() => setFailSafe()).catch(() => finish());
         }
+
+        // Si la metadata llega después, ajustamos el fail-safe
+        video.addEventListener('loadedmetadata', setFailSafe, { once: true });
 
         const onEnd = () => { clearTimers(); finish(); };
         const onError = () => { clearTimers(); finish(); };
