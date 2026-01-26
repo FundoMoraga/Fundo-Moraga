@@ -136,10 +136,25 @@ const initIntro = () => {
 
         let lastT = 0;
         let lastProgressAt = Date.now();
+        let nearEndDetected = false;
+        
         const onProgress = () => {
             if (introVideo.currentTime > lastT + 0.01) {
                 lastT = introVideo.currentTime;
                 lastProgressAt = Date.now();
+            }
+            
+            // Detectar cuando el video está cerca del final (95% o más)
+            const duration = introVideo.duration;
+            if (Number.isFinite(duration) && duration > 0) {
+                const progress = introVideo.currentTime / duration;
+                if (progress >= 0.95 && !nearEndDetected) {
+                    nearEndDetected = true;
+                }
+                // Si estamos al final o muy cerca
+                if (progress >= 0.99 || (nearEndDetected && introVideo.currentTime >= duration - 0.5)) {
+                    finishIntro();
+                }
             }
         };
         introVideo.addEventListener('timeupdate', onProgress);
@@ -160,9 +175,10 @@ const initIntro = () => {
 
         const d = Number(introVideo.duration);
         if (Number.isFinite(d) && d > 0) {
-            hardEndTimeout = window.setTimeout(finishIntro, clamp(Math.round(d * 1000) + 1200, 5000, 300000));
+            // Cambiar a hardEndTimeout más corto para detectar congelación
+            hardEndTimeout = window.setTimeout(finishIntro, clamp(Math.round(d * 1000) + 2000, 5000, 300000));
         }
-        const firstCheck = Number.isFinite(d) && d > 0 ? Math.round((d + 6) * 1000) : 25000;
+        const firstCheck = Number.isFinite(d) && d > 0 ? Math.round((d + 3) * 1000) : 20000;
         stallTimeout = window.setTimeout(checkStallAndFailSafe, clamp(firstCheck, 12000, 90000));
     };
 
