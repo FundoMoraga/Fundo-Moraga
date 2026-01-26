@@ -6,10 +6,11 @@ if [ -n "${START_COMMAND:-}" ]; then
 fi
 
 # Gunicorn con logs a stdout/stderr para que Railway los muestre
+PORT_VALUE="${PORT:-8080}"
 exec gunicorn \
-  --bind 0.0.0.0:${PORT:-8080} \
-  --workers ${WORKERS:-4} \
-  --timeout ${GUNICORN_TIMEOUT:-60} \
+  --bind "0.0.0.0:${PORT_VALUE}" \
+  --workers "${WORKERS:-4}" \
+  --timeout "${GUNICORN_TIMEOUT:-60}" \
   --access-logfile - \
   --error-logfile - \
   --capture-output \
