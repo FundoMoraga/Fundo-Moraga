@@ -46,6 +46,65 @@ const rewriteAssetUrls = () => {
         }
     });
 };
+
+// ============================================
+// LEYENDA VIDEO GATE
+// ============================================
+const initLegendGate = () => {
+    const overlay = document.getElementById('legendOverlay');
+    const video = document.getElementById('legendVideo');
+    const skipBtn = document.getElementById('legendSkip');
+    if (!overlay || !video) return;
+
+    const shouldHandle = (e) => !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0);
+
+    const navigate = (targetUrl) => {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+        window.location.href = targetUrl;
+    };
+
+    const playLegend = (targetUrl) => {
+        if (overlay.classList.contains('active')) return;
+        document.body.style.overflow = 'hidden';
+        overlay.classList.add('active');
+
+        // Asegurar flags de autoplay silencioso
+        video.muted = true;
+        video.defaultMuted = true;
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
+        video.playsInline = true;
+        video.currentTime = 0;
+
+        const finish = () => navigate(targetUrl);
+
+        const p = video.play();
+        if (p && typeof p.then === 'function') {
+            p.catch(() => finish());
+        }
+
+        const onEnd = () => finish();
+        const onError = () => finish();
+
+        video.addEventListener('ended', onEnd, { once: true });
+        video.addEventListener('error', onError, { once: true });
+
+        if (skipBtn) {
+            skipBtn.onclick = () => finish();
+        }
+    };
+
+    const legendLinks = document.querySelectorAll('a[href$="leyenda.html"], a[href*="leyenda.html#"]');
+    legendLinks.forEach((link) => {
+        link.addEventListener('click', (e) => {
+            if (!shouldHandle(e)) return;
+            e.preventDefault();
+            const targetUrl = link.href;
+            playLegend(targetUrl);
+        });
+    });
+};
 const initIntro = () => {
     const introOverlay = document.getElementById('introOverlay');
     const introVideo = document.getElementById('introVideo');
@@ -193,9 +252,13 @@ const initIntro = () => {
 };
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initIntro, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+        initIntro();
+        initLegendGate();
+    }, { once: true });
 } else {
     initIntro();
+    initLegendGate();
 }
 
 // Sticky navbar on scroll

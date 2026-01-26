@@ -48,6 +48,22 @@
         </div>
     </div>
 
+    <!-- Leyenda gate video (se reproduce antes de abrir leyenda.html) -->
+    <div id="legendOverlay" class="legend-overlay" aria-label="Video La Leyenda">
+        <video
+            id="legendVideo"
+            class="legend-video"
+            preload="auto"
+            playsinline
+            muted
+            disablepictureinpicture
+            controlslist="nodownload noplaybackrate noremoteplayback"
+        >
+            <source src="https://fundomoragastorage.blob.core.windows.net/assets/videos/Leyenda.mp4" type="video/mp4">
+        </video>
+        <button id="legendSkip" class="legend-skip" aria-label="Saltar video y ver la leyenda">Saltar video</button>
+    </div>
+
     <!-- Transición antigua (logo + spinner) -->
     <div id="pageTransition" class="preloader hidden" aria-hidden="true">
         <div class="preloader-content">

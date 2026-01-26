@@ -97,6 +97,62 @@ body {
     }
 }
 
+    /* Leyenda overlay video */
+    .legend-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.94);
+        z-index: 12000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 18px;
+        padding: 24px;
+        backdrop-filter: blur(4px);
+    }
+
+    .legend-overlay.active {
+        display: flex;
+        animation: fadeInLegend 260ms ease;
+    }
+
+    .legend-video {
+        width: min(1080px, 92vw);
+        max-height: min(70vh, 900px);
+        background: #000;
+        border-radius: 12px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+    }
+
+    .legend-skip {
+        border: none;
+        border-radius: 999px;
+        padding: 12px 22px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        background: linear-gradient(140deg, rgba(224, 192, 74, 0.98), rgba(212, 175, 55, 0.9));
+        color: #0a0a0a;
+        cursor: pointer;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), 0 18px 36px rgba(212, 175, 55, 0.25);
+        transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
+    }
+
+    .legend-skip:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.05);
+        box-shadow: 0 20px 42px rgba(0, 0, 0, 0.4), 0 22px 40px rgba(212, 175, 55, 0.32);
+    }
+
+    .legend-skip:active {
+        transform: translateY(0);
+    }
+
+    @keyframes fadeInLegend {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
 @media (max-width: 480px) {
     .intro-ui {
         padding: 18px 14px calc(22px + env(safe-area-inset-bottom, 0px));
