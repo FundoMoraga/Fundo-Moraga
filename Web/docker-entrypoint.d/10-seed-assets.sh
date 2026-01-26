@@ -25,7 +25,7 @@ if [ "$FORCE_ASSETS_SEED" = "1" ]; then
   echo "[seed-assets] Re-seed completo. Conteo:"
   echo "[seed-assets] - dirs:  $(find "$ASSETS_VOLUME_PATH" -type d | wc -l | tr -d ' ')"
   echo "[seed-assets] - files: $(find "$ASSETS_VOLUME_PATH" -type f | wc -l | tr -d ' ')"
-  for f in "images/Logo Fundo Moraga.png" "images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG" "images/Hernando.PNG" "videos/Fundo Moraga.mp4" "videos/Leyenda Fundo Moraga.mp4"; do
+  for f in "images/Logo Fundo Moraga.png" "images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG" "images/Hernando.PNG" "videos/Intro Fundo Moraga.mp4" "videos/Leyenda.mp4"; do
     if [ -f "$ASSETS_VOLUME_PATH/$f" ]; then
       echo "[seed-assets] OK: $f"
     else
