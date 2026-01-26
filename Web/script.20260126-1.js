@@ -1823,3 +1823,324 @@ if (window.location.pathname.includes('historia.html')) {
 }
 })();
 
+// ============================================
+// LIGHTBOX PREMIUM
+// ============================================
+(() => {
+    const lightbox = document.getElementById('lightbox');
+    const lightboxVideo = document.getElementById('lightboxVideo');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+    const lightboxCounter = document.getElementById('lightboxCounter');
+    const lightboxClose = document.getElementById('lightboxClose');
+    const lightboxPrev = document.getElementById('lightboxPrev');
+    const lightboxNext = document.getElementById('lightboxNext');
+    
+    if (!lightbox || !lightboxVideo) return;
+    
+    let currentIndex = 0;
+    let galleryItems = [];
+    
+    const initGallery = () => {
+        // Buscar todos los items de video en la galería
+        const videoCards = document.querySelectorAll('.video-gallery-grid .video-card');
+        galleryItems = Array.from(videoCards).map(card => ({
+            src: card.dataset.src || card.querySelector('video')?.src || '',
+            caption: card.querySelector('.video-card-title')?.textContent || ''
+        }));
+        
+        // Agregar event listeners a cada tarjeta
+        videoCards.forEach((card, index) => {
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                openLightbox(index);
+            });
+            card.style.cursor = 'pointer';
+        });
+    };
+    
+    const openLightbox = (index) => {
+        currentIndex = index;
+        updateLightbox();
+        lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        lightboxVideo.play();
+    };
+    
+    const closeLightbox = () => {
+        lightbox.classList.remove('active');
+        document.body.style.overflow = '';
+        lightboxVideo.pause();
+        lightboxVideo.currentTime = 0;
+    };
+    
+    const updateLightbox = () => {
+        if (galleryItems.length === 0) return;
+        
+        const item = galleryItems[currentIndex];
+        lightboxVideo.querySelector('source').src = item.src;
+        lightboxVideo.load();
+        lightboxCaption.textContent = item.caption;
+        lightboxCounter.textContent = `${currentIndex + 1} / ${galleryItems.length}`;
+    };
+    
+    const nextItem = () => {
+        currentIndex = (currentIndex + 1) % galleryItems.length;
+        updateLightbox();
+        lightboxVideo.play();
+    };
+    
+    const prevItem = () => {
+        currentIndex = (currentIndex - 1 + galleryItems.length) % galleryItems.length;
+        updateLightbox();
+        lightboxVideo.play();
+    };
+    
+    // Event listeners
+    lightboxClose.addEventListener('click', closeLightbox);
+    lightboxNext.addEventListener('click', nextItem);
+    lightboxPrev.addEventListener('click', prevItem);
+    
+    // Click fuera del contenido para cerrar
+    lightbox.addEventListener('click', (e) => {
+        if (e.target === lightbox) {
+            closeLightbox();
+        }
+    });
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (!lightbox.classList.contains('active')) return;
+        
+        switch(e.key) {
+            case 'Escape':
+                closeLightbox();
+                break;
+            case 'ArrowLeft':
+                prevItem();
+                break;
+            case 'ArrowRight':
+                nextItem();
+                break;
+        }
+    });
+    
+    // Inicializar cuando la galería esté lista
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initGallery);
+    } else {
+        initGallery();
+    }
+    
+    console.log('✅ Lightbox premium inicializado');
+})();
+
+// ============================================
+// SCROLL TO TOP BUTTON
+// ============================================
+(() => {
+    const scrollBtn = document.getElementById('scrollToTop');
+    if (!scrollBtn) return;
+    
+    const toggleButton = () => {
+        if (window.scrollY > 500) {
+            scrollBtn.classList.add('visible');
+        } else {
+            scrollBtn.classList.remove('visible');
+        }
+    };
+    
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    };
+    
+    window.addEventListener('scroll', toggleButton);
+    scrollBtn.addEventListener('click', scrollToTop);
+    
+    // Initial check
+    toggleButton();
+    
+    console.log('✅ Scroll to top inicializado');
+})();
+
+// ============================================
+// CUSTOM CURSOR (Desktop only)
+// ============================================
+(() => {
+    // Solo en dispositivos con cursor preciso
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        return;
+    }
+    
+    const cursor = document.getElementById('customCursor');
+    const follower = document.getElementById('customCursorFollower');
+    
+    if (!cursor || !follower) return;
+    
+    let mouseX = 0;
+    let mouseY = 0;
+    let followerX = 0;
+    let followerY = 0;
+    
+    // Actualizar posición del cursor principal
+    document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        
+        cursor.style.left = mouseX + 'px';
+        cursor.style.top = mouseY + 'px';
+    });
+    
+    // Animar el follower con delay
+    const animateFollower = () => {
+        const dx = mouseX - followerX;
+        const dy = mouseY - followerY;
+        
+        followerX += dx * 0.15;
+        followerY += dy * 0.15;
+        
+        follower.style.left = followerX + 'px';
+        follower.style.top = followerY + 'px';
+        
+        requestAnimationFrame(animateFollower);
+    };
+    
+    animateFollower();
+    
+    // Scale effect en elementos interactivos
+    const interactiveElements = document.querySelectorAll('a, button, .service-card, .testimonial-card, input, textarea, .video-card');
+    
+    interactiveElements.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+            cursor.classList.add('scale');
+            follower.classList.add('scale');
+        });
+        
+        el.addEventListener('mouseleave', () => {
+            cursor.classList.remove('scale');
+            follower.classList.remove('scale');
+        });
+    });
+    
+    console.log('✅ Custom cursor inicializado');
+})();
+
+// ============================================
+// FORM VALIDATION ENHANCEMENT
+// ============================================
+(() => {
+    const form = document.getElementById('contactForm');
+    if (!form) return;
+    
+    const inputs = form.querySelectorAll('input, textarea, select');
+    
+    // Validación en tiempo real
+    inputs.forEach(input => {
+        input.addEventListener('blur', () => {
+            validateField(input);
+        });
+        
+        input.addEventListener('input', () => {
+            if (input.classList.contains('error')) {
+                validateField(input);
+            }
+        });
+    });
+    
+    const validateField = (field) => {
+        const value = field.value.trim();
+        let isValid = true;
+        let errorMessage = '';
+        
+        // Validación requerida
+        if (field.hasAttribute('required') && !value) {
+            isValid = false;
+            errorMessage = 'Este campo es obligatorio';
+        }
+        
+        // Validación de email
+        if (field.type === 'email' && value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+                isValid = false;
+                errorMessage = 'Email inválido';
+            }
+        }
+        
+        // Validación de teléfono
+        if (field.type === 'tel' && value) {
+            const phoneRegex = /^[+]?[\d\s()-]{8,}$/;
+            if (!phoneRegex.test(value)) {
+                isValid = false;
+                errorMessage = 'Teléfono inválido';
+            }
+        }
+        
+        // Aplicar estados visuales
+        if (isValid) {
+            field.classList.remove('error');
+            field.classList.add('valid');
+            removeError(field);
+        } else {
+            field.classList.remove('valid');
+            field.classList.add('error');
+            showError(field, errorMessage);
+        }
+        
+        return isValid;
+    };
+    
+    const showError = (field, message) => {
+        removeError(field);
+        const error = document.createElement('span');
+        error.className = 'field-error';
+        error.textContent = message;
+        error.style.cssText = `
+            color: #ef4444;
+            font-size: 0.875rem;
+            margin-top: 4px;
+            display: block;
+        `;
+        field.parentElement.appendChild(error);
+    };
+    
+    const removeError = (field) => {
+        const error = field.parentElement.querySelector('.field-error');
+        if (error) error.remove();
+    };
+    
+    // Mejorar el estilo de los campos
+    const style = document.createElement('style');
+    style.textContent = `
+        .contact-form input.valid,
+        .contact-form textarea.valid,
+        .contact-form select.valid {
+            border-color: #10b981 !important;
+        }
+        
+        .contact-form input.error,
+        .contact-form textarea.error,
+        .contact-form select.error {
+            border-color: #ef4444 !important;
+        }
+        
+        .contact-form input:focus.valid,
+        .contact-form textarea:focus.valid,
+        .contact-form select:focus.valid {
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+        
+        .contact-form input:focus.error,
+        .contact-form textarea:focus.error,
+        .contact-form select:focus.error {
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    console.log('✅ Form validation mejorada');
+})();
+
+console.log('🌟 Todas las mejoras premium cargadas exitosamente');
