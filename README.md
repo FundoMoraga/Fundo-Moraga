@@ -1,5 +1,4 @@
 # Chatbot de Instagram - Fundo Moraga 🍒
-
 Chatbot inteligente para Instagram que usa **OpenAI GPT-5.2** para respuestas naturales y **Azure Cosmos DB** para memoria persistente de conversaciones.
 
 ## 🎯 Características

@@ -1,5 +1,4 @@
 # Herramientas de Hernando - Function Calling
-
 Hernando ahora cuenta con **Function Calling** de OpenAI, lo que le permite ejecutar acciones específicas además de responder preguntas.
 
 ## 🔧 Herramientas Disponibles

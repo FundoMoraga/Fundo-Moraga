@@ -1,5 +1,4 @@
 # 🌟 MEJORAS PREMIUM - FUNDO MORAGA
-
 ## Versión 2.0 - Nivel Premium
 
 Tu página web ha sido elevada a un **nivel PREMIUM** con mejoras significativas en diseño, experiencia de usuario, animaciones y funcionalidades avanzadas.
