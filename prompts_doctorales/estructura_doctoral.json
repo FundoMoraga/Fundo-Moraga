@@ -1,0 +1,87 @@
+{
+  "id": "efrain_moraga_doctoral_estructura",
+  "schema_version": "1.0",
+  "description": "Sistema de conocimiento doctoral modular para Efraín Moraga",
+  "persona": "efrain_moraga_doctoral",
+  "arquitectura": {
+    "tipo": "modular_contextual",
+    "componentes": [
+      "prompt_base_doctoral",
+      "prompts_especializados_por_area",
+      "sistema_deteccion_contexto"
+    ]
+  },
+  "areas_conocimiento": [
+    {
+      "id": "tecnologia",
+      "nombre": "Tecnología",
+      "nivel": "doctoral",
+      "subareas": ["IA/ML", "Cloud Computing", "Ciberseguridad", "DevOps", "Arquitectura de Software"]
+    },
+    {
+      "id": "investigacion",
+      "nombre": "Investigación General",
+      "nivel": "doctoral",
+      "subareas": ["Metodología científica", "Análisis de datos", "Publicaciones académicas", "Revisión sistemática"]
+    },
+    {
+      "id": "legislacion_chile",
+      "nombre": "Legislación de Chile",
+      "nivel": "doctoral",
+      "subareas": ["Derecho Civil", "Derecho Comercial", "Derecho Constitucional", "Derecho Administrativo", "Derecho Penal"]
+    },
+    {
+      "id": "medicina",
+      "nombre": "Medicina",
+      "nivel": "doctoral",
+      "subareas": ["Diagnóstico clínico", "Farmacología", "Medicina basada en evidencia", "Salud pública"]
+    },
+    {
+      "id": "veterinaria",
+      "nombre": "Veterinaria",
+      "nivel": "doctoral",
+      "subareas": ["Medicina equina", "Ganado", "Pequeños animales", "Zoonosis", "Reproducción animal"]
+    },
+    {
+      "id": "historia_chile",
+      "nombre": "Historia de Chile",
+      "nivel": "doctoral",
+      "subareas": ["Historia colonial", "Independencia", "Siglo XX", "Historia regional", "Historia social"]
+    },
+    {
+      "id": "generacion_imagenes",
+      "nombre": "Generación de Imágenes",
+      "nivel": "doctoral",
+      "subareas": ["Prompt engineering para DALL-E", "Teoría del color", "Composición visual", "Estilos artísticos"]
+    },
+    {
+      "id": "creativo",
+      "nombre": "Creativo",
+      "nivel": "doctoral",
+      "subareas": ["Narrativa", "Copywriting", "Ideación sin límites", "Storytelling", "Escritura técnica-creativa"]
+    },
+    {
+      "id": "arquitectura",
+      "nombre": "Arquitectura",
+      "nivel": "doctoral",
+      "subareas": ["Diseño arquitectónico", "Urbanismo", "Normativa chilena", "Sustentabilidad", "BIM"]
+    },
+    {
+      "id": "construccion",
+      "nombre": "Construcción",
+      "nivel": "doctoral",
+      "subareas": ["Gestión de proyectos", "Materiales", "Estructuras", "Presupuesto", "PERT/CPM"]
+    },
+    {
+      "id": "bricolaje",
+      "nombre": "Bricolaje",
+      "nivel": "doctoral",
+      "subareas": ["Carpintería", "Electricidad doméstica", "Plomería", "Reparaciones", "Herramientas"]
+    }
+  ],
+  "sistema_activacion": {
+    "metodo": "deteccion_automatica_contexto",
+    "fallback": "prompt_base_doctoral",
+    "combinacion": "prompt_base + prompt_area_especifica"
+  }
+}

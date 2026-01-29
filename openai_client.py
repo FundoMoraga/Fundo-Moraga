@@ -295,9 +295,104 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         messages.append({"role": "user", "content": user_message})
         return messages
 
-    def _resolve_persona_prompts(self, persona_override: Optional[str]) -> Dict[str, Any]:
+    def _load_doctoral_prompts_from_cosmos(self) -> Dict[str, Dict[str, Any]]:
+        """Carga prompts doctorales desde Cosmos DB."""
+        prompts_cache = {}
+        try:
+            database = self.memory_store.client.get_database_client("Entrenamiento")
+            container = database.get_container_client("Hernando")
+            
+            # Cargar prompt base doctoral
+            query_base = "SELECT * FROM c WHERE c.id = 'efrain_moraga_doctoral_base'"
+            items_base = list(container.query_items(query=query_base, enable_cross_partition_query=True))
+            if items_base:
+                prompts_cache["base"] = items_base[0]
+            
+            # Cargar prompts por área
+            query_areas = "SELECT * FROM c WHERE c.persona = 'efrain_moraga_doctoral' AND c.area != null"
+            items_areas = list(container.query_items(query=query_areas, enable_cross_partition_query=True))
+            
+            for item in items_areas:
+                area = item.get("area")
+                if area:
+                    prompts_cache[area] = item
+            
+            print(f"✅ Cargados {len(prompts_cache)} prompts doctorales desde Cosmos DB")
+        except Exception as e:
+            print(f"⚠️  Error cargando prompts doctorales: {e}")
+        
+        return prompts_cache
+    
+    def _detect_doctoral_area(self, user_message: str, conversation_history: Optional[List[Dict]] = None) -> Optional[str]:
+        """Detecta qué área doctoral activar basándose en keywords del mensaje y contexto."""
+        # Lazy load de prompts doctorales
+        if not hasattr(self, '_doctoral_prompts_cache'):
+            self._doctoral_prompts_cache = self._load_doctoral_prompts_from_cosmos()
+        
+        if not self._doctoral_prompts_cache:
+            return None
+        
+        # Combinar mensaje actual con últimos 2 mensajes de contexto
+        text_to_analyze = user_message.lower()
+        if conversation_history and len(conversation_history) > 0:
+            recent_messages = conversation_history[-2:]
+            for msg in recent_messages:
+                content = (msg.get("message") or "").lower()
+                text_to_analyze += " " + content
+        
+        # Buscar keywords de cada área
+        area_matches = {}
+        for area, prompt_data in self._doctoral_prompts_cache.items():
+            if area == "base":
+                continue
+            
+            keywords = prompt_data.get("keywords_activacion", [])
+            matches = sum(1 for keyword in keywords if keyword.lower() in text_to_analyze)
+            if matches > 0:
+                area_matches[area] = matches
+        
+        # Retornar área con más matches (si hay empate, primera alfabéticamente)
+        if area_matches:
+            best_area = max(area_matches.items(), key=lambda x: (x[1], x[0]))[0]
+            print(f"🎓 Área doctoral detectada: {best_area} ({area_matches[best_area]} keywords)")
+            return best_area
+        
+        return None
+    
+    def _combine_doctoral_prompts(self, base_prompts: Dict[str, Any], area: str) -> Dict[str, Any]:
+        """Combina prompt base doctoral con prompt de área específica."""
+        if not hasattr(self, '_doctoral_prompts_cache'):
+            return base_prompts
+        
+        doctoral_base = self._doctoral_prompts_cache.get("base")
+        doctoral_area = self._doctoral_prompts_cache.get(area)
+        
+        if not doctoral_base:
+            print("⚠️  Prompt base doctoral no encontrado, usando prompts estándar")
+            return base_prompts
+        
+        # System prompt: Base doctoral + enhancement del área (si existe)
+        system_parts = [doctoral_base.get("system_prompt", "")]
+        if doctoral_area:
+            area_enhancement = doctoral_area.get("knowledge_enhancement", "")
+            if area_enhancement:
+                system_parts.append("\n\n" + area_enhancement)
+        
+        combined_system = "".join(system_parts)
+        
+        # Operational prompt: Usar el del base doctoral
+        operational = doctoral_base.get("operational_prompt", base_prompts["operational"])
+        
+        return {
+            "system": combined_system,
+            "operational": operational,
+            "tools": base_prompts["tools"],  # Tools no cambian
+        }
+
+    def _resolve_persona_prompts(self, persona_override: Optional[str], user_message: str = "", conversation_history: Optional[List[Dict]] = None) -> Dict[str, Any]:
         """
         Devuelve prompts específicos cuando el sistema debe usar una personalidad alterna.
+        Si persona es efrain_moraga, detecta área doctoral y combina prompts especializados.
         """
         if not persona_override:
             return self._base_persona_prompts
@@ -309,12 +404,21 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         special = self._special_persona_prompts.get(normalized)
         if not special:
             return self._base_persona_prompts
-
-        return {
+        
+        # Resolver prompts base
+        base_result = {
             "system": special["system"],
             "operational": special["operational"],
             "tools": special.get("tools") or self._base_persona_prompts["tools"],
         }
+        
+        # Si es efrain_moraga, intentar activar sistema doctoral
+        if normalized == "efrain_moraga":
+            detected_area = self._detect_doctoral_area(user_message, conversation_history)
+            if detected_area:
+                return self._combine_doctoral_prompts(base_result, detected_area)
+        
+        return base_result
 
     def _openai_now(self) -> datetime:
         return datetime.now(timezone.utc)
@@ -540,7 +644,7 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             result = {"text": error_text, "events": [], "model_used": None, "error": skipped}
             return result if return_events else error_text
 
-        persona_prompts = self._resolve_persona_prompts(persona_override)
+        persona_prompts = self._resolve_persona_prompts(persona_override, user_message, conversation_history)
         messages = self._build_messages(
             user_message=user_message,
             conversation_history=conversation_history,
