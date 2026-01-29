@@ -381,14 +381,16 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             import language_client as lc
             language_info = lc.detect_language(user_message)
             
-            if language_info and language_info.get("success"):
-                detected_lang = language_info.get("result", {}).get("language")
-                result["detected_language"] = detected_lang
+            if language_info:
+                # language_client retorna: {name, iso, confidence}
+                detected_iso = language_info.get("iso")
+                detected_name = language_info.get("name")
+                result["detected_language"] = detected_iso or detected_name
                 
                 # Si no es español, marcar que se necesita traducción
-                if detected_lang and detected_lang not in ("es", "es-ES", "es-MX", "es-AR"):
+                if detected_iso and detected_iso not in ("es", "pt", "en"):  # pt es portugués, en es inglés
                     result["translation_needed"] = True
-                    print(f"🌍 Idioma detectado: {detected_lang}, se sugiere traducción")
+                    print(f"🌍 Idioma detectado: {detected_name} ({detected_iso}), se sugiere traducción")
                 else:
                     # Sugerir mejoras de redacción si es español
                     print(f"📝 Analizando redacción en español...")
