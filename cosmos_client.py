@@ -15,16 +15,21 @@ class ConversationStore:
         """Inicializa la conexión a Cosmos DB (singleton pattern)"""
         try:
             # Crear cliente reutilizable (best practice)
+            print("[ConversationStore] Intentando conectar a Cosmos DB...")
             self.client = _create_cosmos_client()
             
             # Obtener database y container
+            print(f"[ConversationStore] Accediendo a database: {config.COSMOS_DATABASE}")
             self.database = self.client.get_database_client(config.COSMOS_DATABASE)
+            print(f"[ConversationStore] Accediendo a container: {config.COSMOS_CONTAINER}")
             self.container = self.database.get_container_client(config.COSMOS_CONTAINER)
             
-            print(f"✅ Conectado a Cosmos DB: {config.COSMOS_DATABASE}/{config.COSMOS_CONTAINER}")
+            print(f"[ConversationStore] ✅ Conectado exitosamente a Cosmos DB: {config.COSMOS_DATABASE}/{config.COSMOS_CONTAINER}")
             
         except Exception as e:
-            print(f"❌ Error conectando a Cosmos DB: {e}")
+            print(f"[ConversationStore] ❌ Error conectando a Cosmos DB: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             raise
     
     def save_message(
@@ -425,12 +430,27 @@ def _create_cosmos_client() -> CosmosClient:
     """Crea un CosmosClient soportando connection string o endpoint+key."""
     cs = getattr(config, "COSMOS_CONNECTION_STRING", None)
     if cs:
-        return CosmosClient.from_connection_string(cs)
+        print("[_create_cosmos_client] Usando COSMOS_CONNECTION_STRING para conectar")
+        try:
+            return CosmosClient.from_connection_string(cs)
+        except Exception as e:
+            print(f"[_create_cosmos_client] ❌ Error con connection string: {type(e).__name__}: {str(e)}")
+            raise
+    
     endpoint = getattr(config, "COSMOS_ENDPOINT", None)
     key = getattr(config, "COSMOS_KEY", None)
-    if not endpoint or not key:
-        raise RuntimeError("Credenciales de Cosmos incompletas: define COSMOS_CONNECTION_STRING o COSMOS_ENDPOINT + COSMOS_KEY.")
-    return CosmosClient(endpoint, credential=key)
+    
+    if not endpoint:
+        raise RuntimeError("[_create_cosmos_client] ❌ COSMOS_ENDPOINT no configurado")
+    if not key:
+        raise RuntimeError("[_create_cosmos_client] ❌ COSMOS_KEY no configurado")
+    
+    print(f"[_create_cosmos_client] Usando COSMOS_ENDPOINT={endpoint} + COSMOS_KEY para conectar")
+    try:
+        return CosmosClient(endpoint, credential=key)
+    except Exception as e:
+        print(f"[_create_cosmos_client] ❌ Error con endpoint+key: {type(e).__name__}: {str(e)}")
+        raise
 
 
 class MemoryStore:
@@ -438,13 +458,18 @@ class MemoryStore:
 
     def __init__(self):
         try:
+            print("[MemoryStore] Intentando conectar a Cosmos DB...")
             self.client = _create_cosmos_client()
+            print(f"[MemoryStore] Accediendo a database: {config.COSMOS_DATABASE}")
             self.database = self.client.get_database_client(config.COSMOS_DATABASE)
+            print(f"[MemoryStore] Accediendo a container: {config.COSMOS_MEMORY_CONTAINER}")
             self.container = self.database.get_container_client(config.COSMOS_MEMORY_CONTAINER)
             self._pk_field = (config.COSMOS_MEMORY_PK_PATH or "/Categoria").lstrip("/")
-            print(f"✅ Conectado a Cosmos DB Memoria: {config.COSMOS_DATABASE}/{config.COSMOS_MEMORY_CONTAINER}")
+            print(f"[MemoryStore] ✅ Conectado exitosamente a Cosmos DB Memoria: {config.COSMOS_DATABASE}/{config.COSMOS_MEMORY_CONTAINER}")
         except Exception as e:
-            print(f"❌ Error conectando a Cosmos DB (Memoria): {e}")
+            print(f"[MemoryStore] ❌ Error conectando a Cosmos DB (Memoria): {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             raise
 
     def upsert_item(self, item: Dict) -> Dict:

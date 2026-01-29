@@ -1,0 +1,14 @@
+# Renombrar y actualizar todas las referencias de instagram_bot.py a hernando_bot.py y de InstagramBot a HernandoBot en el proyecto.
+# 1. Renombrar archivo principal.
+# 2. Renombrar clase y referencias en los archivos afectados.
+# 3. Actualizar imports y herencias en instagram_bot_enhanced.py, server.py, scripts/.
+# 4. Validar funcionamiento tras el cambio.
+# Plan detallado:
+# - Renombrar instagram_bot.py a hernando_bot.py
+# - Renombrar clase InstagramBot a HernandoBot en el archivo y en todos los imports/usos
+# - Actualizar instagram_bot_enhanced.py para importar y heredar de HernandoBot
+# - Actualizar server.py y scripts para importar HernandoBot
+# - Actualizar cualquier referencia a "instagram_bot" en variables, funciones, comentarios relevantes
+# - Hacer commit y push de los cambios
+# - (Opcional) Dejar comentarios de compatibilidad si alguna integración externa depende del nombre antiguo
+# - Validar que el sistema sigue funcionando correctamente

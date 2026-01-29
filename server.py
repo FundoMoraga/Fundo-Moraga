@@ -11,6 +11,7 @@ import requests
 from instagram_bot_enhanced import InstagramBotEnhanced as HernandoBot
 from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
+from datetime import datetime, timezone
 import json
 # Cliente de Azure Storage (opcional)
 import azure_storage_client as storage_client
@@ -69,20 +70,24 @@ _bot_init_error: Optional[str] = None
 def _init_bot_on_startup():
     """Inicializa el bot al arranque del servidor"""
     global _bot, _bot_init_error
+    print("[STARTUP] Comenzando inicialización de bot...")
     try:
         configured_ok, missing_required, warnings = _config_status()
         if not configured_ok:
-            print(f"⚠️ Bot no inicializado: Faltan variables - {', '.join(missing_required)}")
-            _bot_init_error = f"Configuración incompleta: {', '.join(missing_required)}"
+            msg = f"Faltan variables requeridas: {', '.join(missing_required)}"
+            print(f"[STARTUP] ⚠️ Bot no inicializado: {msg}")
+            _bot_init_error = f"Configuración incompleta: {msg}"
             return
         
-        print("🤖 Pre-inicializando HernandoBot al arranque...")
+        print("[STARTUP] ✓ Configuración completada")
+        print("[STARTUP] 🤖 Pre-inicializando HernandoBot...")
         _bot = HernandoBot()
-        print("✅ HernandoBot pre-inicializado correctamente")
+        print("[STARTUP] ✅ HernandoBot pre-inicializado exitosamente")
     except Exception as e:
-        print(f"❌ Error pre-inicializando bot: {e}")
+        msg = f"Excepción durante inicialización: {type(e).__name__}: {str(e)}"
+        print(f"[STARTUP] ❌ Error: {msg}")
         traceback.print_exc()
-        _bot_init_error = f"Error inicializando bot: {e}"
+        _bot_init_error = msg
 
 # Pre-inicializar el bot
 _init_bot_on_startup()
@@ -309,6 +314,43 @@ def health():
     }), 200
 
 
+@app.route('/debug')
+def debug():
+    """Endpoint de debug para diagnosticar problemas (no usar en producción)"""
+    configured_ok, missing_required, warnings = _config_status()
+    
+    # Información sobre el bot
+    bot_status = "inicializado"
+    bot_error = None
+    if _bot is None and _bot_init_error is None:
+        bot_status = "no inicializado (esperando configuración)"
+    elif _bot is None:
+        bot_status = "falló en inicialización"
+        bot_error = _bot_init_error
+    
+    # Variables de entorno (SIN REVELAR SECRETOS)
+    env_info = {
+        "COSMOS_CONNECTION_STRING": "✓ configurada" if os.getenv("COSMOS_CONNECTION_STRING") else "✗ NO configurada",
+        "COSMOS_ENDPOINT": "✓ configurada" if os.getenv("COSMOS_ENDPOINT") else "✗ NO configurada",
+        "COSMOS_KEY": "✓ configurada" if os.getenv("COSMOS_KEY") else "✗ NO configurada",
+        "OPENAI_API_KEY": "✓ configurada" if os.getenv("OPENAI_API_KEY") else "✗ NO configurada",
+        "INSTAGRAM_ACCESS_TOKEN": "✓ configurada" if os.getenv("INSTAGRAM_ACCESS_TOKEN") else "✗ NO configurada",
+        "INSTAGRAM_PAGE_ID": "✓ configurada" if os.getenv("INSTAGRAM_PAGE_ID") else "✗ NO configurada",
+    }
+    
+    return jsonify({
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "configuration": {
+            "status": "ok" if configured_ok else "incompleta",
+            "missing_required": missing_required,
+            "warnings": warnings,
+        },
+        "bot": {
+            "status": bot_status,
+            "error": bot_error,
+        },
+        "environment_variables": env_info,
+    }), 200
 
 
 # ============= WEB CHAT API =============
