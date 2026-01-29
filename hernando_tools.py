@@ -9,6 +9,8 @@ import requests
 import inspect
 from cosmos_client import get_memory_store
 import private_knowledge
+import language_client
+import translator_client
 
 class HernandoTools:
     """Gestiona las herramientas disponibles para Hernando"""
@@ -22,6 +24,7 @@ class HernandoTools:
         # Agregar herramientas privadas si el usuario está autorizado
         if private_knowledge.is_authorized_user(user_id):
             self.tools.extend(private_knowledge.get_private_knowledge_tools())
+            self.tools.extend(self._define_language_tools())
     
     def _define_tools(self) -> List[Dict]:
         """
@@ -236,6 +239,69 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
                 }
             }
         ]
+
+    def _define_language_tools(self) -> List[Dict]:
+        """Herramientas de lenguaje y traducción (solo para usuarios autorizados)."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "analizar_sentimiento_texto",
+                    "description": "Analiza el sentimiento de un texto usando el servicio de lenguaje.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "texto": {"type": "string", "description": "Texto a analizar"}
+                        },
+                        "required": ["texto"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "detectar_idioma_texto",
+                    "description": "Detecta el idioma de un texto usando el servicio de lenguaje.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "texto": {"type": "string", "description": "Texto a analizar"}
+                        },
+                        "required": ["texto"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "extraer_frases_clave",
+                    "description": "Extrae frases clave de un texto usando el servicio de lenguaje.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "texto": {"type": "string", "description": "Texto a analizar"}
+                        },
+                        "required": ["texto"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "traducir_texto",
+                    "description": "Traduce un texto al idioma destino usando el servicio de traducción.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "texto": {"type": "string", "description": "Texto a traducir"},
+                            "destino": {"type": "string", "description": "Idioma destino (ej: en, es, pt)"},
+                            "origen": {"type": "string", "description": "Idioma origen (opcional, ej: es)"}
+                        },
+                        "required": ["texto", "destino"],
+                    },
+                },
+            },
+        ]
     
     def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -249,23 +315,43 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
             Resultado de la ejecución
         """
         # Herramientas privadas (solo para usuarios autorizados)
-        if tool_name in ["list_private_documents", "read_private_document", "search_private_documents"]:
+        private_tools = [
+            "list_private_documents",
+            "read_private_document",
+            "search_private_documents",
+            "analizar_sentimiento_texto",
+            "detectar_idioma_texto",
+            "extraer_frases_clave",
+            "traducir_texto",
+        ]
+        if tool_name in private_tools:
             if not private_knowledge.is_authorized_user(self.user_id):
                 return {
                     "success": False,
                     "error": "No tienes autorización para acceder a documentos privados"
                 }
             try:
-                result = private_knowledge.execute_private_knowledge_function(tool_name, arguments or {})
-                return {
-                    "success": True,
-                    "result": result
-                }
+                # Delegar herramientas privadas de documentos
+                if tool_name in ["list_private_documents", "read_private_document", "search_private_documents"]:
+                    result = private_knowledge.execute_private_knowledge_function(tool_name, arguments or {})
+                    return {"success": True, "result": result}
+                # Herramientas de lenguaje/traducción
+                if tool_name == "analizar_sentimiento_texto":
+                    texto = (arguments or {}).get("texto") or ""
+                    return {"success": True, "result": language_client.analyze_sentiment(texto)}
+                if tool_name == "detectar_idioma_texto":
+                    texto = (arguments or {}).get("texto") or ""
+                    return {"success": True, "result": language_client.detect_language(texto)}
+                if tool_name == "extraer_frases_clave":
+                    texto = (arguments or {}).get("texto") or ""
+                    return {"success": True, "result": language_client.extract_key_phrases(texto)}
+                if tool_name == "traducir_texto":
+                    texto = (arguments or {}).get("texto") or ""
+                    destino = (arguments or {}).get("destino") or ""
+                    origen = (arguments or {}).get("origen") or None
+                    return {"success": True, "result": translator_client.translate_text(texto, destino, origen)}
             except Exception as e:
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
         
         # Mapear nombres de funciones a métodos
         tool_methods = {
