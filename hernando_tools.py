@@ -2,20 +2,26 @@
 Herramientas (Tools) disponibles para Hernando
 Function Calling de OpenAI para ejecutar acciones específicas
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import json
 from datetime import datetime
 import requests
 import inspect
 from cosmos_client import get_memory_store
+import private_knowledge
 
 class HernandoTools:
     """Gestiona las herramientas disponibles para Hernando"""
     
-    def __init__(self):
+    def __init__(self, user_id: Optional[str] = None):
         """Inicializa las herramientas"""
+        self.user_id = user_id
         self.tools = self._define_tools()
         self.memory_store = get_memory_store()
+        
+        # Agregar herramientas privadas si el usuario está autorizado
+        if private_knowledge.is_authorized_user(user_id):
+            self.tools.extend(private_knowledge.get_private_knowledge_tools())
     
     def _define_tools(self) -> List[Dict]:
         """
@@ -242,6 +248,25 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
         Returns:
             Resultado de la ejecución
         """
+        # Herramientas privadas (solo para usuarios autorizados)
+        if tool_name in ["list_private_documents", "read_private_document", "search_private_documents"]:
+            if not private_knowledge.is_authorized_user(self.user_id):
+                return {
+                    "success": False,
+                    "error": "No tienes autorización para acceder a documentos privados"
+                }
+            try:
+                result = private_knowledge.execute_private_knowledge_function(tool_name, arguments or {})
+                return {
+                    "success": True,
+                    "result": result
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "error": str(e)
+                }
+        
         # Mapear nombres de funciones a métodos
         tool_methods = {
             "enviar_formulario_contacto": self.enviar_formulario_contacto,
@@ -796,15 +821,17 @@ Si te tinca coordinar una visita, dime para qué día te gustaría venir y a qu�
         }
         
         # Mensaje de confirmación para el usuario
-        mensaje = f"""¡Perfecto, {nombre if nombre else 'estimado/a'}! 
-
-He tomado nota de tu interés en {interes if interes else 'nuestros servicios'}. ¡Suena muy interesante!
-
-Ya mismo le paso esta información al equipo de Fundo Moraga para que se pongan en contacto contigo"""
-        
-        if contacto and contacto != "No proporcionado":
-            mensaje += f" a través de {contacto}"
-        
+def get_hernando_tools(user_id: Optional[str] = None) -> HernandoTools:
+    """
+    Obtiene una instancia de HernandoTools.
+    
+    Args:
+        user_id: ID del usuario (número de WhatsApp, etc.) para habilitar herramientas privadas
+    
+    Returns:
+        Instancia de HernandoTools con herramientas apropiadas
+    """
+    return HernandoTools(user_id=user_id)
         mensaje += """ y te den una atención completamente personalizada.
 
 ¿Hay algo más en lo que te pueda ayudar? ¡Estoy feliz de poder servirte!"""

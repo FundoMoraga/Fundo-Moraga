@@ -35,9 +35,8 @@ class ChatbotAI:
         self._openai_disabled_until: Optional[datetime] = None
         self._openai_disabled_reason: Optional[str] = None
         
-        # Importar herramientas
-        from hernando_tools import get_hernando_tools
-        self.tools_manager = get_hernando_tools()
+        # No inicializar tools_manager aquí - se cargará dinámicamente por usuario
+        self._tools_manager_cache: Dict[str, Any] = {}
         
         # Cargar prompts dinámicamente desde Cosmos DB; fallback a embebidos
         from prompts_loader import get_prompts_loader
@@ -99,11 +98,16 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         
         # Cargar dinámicamente desde Cosmos DB
         loader = get_prompts_loader()
+        
+        # Crear un tools_manager temporal para obtener las herramientas base
+        from hernando_tools import get_hernando_tools
+        temp_tools_manager = get_hernando_tools()
+        
         prompts = loader.get_prompts(
             persona="Hernando",
             fallback_system_prompt=self._default_system_prompt,
             fallback_operational_prompt=self._default_operational_prompt,
-            fallback_tools=self.tools_manager.tools,
+            fallback_tools=temp_tools_manager.tools,
         )
         
         self._base_persona_name = "hernando"
@@ -117,8 +121,14 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         self.operational_prompt = self._base_persona_prompts["operational"]
         self.dynamic_tools: List[Dict[str, Any]] = base_tools
         # Preferir tools desde Cosmos; fallback a definiciones locales
-        self.tools: List[Dict[str, Any]] = self.dynamic_tools if self.dynamic_tools else self.tools_manager.tools
+        self._base_tools = self.dynamic_tools if self.dynamic_tools else temp_tools_manager.tools
         self._special_persona_prompts = {k.lower(): v for k, v in SPECIAL_PERSONA_PROMPTS.items()}
+    
+    def _get_tools_for_user(self, user_id: Optional[str] = None) -> tuple:
+        """Obtiene el tools_manager y lista de herramientas para un usuario específico."""
+        from hernando_tools import get_hernando_tools
+        tools_manager = get_hernando_tools(user_id=user_id)
+        return tools_manager, tools_manager.tools
 
     def _now_local(self) -> datetime:
         tz_name = getattr(config, "GOOGLE_CALENDAR_TIMEZONE", None) or "America/Santiago"
@@ -439,9 +449,13 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         model: str,
         base_messages: List[Dict[str, str]],
         return_events: bool,
+        user_id: Optional[str] = None,
     ) -> Any:
         messages: List[Any] = [dict(m) for m in base_messages]
         events: List[Dict[str, Any]] = []
+        
+        # Obtener herramientas específicas para este usuario
+        tools_manager, tools_list = self._get_tools_for_user(user_id)
 
         max_tool_rounds = 3
         token_param = self._token_param_name(model)
@@ -449,7 +463,7 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             kwargs: Dict[str, Any] = dict(
                 model=model,
                 messages=messages,
-                tools=self.tools,
+                tools=tools_list,
                 tool_choice="auto",
                 temperature=0.5,
             )
@@ -475,7 +489,7 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
                 print(f"🔧 Ejecutando herramienta: {function_name}")
                 print(f"   Argumentos: {function_args}")
 
-                function_result = self.tools_manager.execute_tool(function_name, function_args)
+                function_result = tools_manager.execute_tool(function_name, function_args)
                 events.append({"tool": function_name, "args": function_args, "result": function_result})
 
                 messages.append(
@@ -546,7 +560,12 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             try:
                 if model != self.model:
                     print(f"⚠️ Probando modelo fallback: {model} (configurado: {self.model})")
-                return self._generate_with_model(model=model, base_messages=messages, return_events=return_events)
+                return self._generate_with_model(
+                    model=model, 
+                    base_messages=messages, 
+                    return_events=return_events,
+                    user_id=user_id
+                )
             except Exception as e:
                 last_error = e
                 last_error_info = self._classify_openai_exception(e)
