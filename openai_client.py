@@ -709,15 +709,28 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             result = {"text": error_text, "events": [], "model_used": None, "error": skipped}
             return result if return_events else error_text
 
-        # Detectar automáticamente idioma y sugerir mejoras (en segundo plano)
-        language_analysis = self._detect_language_and_suggest_improvements(user_message, user_id)
+        # Detectar automáticamente idioma y sugerir mejoras (en segundo plano, sin bloquear)
+        language_analysis = {
+            "detected_language": None,
+            "language_suggestions": None,
+            "translation_needed": False,
+        }
+        try:
+            language_analysis = self._detect_language_and_suggest_improvements(user_message, user_id)
+        except Exception as e:
+            print(f"⚠️  Error en detección de idioma (no crítico): {e}")
+            # Si falla, continuamos con valores por defecto
 
         persona_prompts = self._resolve_persona_prompts(persona_override, user_message, conversation_history)
         
         # Aplicar análisis de lenguaje al system prompt si es necesario
         system_prompt = persona_prompts["system"]
         if language_analysis.get("detected_language"):
-            system_prompt = self._apply_language_analysis_to_system_prompt(system_prompt, language_analysis)
+            try:
+                system_prompt = self._apply_language_analysis_to_system_prompt(system_prompt, language_analysis)
+            except Exception as e:
+                print(f"⚠️  Error aplicando análisis de lenguaje: {e}")
+                # Si falla, usamos el system prompt original
         
         messages = self._build_messages(
             user_message=user_message,
