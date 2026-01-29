@@ -7,6 +7,70 @@ Este volumen está montado en `/app/private_knowledge` en Railway y está diseñ
 Solo usuarios con números de WhatsApp autorizados pueden acceder a estos documentos.  
 Números autorizados configurados en: `SPECIAL_PERSONA_WHATSAPP_NUMBERS`
 
+## 📤 Subir Archivos por WhatsApp
+
+**La forma más fácil:** ¡Simplemente envía archivos adjuntos por WhatsApp!
+
+Cuando envías un archivo desde tu número autorizado (+56941242609) al WhatsApp de Hernando (+56951016809), el sistema:
+
+1. ✅ **Descarga automáticamente** el archivo de WAHA
+2. 📂 **Organiza** por fecha y tipo en carpetas
+3. 💾 **Guarda** en el volumen persistente
+4. ✉️ **Confirma** con detalles del archivo guardado
+5. 📝 **Almacena metadata** si el archivo tenía caption/texto
+
+### Tipos de Archivos Soportados
+
+- 🖼️ **Imágenes**: JPG, PNG, GIF, WebP
+- 🎥 **Videos**: MP4, MOV, AVI
+- 🎵 **Audios**: MP3, OGG, WAV, notas de voz
+- 📄 **PDFs**: Documentos PDF
+- 📝 **Documentos**: DOCX, DOC
+- 📊 **Hojas de cálculo**: XLSX, XLS
+- 📊 **Presentaciones**: PPTX, PPT
+- 📃 **Textos**: TXT, MD, CSV, JSON
+- 📁 **Otros**: Cualquier otro formato
+
+### Estructura Automática
+
+Los archivos se organizan automáticamente:
+
+```
+/app/private_knowledge/
+└── uploads/
+    └── 2026-01-29/              # Fecha de subida
+        ├── imagenes/
+        │   ├── foto_140532.jpg
+        │   └── foto_140532.jpg.meta.txt  # Metadata
+        ├── videos/
+        │   └── video_151203.mp4
+        ├── audios/
+        │   └── nota_voz_160145.ogg
+        ├── pdfs/
+        │   ├── contrato.pdf
+        │   └── contrato.pdf.meta.txt
+        └── documentos/
+            └── reporte.docx
+```
+
+### Ejemplo de Uso
+
+**Tú (por WhatsApp):** *[Envías una foto con el texto "Logo nuevo del Fundo"]*
+
+**Hernando:** 
+```
+🖼️ ¡Archivo guardado exitosamente!
+
+📁 Nombre: IMG_20260129_143052.jpg
+📏 Tamaño: 2.3 MB
+📂 Categoría: imagenes
+🗂️ Ruta: uploads/2026-01-29/imagenes/IMG_20260129_143052.jpg
+
+Ya está disponible en tu volumen privado. Puedes pedirme que te muestre los archivos en cualquier momento.
+
+💬 También guardé el texto que acompañó al archivo.
+```
+
 ## 📂 Estructura Recomendada
 
 ```
