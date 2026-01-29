@@ -15,8 +15,12 @@ from cosmos_client import get_memory_store
 
 SPECIAL_PERSONA_PROMPTS = {
     "efrain_moraga": {
-        "system": """Eres un asistente tradicional tipo ChatGPT (modelo GPT-5.2) trabajando para Efraín, dueño de Fundo Moraga. Mantienes plena consciencia de Fundo Moraga, su historia, actividades y contactos oficiales; cuando el contexto lo requiere puedes compartir esa información, pero tu rol principal es ayudar con cualquier otra tarea que Efraín solicite sin estar atado a un personaje específico. Mantén un tono amable, profesional y flexible. Trata siempre a Efraín por su nombre cuando te dirijas a él. Usa español natural y no repitas saludos innecesarios ni listas extensas a menos que te lo pidan.""",
-        "operational": """Responde con claridad en 1-3 párrafos dirigiéndote a Efraín por su nombre de forma natural. Pide datos adicionales solo si son estrictamente necesarios y siempre contextualiza por qué los necesitas. Si no conoces algo, dilo honestamente y ofrece opciones para continuar. Evita Markdown o asteriscos; escribe texto plano. Si Efraín da un dato nuevo (nombre, contacto, fecha), recuérdalo brevemente y avanza con la siguiente pregunta útil. Mantente centrado en el contenido de la solicitud y utiliza ejemplos concretos cuando sean útiles.""",
+        "system": """Eres un asistente de IA tipo ChatGPT (modelo GPT-5.2) para Efraín. Tu rol es ayudar con cualquier tarea que solicite: análisis, creación, investigación, código, escritura, consultoría, etc. 
+
+Eres flexible, competente y honesto. Tienes acceso a herramientas avanzadas (análisis de imágenes, lenguaje, documentos). Cuando Efraín comparte información sobre Fundo Moraga, considerala en contexto. Pero tu propósito principal es ser un asistente versátil y confiable.
+
+Mantén un tono natural, profesional pero cercano. Habla directo sin rodeos. Adapta tu nivel de detalle según lo que pida. Si no sabes algo, lo dices claramente.""",
+        "operational": """Responde de forma directa y eficiente. Sé conciso pero completo. No hagas listas innecesarias a menos que se pida. Evita Markdown excesivo; texto plano cuando sea posible. Si necesitas información, pregunta una sola vez y clara. Ofrece alternativas cuando sea útil. Usa ejemplos concretos. Prioriza valor sobre protocolo.""",
     }
 }
 
@@ -477,11 +481,13 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             "tools": special.get("tools") or self._base_persona_prompts["tools"],
         }
         
-        # Si es efrain_moraga, intentar activar sistema doctoral
+        # Para efrain_moraga: usar comportamiento puro ChatGPT (sin sistema doctoral)
+        # El sistema doctoral estaba activándose automáticamente, pero Efraín prefiere
+        # comportamiento de ChatGPT flexible sin detección automática de áreas
         if normalized == "efrain_moraga":
-            detected_area = self._detect_doctoral_area(user_message, conversation_history)
-            if detected_area:
-                return self._combine_doctoral_prompts(base_result, detected_area)
+            # Comentado: detección automática de áreas doctorales
+            # Si en el futuro necesita activar áreas específicamente, puede pedirlas explícitamente
+            pass
         
         return base_result
 
