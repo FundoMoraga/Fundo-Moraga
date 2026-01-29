@@ -11,6 +11,7 @@ from cosmos_client import get_memory_store
 import private_knowledge
 import language_client
 import translator_client
+import vision_client
 
 class HernandoTools:
     """Gestiona las herramientas disponibles para Hernando"""
@@ -25,6 +26,7 @@ class HernandoTools:
         if private_knowledge.is_authorized_user(user_id):
             self.tools.extend(private_knowledge.get_private_knowledge_tools())
             self.tools.extend(self._define_language_tools())
+            self.tools.extend(self._define_vision_tools())
     
     def _define_tools(self) -> List[Dict]:
         """
@@ -302,6 +304,81 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
                 },
             },
         ]
+
+    def _define_vision_tools(self) -> List[Dict]:
+        """Herramientas de visión computacional (solo para usuarios autorizados)."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "analizar_imagen_completa",
+                    "description": "Analiza una imagen y detecta objetos, personas, textos y marcas.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url_imagen": {"type": "string", "description": "URL de la imagen a analizar"}
+                        },
+                        "required": ["url_imagen"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "detectar_objetos_imagen",
+                    "description": "Detecta objetos, elementos y cosas en una imagen.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url_imagen": {"type": "string", "description": "URL de la imagen a analizar"}
+                        },
+                        "required": ["url_imagen"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "detectar_personas_imagen",
+                    "description": "Detecta personas en una imagen y proporciona su ubicación.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url_imagen": {"type": "string", "description": "URL de la imagen a analizar"}
+                        },
+                        "required": ["url_imagen"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "describir_imagen",
+                    "description": "Proporciona una descripción textual de lo que hay en una imagen.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url_imagen": {"type": "string", "description": "URL de la imagen a analizar"}
+                        },
+                        "required": ["url_imagen"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "extraer_texto_imagen",
+                    "description": "Extrae texto de una imagen usando OCR.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url_imagen": {"type": "string", "description": "URL de la imagen a analizar"}
+                        },
+                        "required": ["url_imagen"],
+                    },
+                },
+            },
+        ]
     
     def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -323,6 +400,11 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
             "detectar_idioma_texto",
             "extraer_frases_clave",
             "traducir_texto",
+            "analizar_imagen_completa",
+            "detectar_objetos_imagen",
+            "detectar_personas_imagen",
+            "describir_imagen",
+            "extraer_texto_imagen",
         ]
         if tool_name in private_tools:
             if not private_knowledge.is_authorized_user(self.user_id):
@@ -350,6 +432,28 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
                     destino = (arguments or {}).get("destino") or ""
                     origen = (arguments or {}).get("origen") or None
                     return {"success": True, "result": translator_client.translate_text(texto, destino, origen)}
+                
+                # Herramientas de Vision Computacional
+                if tool_name == "analizar_imagen_completa":
+                    url_imagen = (arguments or {}).get("url_imagen") or ""
+                    import vision_client
+                    return {"success": True, "result": vision_client.analyze_image(url_imagen)}
+                if tool_name == "detectar_objetos_imagen":
+                    url_imagen = (arguments or {}).get("url_imagen") or ""
+                    import vision_client
+                    return {"success": True, "result": vision_client.detect_objects(url_imagen)}
+                if tool_name == "detectar_personas_imagen":
+                    url_imagen = (arguments or {}).get("url_imagen") or ""
+                    import vision_client
+                    return {"success": True, "result": vision_client.detect_people(url_imagen)}
+                if tool_name == "describir_imagen":
+                    url_imagen = (arguments or {}).get("url_imagen") or ""
+                    import vision_client
+                    return {"success": True, "result": vision_client.get_image_description(url_imagen)}
+                if tool_name == "extraer_texto_imagen":
+                    url_imagen = (arguments or {}).get("url_imagen") or ""
+                    import vision_client
+                    return {"success": True, "result": vision_client.extract_text_from_image(url_imagen)}
             except Exception as e:
                 return {"success": False, "error": str(e)}
         

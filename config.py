@@ -49,6 +49,11 @@ AZURE_LANGUAGE_ENDPOINT = _clean_env(
 )
 AZURE_LANGUAGE_KEY = _clean_env(os.getenv("AZURE_LANGUAGE_KEY"))
 
+# Azure Computer Vision
+AZURE_VISION_ENDPOINT = _clean_env(os.getenv("AZURE_VISION_ENDPOINT"))
+AZURE_VISION_KEY = _clean_env(os.getenv("AZURE_VISION_KEY"))
+VISION_SERVICE_URL = _clean_env(os.getenv("VISION_SERVICE_URL"))
+
 # Language Service URL (Railway internal)
 LANGUAGE_SERVICE_URL = _clean_env(os.getenv("LANGUAGE_SERVICE_URL"))
 TRANSLATOR_SERVICE_URL = _clean_env(os.getenv("TRANSLATOR_SERVICE_URL"))
