@@ -11,7 +11,14 @@ from cosmos_client import get_memory_store
 import private_knowledge
 import language_client
 import translator_client
-import vision_client
+
+# Vision client es opcional (requiere azure-cognitiveservices-vision-computervision)
+try:
+    import vision_client
+    VISION_AVAILABLE = True
+except ImportError:
+    VISION_AVAILABLE = False
+    vision_client = None
 
 class HernandoTools:
     """Gestiona las herramientas disponibles para Hernando"""
@@ -26,7 +33,9 @@ class HernandoTools:
         if private_knowledge.is_authorized_user(user_id):
             self.tools.extend(private_knowledge.get_private_knowledge_tools())
             self.tools.extend(self._define_language_tools())
-            self.tools.extend(self._define_vision_tools())
+            # Solo agregar herramientas de Vision si el módulo está disponible
+            if VISION_AVAILABLE:
+                self.tools.extend(self._define_vision_tools())
     
     def _define_tools(self) -> List[Dict]:
         """
@@ -433,27 +442,24 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
                     origen = (arguments or {}).get("origen") or None
                     return {"success": True, "result": translator_client.translate_text(texto, destino, origen)}
                 
-                # Herramientas de Vision Computacional
-                if tool_name == "analizar_imagen_completa":
+                # Herramientas de Vision Computacional (solo si está disponible)
+                if tool_name in ["analizar_imagen_completa", "detectar_objetos_imagen", "detectar_personas_imagen", "describir_imagen", "extraer_texto_imagen"]:
+                    if not VISION_AVAILABLE:
+                        return {"success": False, "error": "Módulo de visión no disponible. Instala: pip install azure-cognitiveservices-vision-computervision"}
+                    
                     url_imagen = (arguments or {}).get("url_imagen") or ""
-                    import vision_client
-                    return {"success": True, "result": vision_client.analyze_image(url_imagen)}
-                if tool_name == "detectar_objetos_imagen":
-                    url_imagen = (arguments or {}).get("url_imagen") or ""
-                    import vision_client
-                    return {"success": True, "result": vision_client.detect_objects(url_imagen)}
-                if tool_name == "detectar_personas_imagen":
-                    url_imagen = (arguments or {}).get("url_imagen") or ""
-                    import vision_client
-                    return {"success": True, "result": vision_client.detect_people(url_imagen)}
-                if tool_name == "describir_imagen":
-                    url_imagen = (arguments or {}).get("url_imagen") or ""
-                    import vision_client
-                    return {"success": True, "result": vision_client.get_image_description(url_imagen)}
-                if tool_name == "extraer_texto_imagen":
-                    url_imagen = (arguments or {}).get("url_imagen") or ""
-                    import vision_client
-                    return {"success": True, "result": vision_client.extract_text_from_image(url_imagen)}
+                    
+                    if tool_name == "analizar_imagen_completa":
+                        return {"success": True, "result": vision_client.analyze_image(url_imagen)}
+                    elif tool_name == "detectar_objetos_imagen":
+                        return {"success": True, "result": vision_client.detect_objects(url_imagen)}
+                    elif tool_name == "detectar_personas_imagen":
+                        return {"success": True, "result": vision_client.detect_people(url_imagen)}
+                    elif tool_name == "describir_imagen":
+                        return {"success": True, "result": vision_client.get_image_description(url_imagen)}
+                    elif tool_name == "extraer_texto_imagen":
+                        return {"success": True, "result": vision_client.extract_text_from_image(url_imagen)}
+                
             except Exception as e:
                 return {"success": False, "error": str(e)}
         
