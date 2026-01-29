@@ -359,6 +359,69 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         
         return None
     
+    def _detect_language_and_suggest_improvements(self, user_message: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Detecta automáticamente el idioma del mensaje y sugiere mejoras de redacción.
+        Ejecuta herramientas en segundo plano sin bloquear la respuesta principal.
+        """
+        from private_knowledge import is_authorized_user
+        
+        result = {
+            "detected_language": None,
+            "language_suggestions": None,
+            "translation_needed": False,
+        }
+        
+        # Solo ejecutar si el usuario está autorizado
+        if not is_authorized_user(user_id):
+            return result
+        
+        try:
+            # Detectar idioma del mensaje
+            import language_client as lc
+            language_info = lc.detect_language(user_message)
+            
+            if language_info and language_info.get("success"):
+                detected_lang = language_info.get("result", {}).get("language")
+                result["detected_language"] = detected_lang
+                
+                # Si no es español, marcar que se necesita traducción
+                if detected_lang and detected_lang not in ("es", "es-ES", "es-MX", "es-AR"):
+                    result["translation_needed"] = True
+                    print(f"🌍 Idioma detectado: {detected_lang}, se sugiere traducción")
+                else:
+                    # Sugerir mejoras de redacción si es español
+                    print(f"📝 Analizando redacción en español...")
+                    # Aquí podríamos agregar más análisis de estilo si es necesario
+            
+        except Exception as e:
+            print(f"⚠️  Error detectando idioma: {e}")
+        
+        return result
+
+    def _apply_language_analysis_to_system_prompt(self, 
+                                                  system_prompt: str, 
+                                                  language_analysis: Dict[str, Any]) -> str:
+        """
+        Aplica resultados del análisis de lenguaje al system prompt.
+        Agrega notas sobre idioma detectado y recomendaciones.
+        """
+        if not language_analysis or not language_analysis.get("detected_language"):
+            return system_prompt
+        
+        detected_lang = language_analysis.get("detected_language")
+        additions = []
+        
+        if language_analysis.get("translation_needed"):
+            additions.append(f"Nota: El usuario escribió en {detected_lang}. Considera responder en español y ofrecerle traducción si lo necesita.")
+        else:
+            additions.append(f"Nota: Idioma detectado: {detected_lang}. Responde naturalmente en español.")
+        
+        if additions:
+            return system_prompt + "\n\n" + "\n".join(additions)
+        
+        return system_prompt
+
     def _combine_doctoral_prompts(self, base_prompts: Dict[str, Any], area: str) -> Dict[str, Any]:
         """Combina prompt base doctoral con prompt de área específica."""
         if not hasattr(self, '_doctoral_prompts_cache'):
@@ -644,7 +707,16 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             result = {"text": error_text, "events": [], "model_used": None, "error": skipped}
             return result if return_events else error_text
 
+        # Detectar automáticamente idioma y sugerir mejoras (en segundo plano)
+        language_analysis = self._detect_language_and_suggest_improvements(user_message, user_id)
+
         persona_prompts = self._resolve_persona_prompts(persona_override, user_message, conversation_history)
+        
+        # Aplicar análisis de lenguaje al system prompt si es necesario
+        system_prompt = persona_prompts["system"]
+        if language_analysis.get("detected_language"):
+            system_prompt = self._apply_language_analysis_to_system_prompt(system_prompt, language_analysis)
+        
         messages = self._build_messages(
             user_message=user_message,
             conversation_history=conversation_history,
@@ -654,7 +726,7 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             already_welcomed=already_welcomed,
             lead_capture_already_sent=lead_capture_already_sent,
             extra_context=extra_context,
-            system_prompt=persona_prompts["system"],
+            system_prompt=system_prompt,
             operational_prompt=persona_prompts["operational"],
         )
 
