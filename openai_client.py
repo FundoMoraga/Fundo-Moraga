@@ -481,13 +481,11 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             "tools": special.get("tools") or self._base_persona_prompts["tools"],
         }
         
-        # Para efrain_moraga: usar comportamiento puro ChatGPT (sin sistema doctoral)
-        # El sistema doctoral estaba activándose automáticamente, pero Efraín prefiere
-        # comportamiento de ChatGPT flexible sin detección automática de áreas
+        # Si es efrain_moraga, activar sistema doctoral automático
         if normalized == "efrain_moraga":
-            # Comentado: detección automática de áreas doctorales
-            # Si en el futuro necesita activar áreas específicamente, puede pedirlas explícitamente
-            pass
+            detected_area = self._detect_doctoral_area(user_message, conversation_history)
+            if detected_area:
+                return self._combine_doctoral_prompts(base_result, detected_area)
         
         return base_result
 
