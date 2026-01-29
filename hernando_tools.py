@@ -821,6 +821,25 @@ Si te tinca coordinar una visita, dime para qué día te gustaría venir y a qu�
         }
         
         # Mensaje de confirmación para el usuario
+        mensaje = f"""¡Perfecto, {nombre if nombre else 'estimado/a'}! 
+
+He tomado nota de tu interés en {interes if interes else 'nuestros servicios'}. ¡Suena muy interesante!
+
+Ya mismo le paso esta información al equipo de Fundo Moraga para que se pongan en contacto contigo"""
+        
+        if contacto and contacto != "No proporcionado":
+            mensaje += f" a través de {contacto}"
+        
+        mensaje += """ y te den una atención completamente personalizada.
+
+¿Hay algo más en lo que te pueda ayudar? ¡Estoy feliz de poder servirte!"""
+        
+        # Log para debugging
+        print(f"📋 Información capturada: {json.dumps(info_capturada, indent=2)}")
+        
+        return mensaje
+
+
 def get_hernando_tools(user_id: Optional[str] = None) -> HernandoTools:
     """
     Obtiene una instancia de HernandoTools.
@@ -832,14 +851,6 @@ def get_hernando_tools(user_id: Optional[str] = None) -> HernandoTools:
         Instancia de HernandoTools con herramientas apropiadas
     """
     return HernandoTools(user_id=user_id)
-        mensaje += """ y te den una atención completamente personalizada.
-
-¿Hay algo más en lo que te pueda ayudar? ¡Estoy feliz de poder servirte!"""
-        
-        # Log para debugging
-        print(f"📋 Información capturada: {json.dumps(info_capturada, indent=2)}")
-        
-        return mensaje
 
 
 # Singleton instance
