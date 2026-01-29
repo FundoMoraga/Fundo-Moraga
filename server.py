@@ -617,15 +617,19 @@ def whatsapp_webhook():
         if chat_id.endswith("@g.us") and not config.WAHA_ALLOW_GROUPS:
             continue
 
+        # Verificar si el mensaje tiene archivos adjuntos
+        has_media = payload.get("hasMedia", False)
+        media_info = payload.get("media")
+        
         text = _extract_waha_text(payload)
         if not text:
             msg_type = str(payload.get("type") or payload.get("messageType") or "").lower()
             if msg_type and msg_type != "chat":
                 text = "[adjunto]"
-            elif payload.get("media") or payload.get("file") or payload.get("attachment"):
+            elif has_media or payload.get("file") or payload.get("attachment"):
                 text = "[adjunto]"
 
-        if not text:
+        if not text and not has_media:
             continue
 
         session = (
@@ -633,8 +637,36 @@ def whatsapp_webhook():
         )
         user_id = f"wa_{chat_id}"
 
+        # Manejar archivos adjuntos para usuarios autorizados
+        if has_media and media_info:
+            import private_knowledge
+            if private_knowledge.is_authorized_user(user_id):
+                from media_handler import download_and_save_media, format_save_confirmation
+                
+                media_url = media_info.get("url")
+                filename = media_info.get("filename")
+                mimetype = media_info.get("mimetype")
+                caption = text if text != "[adjunto]" else None
+                
+                if media_url:
+                    result = download_and_save_media(
+                        media_url=media_url,
+                        filename=filename,
+                        mimetype=mimetype,
+                        user_id=user_id,
+                        caption=caption
+                    )
+                    
+                    response = format_save_confirmation(result)
+                    _send_waha_text(chat_id, response, session)
+                    handled += 1
+                    continue
+        
+        # Si hay adjunto pero no se procesó (no autorizado o sin media_info)
         if text == "[adjunto]":
             response = "Recibí un adjunto. ¿Me puedes contar en texto qué necesitas o qué te gustaría coordinar?"
+        elif not text:
+            continue
         else:
             response = bot.process_message(
                 user_id,
