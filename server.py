@@ -13,6 +13,7 @@ from reminder_scheduler import start_reminder_scheduler
 from typing import Optional, Tuple
 from datetime import datetime, timezone
 import json
+from pathlib import Path
 # Cliente de Azure Storage (opcional)
 import azure_storage_client as storage_client
 from azure_storage_client import get_blob_url, list_blobs
@@ -54,6 +55,41 @@ def _config_status() -> Tuple[bool, list[str], list[str]]:
         warnings.append("AZURE_STORAGE_URL_BASE (storage)")
 
     return (len(missing_required) == 0, missing_required, warnings)
+
+
+def _sanitize_upload_path(relative_path: str) -> Path:
+    """Normaliza y valida rutas relativas para evitar path traversal."""
+    cleaned = (relative_path or "").replace("\\", "/").strip()
+    cleaned = cleaned.lstrip("/")
+    # Eliminar segmentos peligrosos
+    parts = [p for p in cleaned.split("/") if p and p not in (".", "..")]
+    return Path(*parts) if parts else Path()
+
+
+def _save_uploaded_file(file_storage, base_dir: Path, relative_path: Path) -> dict:
+    """Guarda un archivo subido en el volumen privado."""
+    target_dir = base_dir / relative_path.parent
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = relative_path.name or (file_storage.filename or "archivo")
+    safe_name = filename.replace("/", "_").replace("\\", "_")
+    target_path = target_dir / safe_name
+
+    # Evitar sobrescrituras
+    if target_path.exists():
+        stem = target_path.stem
+        suffix = target_path.suffix
+        counter = 1
+        while target_path.exists():
+            target_path = target_dir / f"{stem}_{counter}{suffix}"
+            counter += 1
+
+    file_storage.save(target_path)
+    stat = target_path.stat()
+    return {
+        "saved": str(target_path.relative_to(base_dir)),
+        "size": stat.st_size,
+    }
 
 app = Flask(__name__, static_folder='Web', static_url_path='')
 CORS(app)  # Permitir peticiones desde fundomoraga.com
@@ -693,6 +729,33 @@ def whatsapp_webhook():
                 print(f"[WARNING] Error enviando resumen final: {e}")
 
     return jsonify({"ok": True, "handled": handled}), 200
+
+
+@app.route('/admin/private-upload', methods=['POST'])
+def admin_private_upload():
+    """Endpoint admin para subir archivos al volumen privado."""
+    token = request.headers.get("X-Admin-Token") or request.args.get("token")
+    if not config.ADMIN_UPLOAD_TOKEN or token != config.ADMIN_UPLOAD_TOKEN:
+        return jsonify({"error": "unauthorized"}), 401
+
+    base_dir = Path("/app/private_knowledge") / "imports" / datetime.now().strftime("%Y-%m-%d")
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    if not request.files:
+        return jsonify({"error": "no_files"}), 400
+
+    results = []
+    for key in request.files:
+        for file_storage in request.files.getlist(key):
+            rel_path_raw = request.form.get("relative_path") or file_storage.filename or "archivo"
+            rel_path = _sanitize_upload_path(rel_path_raw)
+            try:
+                info = _save_uploaded_file(file_storage, base_dir, rel_path)
+                results.append({"file": file_storage.filename, "saved": info["saved"], "size": info["size"]})
+            except Exception as e:
+                results.append({"file": file_storage.filename, "error": str(e)})
+
+    return jsonify({"ok": True, "count": len(results), "results": results}), 200
 
 
 # ============= EJEMPLOS DE INTEGRACIÓN WEB =============

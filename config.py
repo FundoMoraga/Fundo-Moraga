@@ -78,6 +78,9 @@ WAHA_ALLOW_GROUPS = os.getenv("WAHA_ALLOW_GROUPS", "false").lower() in (
     "si",
 )
 
+# Admin upload (volumen privado)
+ADMIN_UPLOAD_TOKEN = _clean_env(os.getenv("ADMIN_UPLOAD_TOKEN"))
+
 # Bot Configuration
 BOT_NAME = os.getenv("BOT_NAME", "Fundo Moraga Bot")
 MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "30"))
