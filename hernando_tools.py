@@ -824,11 +824,32 @@ EJEMPLOS:
                 "type": "function",
                 "function": {
                     "name": "analizar_imagen_completa",
-                    "description": "Analiza una imagen y detecta objetos, personas, textos y marcas.",
+                    "description": """[AUTO-EXECUTE] Análisis completo de imagen - Ejecutar INMEDIATAMENTE cuando usuario envía/menciona imagen.
+
+CUÁNDO USAR (ejecutar SIN preguntar):
+✓ Usuario envía imagen (attachment/URL)
+✓ Usuario dice "mira esta imagen", "qué ves aquí", "analiza esto"
+✓ Usuario proporciona URL de imagen
+✓ Después de buscar_imagenes() para profundizar en una imagen específica
+
+FLUJO AUTOMÁTICO:
+1. Análisis visual completo (objetos, personas, colores, composición)
+2. En paralelo: Ejecutar extraer_texto_imagen() (OCR)
+3. SI hay texto detectado Y no es español:
+   - Auto-detectar idioma
+   - Auto-traducir a español
+4. Síntesis: Visual + Texto + Contexto
+
+PRIORIDAD: ALTA - Ejecutar automáticamente
+COMBINAR CON: extraer_texto_imagen (siempre), traducir_texto (si texto extranjero)
+NOTA: Si usuario tiene prompt doctoral activo, aplicar análisis académico automáticamente""",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "url_imagen": {"type": "string", "description": "URL de la imagen a analizar"}
+                            "url_imagen": {
+                                "type": "string",
+                                "description": "URL de la imagen a analizar"
+                            }
                         },
                         "required": ["url_imagen"],
                     },
@@ -920,17 +941,29 @@ EJEMPLOS:
                 "type": "function",
                 "function": {
                     "name": "extraer_contenido_web",
-                    "description": "Extrae contenido específico de una página usando selectores CSS. Útil cuando necesitas datos estructurados de una página.",
+                    "description": """[AUTO-EXECUTE] Extrae contenido de páginas web - Ejecutar DESPUÉS de buscar_en_google.
+
+CUÁNDO USAR (ejecutar SIN preguntar):
+✓ SIEMPRE después de buscar_en_google() para obtener contenido completo de resultados
+✓ Usuario proporciona URL específica para leer
+✓ Usuario dice "lee este artículo", "extrae info de esta página"
+✓ Necesitas contenido textual de una URL conocida
+
+FLUJO TÍPICO:
+buscar_en_google() → [obtiene URLs] → extraer_contenido_web(urls) → [analizar/sintetizar]
+
+PRIORIDAD: ALTA - Auto-ejecutar tras búsquedas
+NOTA: Extraer de top 3-5 URLs automáticamente, no preguntar cuántas""",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "url": {
                                 "type": "string",
-                                "description": "URL de la página"
+                                "description": "URL de la página a extraer"
                             },
                             "selector": {
                                 "type": "string",
-                                "description": "Selector CSS del elemento a extraer (ej: 'article', '.content', '#main')"
+                                "description": "Selector CSS opcional para contenido específico (default: auto-detectar contenido principal)"
                             }
                         },
                         "required": ["url"],
@@ -941,17 +974,31 @@ EJEMPLOS:
                 "type": "function",
                 "function": {
                     "name": "buscar_en_google",
-                    "description": "Busca información en Google y extrae contenido relevante de los primeros resultados. Ideal para investigaciones rápidas sobre temas actuales.",
+                    "description": """[AUTO-EXECUTE] Búsqueda en Google - Ejecutar INMEDIATAMENTE cuando usuario pide información de internet.
+
+CUÁNDO USAR (ejecutar SIN preguntar):
+✓ Usuario dice: "Busca X", "Investiga Y", "Qué noticias hay de Z"
+✓ Usuario pregunta sobre empresas/personas/eventos desconocidos
+✓ Usuario necesita información actual (precios, noticias, datos recientes)
+✓ Usuario pide "tres artículos sobre...", "información reciente de..."
+
+NO USAR:
+✗ Usuario solo pregunta "¿puedes buscar?" (esperar que concrete QUÉ buscar)
+✗ Ya tienes información suficiente en contexto
+✗ Pregunta es sobre Fundo Moraga (usar herramientas internas)
+
+PRIORIDAD: ALTA - Ejecutar automáticamente sin pedir confirmación
+COMBINAR CON: extraer_contenido_web (siempre extraer contenido de primeros 3-5 resultados)""",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "Consulta de búsqueda (ej: 'últimas noticias IA Chile', 'precio dolar hoy')"
+                                "description": "Consulta de búsqueda. AUTO-OPTIMIZAR: agregar contexto geográfico si relevante (ej: 'Maxus' → 'Maxus Chile noticias 2024')"
                             },
                             "max_results": {
                                 "type": "integer",
-                                "description": "Número de resultados a analizar (1-10, default: 5)",
+                                "description": "Número de resultados (AUTO: 5 para búsqueda rápida, 10 para investigación profunda)",
                                 "default": 5
                             }
                         },
@@ -963,18 +1010,38 @@ EJEMPLOS:
                 "type": "function",
                 "function": {
                     "name": "investigar_tema",
-                    "description": "Realiza una investigación profunda sobre un tema: busca en múltiples fuentes, analiza contenido y sintetiza hallazgos. Usa esto para análisis exhaustivos.",
+                    "description": """[AUTO-EXECUTE] Investigación profunda multi-fuente - FLUJO COMPLETO AUTOMÁTICO.
+
+CUÁNDO USAR (ejecutar SIN preguntar):
+✓ Usuario dice: "Investiga X", "Analiza qué dicen de Y", "Dime todo sobre Z"
+✓ Usuario necesita información completa con múltiples perspectivas
+✓ Usuario pide opiniones/sentimiento sobre un tema
+✓ Usuario necesita "análisis exhaustivo", "investigación completa"
+
+FLUJO AUTOMÁTICO (sin interrupciones):
+1. Busca en múltiples fuentes (Google)
+2. Extrae contenido de fuentes principales
+3. Analiza y sintetiza información
+4. Identifica tendencias y patrones
+
+PROFUNDIDAD AUTOMÁTICA:
+- "light": Top 3 resultados, síntesis rápida (~30 seg)
+- "medium": Top 5-7 resultados, análisis completo (~60 seg) [DEFAULT]
+- "deep": Top 10+ resultados, exhaustivo (~120 seg)
+
+PRIORIDAD: ALTA - Ejecutar sin pedir confirmación
+USO TÍPICO: Usuario quiere entender un tema complejo de forma profunda""",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "topic": {
                                 "type": "string",
-                                "description": "Tema a investigar en profundidad"
+                                "description": "Tema a investigar (será optimizado automáticamente con contexto y fechas)"
                             },
                             "depth": {
                                 "type": "string",
                                 "enum": ["light", "medium", "deep"],
-                                "description": "Profundidad de la investigación: light (rápido, 2-3 fuentes), medium (5-7 fuentes), deep (10+ fuentes)",
+                                "description": "Profundidad de la investigación (AUTO: 'medium' para balance velocidad/completitud)",
                                 "default": "medium"
                             }
                         },
