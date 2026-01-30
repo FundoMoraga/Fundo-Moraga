@@ -129,11 +129,14 @@ class HernandoBot:
                 extra_context_payload.update(lead_context)
             if isinstance(extra_context, dict):
                 extra_context_payload.update(extra_context)
+                # Si viene user_name en extra_context, agregarlo al lead_context
+                if "user_name" in extra_context and isinstance(lead_context, dict):
+                    lead_context["known_name"] = extra_context["user_name"]
             elif isinstance(extra_context, str) and extra_context.strip():
                 extra_context_payload["extra_context_note"] = extra_context.strip()
             if source == "admin" and "admin_mode" not in extra_context_payload:
                 extra_context_payload["admin_mode"] = "true"
-            is_admin_mode = str(extra_context_payload.get("admin_mode", "")).strip().lower() in ("1", "true", "yes", "on")
+            is_admin_mode = str(extra_context_payload.get("admin_mode", "")).strip().lower() in ("1", "true", "yes", "on") or extra_context_payload.get("is_admin", False)
             is_farewell = self._is_farewell_message(message_text) if not is_admin_mode else False
 
             if not is_admin_mode:

@@ -928,31 +928,11 @@ def whatsapp_webhook():
         elif not text:
             continue
         else:
-            # Si es Efraín Moraga y es primer mensaje, saludar como admin
-            conversation_history = bot.conversation_store.get_conversation_history(user_id=user_id, limit=5)
-            is_first_message = len(conversation_history) == 0
-            
-            if is_efrain and is_first_message:
-                response = f"¡Hola Efraín! ¿En qué te puedo ayudar?"
-                _send_waha_text(chat_id, response, session)
-                handled += 1
-                
-                # Guardar mensaje del usuario y respuesta
-                bot.conversation_store.save_message(
-                    user_id=user_id,
-                    role="user",
-                    message=text,
-                    conversation_id=f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}",
-                    metadata={"platform": "whatsapp", "source": "whatsapp_webhook"}
-                )
-                bot.conversation_store.save_message(
-                    user_id=user_id,
-                    role="assistant",
-                    message=response,
-                    conversation_id=f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}",
-                    metadata={"platform": "whatsapp", "persona": "efrain_moraga"}
-                )
-                continue
+            # Pasar contexto de usuario autorizado al bot
+            extra_context = {}
+            if is_efrain:
+                extra_context["user_name"] = user_name
+                extra_context["is_admin"] = True
             
             response = bot.process_message(
                 user_id,
@@ -960,6 +940,7 @@ def whatsapp_webhook():
                 platform="whatsapp",
                 source="whatsapp_webhook",
                 message_id=str(payload.get("id") or payload.get("messageId") or payload.get("message_id") or ""),
+                extra_context=extra_context if extra_context else None,
             )
 
         close_token = "[[CLOSE_CHAT]]"
