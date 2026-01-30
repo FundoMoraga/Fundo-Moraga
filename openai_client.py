@@ -9,6 +9,7 @@ import config
 import json
 import os
 import re
+import hashlib
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from cosmos_client import get_memory_store
@@ -853,6 +854,150 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             return {"text": fallback_text, "events": events, "model_used": model}
         return fallback_text
     
+    def _get_cache_key_for_response(
+        self,
+        user_id: Optional[str],
+        user_message: str,
+        persona: Optional[str]
+    ) -> Optional[str]:
+        """
+        Genera cache key para respuesta de OpenAI.
+        Retorna None si la respuesta NO debe cachearse.
+        
+        Estrategia:
+        - Cachear preguntas frecuentes (saludos, FAQ, info general)
+        - NO cachear consultas personalizadas (datos de usuario, reservas)
+        - NO cachear búsquedas web (contenido dinámico)
+        
+        Args:
+            user_id: ID del usuario
+            user_message: Mensaje original
+            persona: Personalidad usada (si aplica)
+        
+        Returns:
+            Cache key string, o None si no es cacheble
+        """
+        msg_lower = user_message.lower().strip()
+        
+        # Patrones que SÍ se cachean (preguntas frecuentes)
+        cacheable_patterns = {
+            "greeting": [r'^\s*(hola|hi|hey|buenos|buenas)', r'^\s*o+la+'],
+            "help": [r'^\s*(ayuda|help|qué puedo|que me|herramientas)', r'^\s*¿.*puedo'],
+            "about": [r'^\s*(qué eres|quién eres|que eres|cuéntame sobre ti)'],
+            "batuco": [r'batuco', r'tour', r'off.?road', r'vehículos', r'4x4'],
+            "faq": [r'cómo.*funciona', r'cuánto cuesta', r'dónde queda', r'qué es', r'tiene.*servicio'],
+        }
+        
+        message_type = None
+        for msg_type, patterns in cacheable_patterns.items():
+            if any(re.search(p, msg_lower) for p in patterns):
+                message_type = msg_type
+                break
+        
+        # Si no coincide con patrón cacheble, NO cachear
+        if not message_type:
+            return None
+        
+        # NO cachear consultas personalizadas
+        personal_keywords = [
+            'mi reserva', 'mi número', 'mi email', 'mi nombre', 'mi teléfono',
+            'datos personales', 'mi pago', 'mi tarjeta', 'mi cuenta', 'privado',
+            'busca', 'búsqueda', 'investiga', 'google', 'información sobre'
+        ]
+        if any(kw in msg_lower for kw in personal_keywords):
+            return None
+        
+        # NO cachear análisis de imágenes (varía por imagen)
+        if any(word in msg_lower for word in ['imagen', 'foto', 'picture', 'analyze', 'analiza']):
+            return None
+        
+        # Generar key seguro
+        key_parts = [
+            "openai:response",
+            message_type,
+            user_message[:50]
+        ]
+        key_hash = hashlib.md5(":".join(key_parts).encode()).hexdigest()
+        return f"{':'.join(key_parts[:2])}:{key_hash[:16]}"
+    
+    def _check_response_cache(self, cache_key: Optional[str]) -> Optional[str]:
+        """
+        Busca respuesta en cache de Redis.
+        
+        Args:
+            cache_key: Clave de cache (de _get_cache_key_for_response)
+        
+        Returns:
+            Respuesta cacheada, o None si no existe o está deshabilitado
+        """
+        if not cache_key:
+            return None
+        
+        try:
+            from redis_cache import get_redis_cache
+            cache = get_redis_cache()
+            
+            if not cache.enabled or not cache.client:
+                return None
+            
+            cached_value = cache.client.get(cache_key)
+            if cached_value:
+                try:
+                    data = json.loads(cached_value)
+                    print(f"✅ Respuesta OpenAI en caché (ahorra ~2-3s)")
+                    return data.get("response")
+                except json.JSONDecodeError:
+                    return None
+        except Exception as e:
+            print(f"⚠️ Error al consultar cache: {e}")
+        
+        return None
+    
+    def _set_response_cache(self, cache_key: Optional[str], response: str, message_type: Optional[str]) -> None:
+        """
+        Guarda respuesta en cache de Redis.
+        
+        Args:
+            cache_key: Clave de cache
+            response: Texto de respuesta a cachear
+            message_type: Tipo de mensaje (greeting, faq, etc.)
+        """
+        if not cache_key or not message_type:
+            return
+        
+        try:
+            from redis_cache import get_redis_cache
+            cache = get_redis_cache()
+            
+            if not cache.enabled or not cache.client:
+                return
+            
+            # TTL por tipo de mensaje
+            ttl_map = {
+                "greeting": 7 * 24 * 3600,      # 7 días
+                "help": 7 * 24 * 3600,          # 7 días
+                "about": 30 * 24 * 3600,        # 30 días
+                "batuco": 30 * 24 * 3600,       # 30 días
+                "faq": 30 * 24 * 3600,          # 30 días
+            }
+            
+            ttl = ttl_map.get(message_type, 7 * 24 * 3600)  # Default 7 días
+            
+            cache_data = {
+                "response": response,
+                "message_type": message_type,
+                "cached_at": datetime.now(timezone.utc).isoformat(),
+            }
+            
+            cache.client.setex(
+                cache_key,
+                ttl,
+                json.dumps(cache_data)
+            )
+            print(f"💾 Respuesta guardada en caché (TTL: {ttl//3600}h)")
+        except Exception as e:
+            print(f"⚠️ Error al guardar en cache: {e}")
+    
     def generate_response(
         self, 
         user_message: str, 
@@ -891,6 +1036,18 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         is_search_request = self._is_search_request(user_message)
         if is_search_request:
             print(f"🔍 Solicitud de búsqueda detectada - usando modelo especializado: {config.OPENAI_SEARCH_MODEL}")
+        
+        # Intentar obtener respuesta del cache (si es consulta cacheble)
+        cache_key = self._get_cache_key_for_response(user_id, user_message, persona_override)
+        if cached_response := self._check_response_cache(cache_key):
+            if return_events:
+                return {
+                    "text": cached_response,
+                    "events": [],
+                    "model_used": "cache",
+                    "cached": True
+                }
+            return cached_response
 
         # Detectar automáticamente idioma y sugerir mejoras (en segundo plano, sin bloquear)
         language_analysis = {
@@ -939,12 +1096,25 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             try:
                 if model != self.model:
                     print(f"⚠️ Probando modelo fallback: {model} (configurado: {self.model})")
-                return self._generate_with_model(
+                result = self._generate_with_model(
                     model=model, 
                     base_messages=messages, 
                     return_events=return_events,
                     user_id=user_id
                 )
+                
+                # Cachear la respuesta si es aplicable
+                if cache_key:
+                    if isinstance(result, dict):
+                        response_text = result.get("text", "")
+                    else:
+                        response_text = result
+                    
+                    message_type = cache_key.split(":")[2] if ":" in cache_key else None
+                    if response_text and message_type:
+                        self._set_response_cache(cache_key, response_text, message_type)
+                
+                return result
             except Exception as e:
                 last_error = e
                 last_error_info = self._classify_openai_exception(e)
