@@ -731,10 +731,18 @@ def whatsapp_webhook():
     if not events:
         return jsonify({"ok": True, "handled": 0}), 200
 
+    # Log del evento recibido incluso si el bot no está inicializado
+    print(f"[WEBHOOK] Eventos recibidos: {len(events)}")
+    for event in events:
+        payload = event.get("payload") or {}
+        chat_id = _extract_waha_chat_id(payload)
+        print(f"[WEBHOOK] Evento de {chat_id}: {payload.get('type', 'unknown')}")
+
     try:
         bot = get_bot()
     except Exception as e:
-        return jsonify({"error": "Servicio no configurado", "message": str(e)}), 503
+        print(f"[WEBHOOK] ⚠️ Bot no disponible: {e}")
+        return jsonify({"ok": True, "handled": 0, "error": "bot_unavailable"}), 200
 
     handled = 0
     seen_messages: set[str] = set()
