@@ -245,6 +245,40 @@ def _extract_waha_chat_id(payload: dict) -> str:
     return ""
 
 
+def _extract_waha_user_id(payload: dict, chat_id: str = "") -> str:
+    """
+    Extrae el identificador real del usuario (número) cuando WAHA entrega chat_id @lid.
+    Usa campos como author/participant/sender si existen y evita @lid para autenticación.
+    """
+    candidates = [
+        payload.get("author"),
+        payload.get("participant"),
+        payload.get("participantId"),
+        payload.get("sender"),
+        payload.get("from"),
+        payload.get("fromId"),
+        payload.get("chatId"),
+        payload.get("chat_id"),
+        payload.get("jid"),
+        payload.get("remoteJid"),
+        payload.get("to"),
+        chat_id,
+    ]
+
+    for value in candidates:
+        if not isinstance(value, str):
+            continue
+        cleaned = value.strip()
+        if not cleaned:
+            continue
+        if cleaned.endswith("@lid"):
+            continue
+        return cleaned
+
+    # Fallback: si solo hay @lid, devolverlo para no romper el flujo
+    return (chat_id or "").strip()
+
+
 def _send_waha_text(chat_id: str, text: str, session: str) -> bool:
     if not config.WAHA_API_URL:
         print("⚠️ WAHA API URL no configurada (WAHA_API_URL).")
@@ -812,7 +846,8 @@ def whatsapp_webhook():
         session = (
             (event.get("session") or data.get("session") or config.WAHA_SESSION or "default").strip()
         )
-        user_id = f"wa_{chat_id}"
+        sender_id = _extract_waha_user_id(payload, chat_id)
+        user_id = f"wa_{sender_id or chat_id}"
         
         # DEBUG: Loguear información de usuario para diagnosticar problemas de autenticación
         import private_knowledge as pk
