@@ -786,14 +786,7 @@ def whatsapp_webhook():
             print(f"  chat_id: {chat_id}")
             print(f"  user_id: {user_id}")
             print(f"  Autorizado: {is_auth}")
-            # Extract phone para debugging
-            extracted = pk._extract_phone_number(user_id)
-            print(f"  Número extraído: {extracted}")
-            normalized = pk._normalize_phone(extracted) if extracted else None
-            print(f"  Número normalizado: {normalized}")
-            for num in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
-                norm_config = pk._normalize_phone(num)
-                print(f"    Comparando {normalized} == {norm_config}: {normalized == norm_config}")
+            print(f"  Números config: {getattr(config, 'SPECIAL_PERSONA_WHATSAPP_NUMBERS', [])}")
 
 
         # Manejar archivos adjuntos para usuarios autorizados
