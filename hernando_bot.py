@@ -1084,16 +1084,28 @@ class HernandoBot:
         return None
 
     def _is_special_persona_by_user_id(self, user_id: Optional[str]) -> bool:
+        """
+        Determina si el user_id corresponde a un usuario especial (asistente personal).
+        Usa la misma lógica que private_knowledge.is_authorized_user() para consistencia.
+        """
         if not user_id:
             return False
-        normalized_id = user_id.lower()
-        for known in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
-            candidate = known.lower()
-            if not candidate:
-                continue
-            if candidate in normalized_id or normalized_id in candidate:
-                return True
-        return False
+        
+        # Delegar a private_knowledge para consistencia en la validación
+        try:
+            import private_knowledge
+            return private_knowledge.is_authorized_user(user_id)
+        except Exception as e:
+            print(f"[ERROR] _is_special_persona_by_user_id fallback needed: {e}")
+            # Fallback a lógica anterior si falla
+            normalized_id = user_id.lower()
+            for known in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
+                candidate = known.lower()
+                if not candidate:
+                    continue
+                if candidate in normalized_id or normalized_id in candidate:
+                    return True
+            return False
 
     def _build_lead_context(self, conversation_history: list, conversation_id: str) -> Dict[str, str]:
         """

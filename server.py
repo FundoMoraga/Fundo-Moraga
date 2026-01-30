@@ -777,6 +777,24 @@ def whatsapp_webhook():
             (event.get("session") or data.get("session") or config.WAHA_SESSION or "default").strip()
         )
         user_id = f"wa_{chat_id}"
+        
+        # DEBUG: Loguear información de usuario para diagnosticar problemas de autenticación
+        import private_knowledge as pk
+        is_auth = pk.is_authorized_user(user_id)
+        if chat_id and ('56941242609' in chat_id or '56957513744' in chat_id):
+            print(f"[WAHA] Usuario especial detectado:")
+            print(f"  chat_id: {chat_id}")
+            print(f"  user_id: {user_id}")
+            print(f"  Autorizado: {is_auth}")
+            # Extract phone para debugging
+            extracted = pk._extract_phone_number(user_id)
+            print(f"  Número extraído: {extracted}")
+            normalized = pk._normalize_phone(extracted) if extracted else None
+            print(f"  Número normalizado: {normalized}")
+            for num in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
+                norm_config = pk._normalize_phone(num)
+                print(f"    Comparando {normalized} == {norm_config}: {normalized == norm_config}")
+
 
         # Manejar archivos adjuntos para usuarios autorizados
         if has_media and media_info:
@@ -809,6 +827,13 @@ def whatsapp_webhook():
         elif not text:
             continue
         else:
+            # DEBUG: Log cuando procesamos mensajes de usuarios especiales
+            if '56941242609' in user_id or '56957513744' in user_id:
+                print(f"[WAHA] Procesando mensaje de usuario especial:")
+                print(f"  user_id: {user_id}")
+                print(f"  mensaje: {text[:80]}...")
+                print(f"  tools_enabled: {is_auth}")
+            
             response = bot.process_message(
                 user_id,
                 text,
