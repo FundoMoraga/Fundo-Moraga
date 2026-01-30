@@ -3,6 +3,7 @@ Módulo para acceder a documentos privados del volumen persistente.
 Solo accesible para números de WhatsApp autorizados (SPECIAL_PERSONA_WHATSAPP_NUMBERS).
 """
 import os
+import re
 from pathlib import Path
 from typing import List, Dict, Optional
 import config
@@ -11,17 +12,86 @@ import config
 KNOWLEDGE_BASE_PATH = Path("/app/private_knowledge")
 
 
+def _extract_phone_number(identifier: str) -> Optional[str]:
+    """
+    Extrae el número de teléfono de un identificador WhatsApp.
+    
+    Convierte formatos como:
+    - "+56941242609" → "56941242609"
+    - "+56941242609@s.whatsapp.net" → "56941242609"
+    - "wa_+56941242609@s.whatsapp.net" → "56941242609"
+    - "573001234567@c.us" → "573001234567"
+    - "56941242609" → "56941242609"
+    
+    Returns:
+        Solo los dígitos del número, o None si no se puede extraer
+    """
+    if not identifier:
+        return None
+    
+    # Extraer secuencia de dígitos más larga
+    numbers = re.findall(r'\d+', identifier)
+    if numbers:
+        # Devolver la secuencia más larga (el número de teléfono)
+        return max(numbers, key=len)
+    
+    return None
+
+
+def _normalize_phone(phone: str) -> str:
+    """
+    Normaliza un número de teléfono.
+    Elimina caracteres especiales y extrae solo dígitos.
+    """
+    if not phone:
+        return ""
+    # Extraer solo dígitos
+    digits = re.sub(r'\D', '', phone)
+    return digits
+
+
 def is_authorized_user(user_id: Optional[str]) -> bool:
-    """Verifica si el usuario está autorizado para acceder a documentos privados."""
+    """
+    Verifica si el usuario está autorizado para acceder a documentos privados.
+    
+    Soporta múltiples formatos de identificador WhatsApp:
+    - user_id con número: "+56941242609@s.whatsapp.net"
+    - user_id con prefijo: "wa_+56941242609@s.whatsapp.net"
+    - Solo número: "+56941242609" o "56941242609"
+    
+    Args:
+        user_id: Identificador del usuario (puede ser chat_id de WAHA, número, etc.)
+    
+    Returns:
+        True si el usuario está en SPECIAL_PERSONA_WHATSAPP_NUMBERS
+    """
     if not user_id:
         return False
-    normalized_id = user_id.lower()
+    
+    # Extraer número de teléfono del user_id
+    user_phone = _extract_phone_number(user_id)
+    if not user_phone:
+        return False
+    
+    # Normalizar el número del usuario (solo dígitos)
+    normalized_user = _normalize_phone(user_phone)
+    if not normalized_user:
+        return False
+    
+    # Comparar con números autorizados
     for known in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
-        candidate = known.lower()
-        if not candidate:
+        if not known:
             continue
-        if candidate in normalized_id or normalized_id in candidate:
+        
+        # Normalizar número conocido
+        normalized_known = _normalize_phone(known)
+        if not normalized_known:
+            continue
+        
+        # Comparación exacta de dígitos
+        if normalized_user == normalized_known:
             return True
+    
     return False
 
 
