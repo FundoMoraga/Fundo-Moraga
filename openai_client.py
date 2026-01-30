@@ -175,6 +175,52 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         except Exception:
             tz = timezone.utc
         return datetime.now(tz)
+    
+    def _is_search_request(self, user_message: str) -> bool:
+        """
+        Detecta si el mensaje del usuario requiere búsqueda web.
+        
+        Returns:
+            True si debe usar el modelo de búsqueda especializado
+        """
+        message_lower = user_message.lower()
+        
+        # Keywords explícitos de búsqueda
+        search_keywords = [
+            "busca", "búsqueda", "buscar", "investiga", "investigar",
+            "google", "encuentra", "encontrar", "qué dicen",
+            "información sobre", "info sobre", "datos sobre",
+            "noticias", "artículos", "última información",
+            "busca en internet", "busca online", "busca web",
+            "investiga en", "mira en internet", "revisa en",
+            "qué hay sobre", "qué se dice de", "opiniones sobre",
+            "precio de", "costo de", "cuánto cuesta",
+            "dónde comprar", "dónde encontrar",
+            "mejores", "top", "ranking", "comparación",
+            "actualidad", "últimas noticias", "reciente",
+        ]
+        
+        # Detectar keywords
+        has_search_keyword = any(keyword in message_lower for keyword in search_keywords)
+        
+        # Frases que indican necesidad de información externa
+        external_info_phrases = [
+            "qué es", "quién es", "cuál es", "cómo se",
+            "explica", "explicame", "cuéntame sobre",
+        ]
+        
+        # Si tiene keyword de búsqueda O pide info sobre algo desconocido
+        if has_search_keyword:
+            return True
+        
+        # Verificar si pregunta sobre algo que probablemente no esté en conocimiento interno
+        if any(phrase in message_lower for phrase in external_info_phrases):
+            # Excepciones: si pregunta sobre Fundo Moraga, NO es búsqueda web
+            fundo_keywords = ["fundo", "moraga", "hernando", "off-road", "turismo rural", "batuco"]
+            if not any(kw in message_lower for kw in fundo_keywords):
+                return True
+        
+        return False
 
     def _weekday_es(self, dt: datetime) -> str:
         names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
@@ -690,14 +736,19 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             "disabled_until": self._openai_disabled_until.isoformat(),
         }
 
-    def _model_candidates(self) -> List[str]:
+    def _model_candidates(self, preferred_model: Optional[str] = None) -> List[str]:
         """
         Retorna una lista de modelos a intentar en orden.
-        - Primero: el modelo configurado (OPENAI_MODEL)
+        - Primero: preferred_model (si se especifica, ej: modelo de búsqueda)
+        - Luego: el modelo configurado (OPENAI_MODEL)
         - Luego: OPENAI_MODEL_FALLBACKS (comma/semicolon-separated)
         - Finalmente: fallbacks razonables para mantener el servicio operativo
         """
         candidates: List[str] = []
+
+        # Si hay un modelo preferido para esta solicitud específica, va primero
+        if preferred_model:
+            candidates.append(preferred_model)
 
         if self.model:
             candidates.append(self.model)
@@ -835,6 +886,11 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             )
             result = {"text": error_text, "events": [], "model_used": None, "error": skipped}
             return result if return_events else error_text
+        
+        # Detectar si es solicitud de búsqueda y usar modelo especializado
+        is_search_request = self._is_search_request(user_message)
+        if is_search_request:
+            print(f"🔍 Solicitud de búsqueda detectada - usando modelo especializado: {config.OPENAI_SEARCH_MODEL}")
 
         # Detectar automáticamente idioma y sugerir mejoras (en segundo plano, sin bloquear)
         language_analysis = {
@@ -874,7 +930,12 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
 
         last_error: Optional[Exception] = None
         last_error_info: Optional[Dict[str, Any]] = None
-        for model in self._model_candidates():
+        
+        # Seleccionar modelos candidatos: si es búsqueda, priorizar modelo especializado
+        search_model = config.OPENAI_SEARCH_MODEL if is_search_request else None
+        model_candidates = self._model_candidates(preferred_model=search_model)
+        
+        for model in model_candidates:
             try:
                 if model != self.model:
                     print(f"⚠️ Probando modelo fallback: {model} (configurado: {self.model})")

@@ -35,6 +35,7 @@ COSMOS_MEMORY_PK_PATH = os.getenv("COSMOS_MEMORY_PK_PATH", "/Categoria")
 # OpenAI
 OPENAI_API_KEY = _clean_env(os.getenv("OPENAI_API_KEY"))
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2-2025-12-11")
+OPENAI_SEARCH_MODEL = os.getenv("OPENAI_SEARCH_MODEL", "gpt-5-search-api-2025-10-14")
 
 # Azure Translator (Text Translation)
 AZURE_TRANSLATOR_ENDPOINT = os.getenv(
