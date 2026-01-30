@@ -1086,26 +1086,35 @@ class HernandoBot:
     def _is_special_persona_by_user_id(self, user_id: Optional[str]) -> bool:
         """
         Determina si el user_id corresponde a un usuario especial (asistente personal).
-        Usa la misma lógica que private_knowledge.is_authorized_user() para consistencia.
+        Extrae el número de teléfono del user_id y lo compara con la lista autorizada.
         """
         if not user_id:
             return False
         
-        # Delegar a private_knowledge para consistencia en la validación
-        try:
-            import private_knowledge
-            return private_knowledge.is_authorized_user(user_id)
-        except Exception as e:
-            print(f"[ERROR] _is_special_persona_by_user_id fallback needed: {e}")
-            # Fallback a lógica anterior si falla
-            normalized_id = user_id.lower()
-            for known in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
-                candidate = known.lower()
-                if not candidate:
-                    continue
-                if candidate in normalized_id or normalized_id in candidate:
-                    return True
+        # Extrae números del user_id (e.g., "wa_+56941242609@s.whatsapp.net" → "56941242609")
+        import re
+        numbers = re.findall(r'\d+', user_id)
+        if not numbers:
             return False
+        
+        # Usa el número más largo (es el número de teléfono)
+        user_phone = max(numbers, key=len)
+        if not user_phone:
+            return False
+        
+        # Compara contra la lista autorizada
+        for known in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
+            if not known:
+                continue
+            # Extrae dígitos del número conocido
+            known_digits = re.sub(r'\D', '', known)
+            if not known_digits:
+                continue
+            # Comparación exacta
+            if user_phone == known_digits:
+                return True
+        
+        return False
 
     def _build_lead_context(self, conversation_history: list, conversation_id: str) -> Dict[str, str]:
         """
