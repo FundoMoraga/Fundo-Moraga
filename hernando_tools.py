@@ -1,16 +1,31 @@
 """
 Herramientas (Tools) disponibles para Hernando
 Function Calling de OpenAI para ejecutar acciones específicas
+
+[ORQUESTADOR ELITE DE HERRAMIENTAS - 10 SERVICIOS RAILWAY]
+El sistema está configurado para acceder a TODOS los servicios disponibles en Railway:
+1. Hernando (Python Flask bot) - Main service
+2. Traductor (Azure Translator Service)
+3. Lenguaje (Azure Language Service)
+4. vision-service (Vision Analysis)
+5. WhatsApp (WAHA)
+6. Redis (Cache layer)
+7. Steel Browser (Web navigation)
+8. Mensajeria (Messaging service)
+9. Web Fundo Moraga (Frontend)
+10. Cosmos DB (Database)
 """
 from typing import Dict, Any, List, Optional
 import json
 from datetime import datetime
 import requests
 import inspect
+import os
 from cosmos_client import get_memory_store
 import private_knowledge
 import language_client
 import translator_client
+import config
 
 # Vision client es opcional (requiere azure-cognitiveservices-vision-computervision)
 try:
@@ -24,9 +39,11 @@ except ImportError:
 try:
     from steel_browser_client import get_steel_browser_client
     STEEL_BROWSER_AVAILABLE = True
-except ImportError:
+    print("[HernandoTools] ✅ Steel Browser disponible")
+except ImportError as e:
     STEEL_BROWSER_AVAILABLE = False
     get_steel_browser_client = None
+    print(f"[HernandoTools] ⚠️ Steel Browser no disponible: {e}")
 
 # Vision Service client para análisis doctoral de imágenes
 try:
@@ -35,6 +52,80 @@ try:
 except ImportError:
     VISION_SERVICE_AVAILABLE = False
     get_vision_service_client = None
+
+# ============ RAILWAY SERVICES - ORQUESTADOR ELITE ============
+# URLs de servicios Railway - configuradas en variables de entorno
+RAILWAY_SERVICES = {
+    "hernando": {
+        "name": "Hernando Bot",
+        "description": "Main chatbot service (this service)",
+        "url": os.getenv("HERNANDO_SERVICE_URL", "http://hernando.railway.internal:8000"),
+        "available": True,
+    },
+    "traductor": {
+        "name": "Traductor",
+        "description": "Azure Translator Service - Text translation between 100+ languages",
+        "url": os.getenv("TRANSLATOR_SERVICE_URL") or config.TRANSLATOR_SERVICE_URL or "http://traductor.railway.internal:5000",
+        "available": bool(config.TRANSLATOR_SERVICE_URL or os.getenv("TRANSLATOR_SERVICE_URL")),
+        "capabilities": ["traducir", "detectar_idioma", "análisis_lingüístico"],
+    },
+    "lenguaje": {
+        "name": "Lenguaje",
+        "description": "Azure Language Service - Text analytics, sentiment analysis, key phrase extraction",
+        "url": os.getenv("LANGUAGE_SERVICE_URL") or config.LANGUAGE_SERVICE_URL or "http://lenguaje.railway.internal:5000",
+        "available": bool(config.LANGUAGE_SERVICE_URL or os.getenv("LANGUAGE_SERVICE_URL")),
+        "capabilities": ["análisis_sentimiento", "extracción_entidades", "análisis_sintaxis"],
+    },
+    "vision_service": {
+        "name": "Vision Service",
+        "description": "Azure Computer Vision - Image analysis, OCR, object detection, with doctoral synthesis",
+        "url": os.getenv("VISION_SERVICE_URL") or config.VISION_SERVICE_URL or "http://vision-service.railway.internal:5000",
+        "available": VISION_SERVICE_AVAILABLE or bool(config.VISION_SERVICE_URL),
+        "capabilities": ["análisis_imágenes", "OCR", "detección_objetos", "síntesis_doctoral"],
+    },
+    "whatsapp": {
+        "name": "WhatsApp (WAHA)",
+        "description": "WhatsApp API - Send/receive messages, webhooks",
+        "url": os.getenv("WAHA_API_URL") or config.WAHA_API_URL or "http://waha.railway.internal:3000",
+        "available": bool(config.WAHA_API_URL),
+        "capabilities": ["enviar_mensajes", "webhooks", "sesiones", "chats"],
+    },
+    "redis": {
+        "name": "Redis Cache",
+        "description": "Redis - In-memory data store for caching, sessions",
+        "url": os.getenv("REDIS_URL") or config.REDIS_URL or "redis://redis.railway.internal:6379/0",
+        "available": config.REDIS_ENABLED,
+        "capabilities": ["cache", "sesiones", "almacenamiento_temporal"],
+    },
+    "steel_browser": {
+        "name": "Steel Browser",
+        "description": "Web navigation and scraping - Browse, extract, analyze web content",
+        "url": "local",  # Steel Browser se carga como módulo local
+        "available": STEEL_BROWSER_AVAILABLE,
+        "capabilities": ["navegación_web", "scraping", "extracción_contenido", "screenshots"],
+    },
+    "mensajeria": {
+        "name": "Mensajería",
+        "description": "Messaging service - Email (Resend), payment notifications, alerts",
+        "url": "local",  # Cargado via resend_client y payment_inbox_client
+        "available": True,
+        "capabilities": ["enviar_emails", "notificaciones", "alertas"],
+    },
+    "cosmos_db": {
+        "name": "Cosmos DB",
+        "description": "NoSQL Database - Conversations, memory, prompts, facts, prices",
+        "url": os.getenv("COSMOS_ENDPOINT") or config.COSMOS_ENDPOINT or "https://cosmos.railway.internal",
+        "available": bool(config.COSMOS_ENDPOINT),
+        "capabilities": ["almacenamiento_datos", "consultas", "memoria_persistente"],
+    },
+    "web_fundo_moraga": {
+        "name": "Web Fundo Moraga",
+        "description": "Frontend website - Reservations, information portal",
+        "url": os.getenv("WEB_URL") or "https://fundomoraga.com",
+        "available": True,
+        "capabilities": ["información_pública", "reservas", "galería"],
+    },
+}
 
 class HernandoTools:
     """Gestiona las herramientas disponibles para Hernando"""
@@ -54,7 +145,11 @@ class HernandoTools:
                 self.tools.extend(self._define_vision_tools())
             # Agregar herramientas de navegación web si Steel Browser está disponible
             if STEEL_BROWSER_AVAILABLE:
-                self.tools.extend(self._define_web_navigation_tools())
+                web_tools = self._define_web_navigation_tools()
+                self.tools.extend(web_tools)
+                print(f"[HernandoTools] ✅ Agregadas {len(web_tools)} herramientas web para usuario autorizado")
+            else:
+                print("[HernandoTools] ⚠️ Herramientas web NO agregadas - Steel Browser no disponible")
             # Agregar herramientas de búsqueda de imágenes si Vision Service está disponible
             if VISION_SERVICE_AVAILABLE:
                 self.tools.extend(self._define_image_search_tools())
@@ -268,6 +363,113 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
                             "expira_en": {"type": "string", "description": "ISO8601 de expiración (opcional)"}
                         },
                         "required": ["clave", "valor"]
+                    }
+                }
+            },
+            # ============ ELITE ORCHESTRATOR TOOLS (SERVICIOS RAILWAY) ============
+            {
+                "type": "function",
+                "function": {
+                    "name": "listar_servicios_disponibles",
+                    "description": """Lista todos los servicios Railway disponibles y sus capacidades.
+                    
+Este es el ORQUESTADOR ELITE - acceso a los 10 servicios de infraestructura:
+1. Hernando Bot (Main)
+2. Traductor (Azure Translator)
+3. Lenguaje (Azure Language)
+4. Vision Service (Image Analysis)
+5. WhatsApp/WAHA
+6. Redis (Cache)
+7. Steel Browser (Web Navigation)
+8. Mensajería (Email/SMS)
+9. Cosmos DB (Database)
+10. Web Fundo Moraga (Frontend)
+
+Úsalo para entender qué servicios están disponibles y qué pueden hacer.
+                    """,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "filtro": {
+                                "type": "string",
+                                "description": "Filtro opcional: 'activos' (solo disponibles), 'todos' (incluyendo no disponibles), o nombre del servicio específico",
+                                "enum": ["activos", "todos", "traductor", "lenguaje", "vision", "whatsapp", "redis", "steel_browser", "mensajeria", "cosmos_db", "web"],
+                                "default": "activos"
+                            },
+                            "con_detalles": {
+                                "type": "boolean",
+                                "description": "Si incluir URL y capacidades detalladas de cada servicio",
+                                "default": True
+                            }
+                        },
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "verificar_salud_servicios",
+                    "description": "Verifica el estado de salud (health check) de todos los servicios Railway disponibles. Retorna qué servicios están operativos.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "timeout": {
+                                "type": "integer",
+                                "description": "Segundos de timeout para cada servicio (default: 5)",
+                                "default": 5
+                            }
+                        },
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "consultar_servicio_railway",
+                    "description": """Realiza una consulta HTTP a cualquier servicio Railway.
+
+CASOS DE USO:
+- Acceder a endpoints específicos que no están cubiertos por otras herramientas
+- Enviar datos complejos a servicios
+- Consultar información de servicios directamente
+- Ejecutar operaciones personalizadas
+
+EJEMPLOS:
+- Llamar a endpoints de Traductor para traducciones
+- Consultar Health Check endpoints
+- Enviar datos a servicios de mensajería
+- Consultar datos de Cosmos DB
+                    """,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "servicio": {
+                                "type": "string",
+                                "description": "Nombre del servicio: traductor, lenguaje, vision_service, whatsapp, redis, steel_browser, mensajeria, cosmos_db, web_fundo_moraga",
+                                "enum": ["traductor", "lenguaje", "vision_service", "whatsapp", "redis", "steel_browser", "mensajeria", "cosmos_db", "web_fundo_moraga"]
+                            },
+                            "metodo": {
+                                "type": "string",
+                                "description": "Método HTTP: GET, POST, PUT, DELETE",
+                                "enum": ["GET", "POST", "PUT", "DELETE"],
+                                "default": "GET"
+                            },
+                            "endpoint": {
+                                "type": "string",
+                                "description": "Ruta del endpoint (ej: '/api/translate', '/health', '/api/data')"
+                            },
+                            "datos": {
+                                "type": "object",
+                                "description": "Datos a enviar (para POST/PUT)"
+                            },
+                            "parametros": {
+                                "type": "object",
+                                "description": "Parámetros de query (ej: {'limit': 10, 'page': 1})"
+                            }
+                        },
+                        "required": ["servicio", "endpoint"]
                     }
                 }
             }
@@ -817,6 +1019,10 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
             "capturar_informacion_usuario": self.capturar_informacion_usuario,
             "guardar_precio": self.guardar_precio,
             "guardar_hecho": self.guardar_hecho,
+            # Elite Orchestrator tools
+            "listar_servicios_disponibles": self.listar_servicios_disponibles,
+            "verificar_salud_servicios": self.verificar_salud_servicios,
+            "consultar_servicio_railway": self.consultar_servicio_railway,
         }
         
         if tool_name not in tool_methods:
@@ -1369,6 +1575,268 @@ Ya mismo le paso esta información al equipo de Fundo Moraga para que se pongan 
         print(f"📋 Información capturada: {json.dumps(info_capturada, indent=2)}")
         
         return mensaje
+
+    # ============= ELITE ORCHESTRATOR - RAILWAY SERVICES =============
+    
+    def listar_servicios_disponibles(
+        self,
+        filtro: str = "activos",
+        con_detalles: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Lista todos los servicios Railway y sus capacidades.
+        
+        Args:
+            filtro: 'activos' (solo disponibles), 'todos', o nombre del servicio
+            con_detalles: Si incluir URLs y capacidades detalladas
+        
+        Returns:
+            Diccionario con información de servicios
+        """
+        servicios_filtrados = {}
+        
+        if filtro == "todos":
+            servicios_filtrados = RAILWAY_SERVICES
+        elif filtro == "activos":
+            servicios_filtrados = {k: v for k, v in RAILWAY_SERVICES.items() if v.get("available")}
+        elif filtro in RAILWAY_SERVICES:
+            servicios_filtrados = {filtro: RAILWAY_SERVICES[filtro]}
+        else:
+            # Buscar por nombre parcial
+            servicios_filtrados = {k: v for k, v in RAILWAY_SERVICES.items() if filtro.lower() in k.lower() or filtro.lower() in v.get("name", "").lower()}
+        
+        resultado = {
+            "total": len(RAILWAY_SERVICES),
+            "activos": len({k: v for k, v in RAILWAY_SERVICES.items() if v.get("available")}),
+            "filtro": filtro,
+            "servicios": []
+        }
+        
+        for clave, info in servicios_filtrados.items():
+            svc_info = {
+                "id": clave,
+                "nombre": info.get("name"),
+                "descripcion": info.get("description"),
+                "disponible": info.get("available"),
+            }
+            
+            if con_detalles:
+                svc_info["url"] = info.get("url")
+                svc_info["capacidades"] = info.get("capabilities", [])
+            
+            resultado["servicios"].append(svc_info)
+        
+        resultado["mensaje"] = f"🤖 **ORQUESTADOR ELITE - HERNANDO**\n\n"
+        resultado["mensaje"] += f"Disponibles: **{resultado['activos']}/{resultado['total']}** servicios operativos\n\n"
+        resultado["mensaje"] += "**Servicios identificados:**\n"
+        
+        for svc in resultado["servicios"]:
+            estado = "✅" if svc["disponible"] else "❌"
+            resultado["mensaje"] += f"{estado} **{svc['nombre']}** - {svc['descripcion']}\n"
+            if svc.get("capacidades"):
+                resultado["mensaje"] += f"   Puede: {', '.join(svc['capacidades'])}\n"
+        
+        return resultado
+    
+    def verificar_salud_servicios(self, timeout: int = 5) -> Dict[str, Any]:
+        """
+        Verifica el estado de salud de todos los servicios Railway.
+        
+        Args:
+            timeout: Segundos de timeout para cada servicio
+        
+        Returns:
+            Estado de cada servicio
+        """
+        resultados = {
+            "timestamp": datetime.now().isoformat(),
+            "timeout_segundos": timeout,
+            "servicios": {},
+            "resumen": {"operativos": 0, "fallos": 0, "no_verificados": 0}
+        }
+        
+        for clave, info in RAILWAY_SERVICES.items():
+            url = info.get("url", "")
+            disponible = info.get("available", False)
+            
+            svc_status = {
+                "nombre": info.get("name"),
+                "estado": "no_disponible",
+                "respuesta": None,
+                "tiempo_respuesta_ms": None,
+            }
+            
+            if not disponible:
+                svc_status["estado"] = "no_configurado"
+                resultados["resumen"]["no_verificados"] += 1
+            elif url.startswith("http"):
+                # Health check HTTP
+                try:
+                    import time
+                    inicio = time.time()
+                    
+                    response = requests.get(
+                        f"{url}/health" if not url.endswith("/health") else url,
+                        timeout=timeout,
+                        headers={"User-Agent": "Hernando-HealthCheck"}
+                    )
+                    
+                    tiempo_ms = (time.time() - inicio) * 1000
+                    svc_status["tiempo_respuesta_ms"] = round(tiempo_ms, 2)
+                    
+                    if response.status_code == 200:
+                        svc_status["estado"] = "operativo"
+                        resultados["resumen"]["operativos"] += 1
+                    else:
+                        svc_status["estado"] = "error_http"
+                        svc_status["respuesta"] = f"HTTP {response.status_code}"
+                        resultados["resumen"]["fallos"] += 1
+                
+                except requests.exceptions.Timeout:
+                    svc_status["estado"] = "timeout"
+                    resultados["resumen"]["fallos"] += 1
+                except Exception as e:
+                    svc_status["estado"] = "error"
+                    svc_status["respuesta"] = str(e)
+                    resultados["resumen"]["fallos"] += 1
+            else:
+                # Servicios locales (Steel Browser, Mensajería, etc.)
+                svc_status["estado"] = "operativo_local" if disponible else "no_disponible"
+                resultados["resumen"]["operativos"] += 1
+            
+            resultados["servicios"][clave] = svc_status
+        
+        # Generar mensaje de resumen
+        resultados["mensaje"] = f"""🏥 **HEALTH CHECK - SERVICIOS RAILWAY**
+
+**Estado General**: {resultados['resumen']['operativos']}/{len(RAILWAY_SERVICES)} operativos
+
+"""
+        
+        for clave, status in resultados["servicios"].items():
+            estado_emoji = {
+                "operativo": "✅",
+                "operativo_local": "✅",
+                "error": "❌",
+                "timeout": "⏱️",
+                "no_disponible": "⚫",
+                "no_configurado": "⚙️",
+                "error_http": "⚠️"
+            }.get(status["estado"], "❓")
+            
+            resultado["mensaje"] += f"{estado_emoji} **{status['nombre']}**: {status['estado']}"
+            if status.get("tiempo_respuesta_ms"):
+                resultado["mensaje"] += f" ({status['tiempo_respuesta_ms']}ms)"
+            resultado["mensaje"] += "\n"
+        
+        return resultados
+    
+    def consultar_servicio_railway(
+        self,
+        servicio: str,
+        endpoint: str,
+        metodo: str = "GET",
+        datos: Dict[str, Any] = None,
+        parametros: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Realiza una consulta HTTP a un servicio Railway específico.
+        
+        Args:
+            servicio: Nombre del servicio ('traductor', 'lenguaje', etc.)
+            endpoint: Ruta del endpoint ('/api/translate', '/health', etc.)
+            metodo: Método HTTP (GET, POST, PUT, DELETE)
+            datos: Datos para POST/PUT
+            parametros: Parámetros de query
+        
+        Returns:
+            Respuesta del servicio
+        """
+        
+        if servicio not in RAILWAY_SERVICES:
+            return {
+                "success": False,
+                "error": f"Servicio '{servicio}' no encontrado. Disponibles: {', '.join(RAILWAY_SERVICES.keys())}"
+            }
+        
+        info_svc = RAILWAY_SERVICES[servicio]
+        url_base = info_svc.get("url")
+        
+        if not url_base:
+            return {
+                "success": False,
+                "error": f"Servicio '{servicio}' no está configurado"
+            }
+        
+        # Construir URL completa
+        if not url_base.startswith("http"):
+            # Es un servicio local, no HTTP
+            return {
+                "success": False,
+                "error": f"Servicio '{servicio}' es local (no HTTP). Usa las herramientas específicas en su lugar."
+            }
+        
+        url_completa = f"{url_base}{endpoint}"
+        
+        try:
+            # Realizar la consulta
+            kwargs = {
+                "timeout": 30,
+                "headers": {
+                    "User-Agent": "Hernando-OrquestadorElite",
+                    "Content-Type": "application/json"
+                }
+            }
+            
+            if parametros:
+                kwargs["params"] = parametros
+            
+            if datos and metodo in ["POST", "PUT", "PATCH"]:
+                kwargs["json"] = datos
+            
+            # Ejecutar según el método
+            if metodo == "GET":
+                response = requests.get(url_completa, **kwargs)
+            elif metodo == "POST":
+                response = requests.post(url_completa, **kwargs)
+            elif metodo == "PUT":
+                response = requests.put(url_completa, **kwargs)
+            elif metodo == "DELETE":
+                response = requests.delete(url_completa, **kwargs)
+            else:
+                return {
+                    "success": False,
+                    "error": f"Método HTTP '{metodo}' no soportado"
+                }
+            
+            # Procesar respuesta
+            try:
+                respuesta_json = response.json()
+            except:
+                respuesta_json = response.text
+            
+            return {
+                "success": 200 <= response.status_code < 300,
+                "servicio": servicio,
+                "endpoint": endpoint,
+                "metodo": metodo,
+                "status_code": response.status_code,
+                "respuesta": respuesta_json,
+                "headers": dict(response.headers)
+            }
+        
+        except requests.exceptions.Timeout:
+            return {
+                "success": False,
+                "error": f"Timeout al conectar con {servicio}",
+                "detalles": "El servicio tardó demasiado en responder"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al consultar {servicio}: {str(e)}",
+                "tipo_error": type(e).__name__
+            }
 
 
 def prepare_images_for_whatsapp(
