@@ -102,10 +102,21 @@ if RUN_SCHEDULER_THREAD:
 # Inicializar bot al arranque para evitar timeouts en primera petición
 _bot: Optional[HernandoBot] = None
 _bot_init_error: Optional[str] = None
+_bot_initialization_in_progress = False
 
 def _init_bot_on_startup():
-    """Inicializa el bot al arranque del servidor"""
-    global _bot, _bot_init_error
+    """Inicializa el bot al arranque del servidor (lazy initialization)"""
+    global _bot, _bot_init_error, _bot_initialization_in_progress
+    
+    # Evitar reintentos simultáneos
+    if _bot_initialization_in_progress:
+        return
+    
+    if _bot is not None or _bot_init_error is not None:
+        return  # Ya fue inicializado
+    
+    _bot_initialization_in_progress = True
+    
     print("[STARTUP] Comenzando inicialización de bot...")
     try:
         configured_ok, missing_required, warnings = _config_status()
@@ -113,6 +124,7 @@ def _init_bot_on_startup():
             msg = f"Faltan variables requeridas: {', '.join(missing_required)}"
             print(f"[STARTUP] ⚠️ Bot no inicializado: {msg}")
             _bot_init_error = f"Configuración incompleta: {msg}"
+            _bot_initialization_in_progress = False
             return
         
         print("[STARTUP] ✓ Configuración completada")
@@ -124,21 +136,32 @@ def _init_bot_on_startup():
         print(f"[STARTUP] ❌ Error: {msg}")
         traceback.print_exc()
         _bot_init_error = msg
+    finally:
+        _bot_initialization_in_progress = False
 
-# Pre-inicializar el bot
-_init_bot_on_startup()
+# NO inicializar en el arranque - hacerlo lazy en el primer request
+# _init_bot_on_startup()
 
 # Token de verificación del webhook (configúralo en .env)
 VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "fundomoraga_2025")
 
 
 def get_bot() -> HernandoBot:
-    """Obtiene la instancia del bot (pre-inicializado al arranque)"""
+    """Obtiene la instancia del bot (inicializa lazily en primer uso)"""
     global _bot, _bot_init_error
     if _bot is not None:
         return _bot
     if _bot_init_error is not None:
         raise RuntimeError(_bot_init_error)
+    
+    # Lazy initialization en el primer request
+    _init_bot_on_startup()
+    
+    if _bot is not None:
+        return _bot
+    if _bot_init_error is not None:
+        raise RuntimeError(_bot_init_error)
+    
     raise RuntimeError("Bot no inicializado")
 
 
