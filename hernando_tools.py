@@ -17,7 +17,8 @@ El sistema está configurado para acceder a TODOS los servicios disponibles en R
 """
 from typing import Dict, Any, List, Optional
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+import datetime as dt
 import requests
 import inspect
 import os
@@ -39,11 +40,11 @@ except ImportError:
 try:
     from steel_browser_client import get_steel_browser_client
     STEEL_BROWSER_AVAILABLE = True
-    print("[HernandoTools] ✅ Steel Browser disponible")
+    print("[HernandoTools] OK Steel Browser disponible")
 except ImportError as e:
     STEEL_BROWSER_AVAILABLE = False
     get_steel_browser_client = None
-    print(f"[HernandoTools] ⚠️ Steel Browser no disponible: {e}")
+    print(f"[HernandoTools] WARNING Steel Browser no disponible: {e}")
 
 # Vision Service client para análisis doctoral de imágenes
 try:
@@ -125,6 +126,13 @@ RAILWAY_SERVICES = {
         "available": True,
         "capabilities": ["información_pública", "reservas", "galería"],
     },
+    "azure_storage": {
+        "name": "Azure Storage",
+        "description": "Azure Blob Storage - Save documents, reports, images, PDFs",
+        "url": os.getenv("AZURE_STORAGE_URL_BASE") or "https://fundomoragastorage.blob.core.windows.net/",
+        "available": bool(os.getenv("AZURE_STORAGE_CONNECTION_STRING")) and bool(os.getenv("AZURE_STORAGE_CONTAINER")),
+        "capabilities": ["guardar_documentos", "generar_reportes", "almacenar_archivos", "PDFs"],
+    },
 }
 
 class HernandoTools:
@@ -147,9 +155,9 @@ class HernandoTools:
             if STEEL_BROWSER_AVAILABLE:
                 web_tools = self._define_web_navigation_tools()
                 self.tools.extend(web_tools)
-                print(f"[HernandoTools] ✅ Agregadas {len(web_tools)} herramientas web para usuario autorizado")
+                print(f"[HernandoTools] OK Agregadas {len(web_tools)} herramientas web para usuario autorizado")
             else:
-                print("[HernandoTools] ⚠️ Herramientas web NO agregadas - Steel Browser no disponible")
+                print("[HernandoTools] WARNING Herramientas web NO agregadas - Steel Browser no disponible")
             # Agregar herramientas de búsqueda de imágenes si Vision Service está disponible
             if VISION_SERVICE_AVAILABLE:
                 self.tools.extend(self._define_image_search_tools())
@@ -470,6 +478,205 @@ EJEMPLOS:
                             }
                         },
                         "required": ["servicio", "endpoint"]
+                    }
+                }
+            },
+            # ============ CRITICAL FEATURES - STORAGE, EMAIL, SEARCH ============
+            {
+                "type": "function",
+                "function": {
+                    "name": "guardar_documento",
+                    "description": "Guarda un documento (texto, PDF, JSON, CSV) en Azure Storage para que pueda ser recuperado después.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "nombre": {
+                                "type": "string",
+                                "description": "Nombre del archivo (ej: 'informe_2024.txt', 'reporte.pdf')"
+                            },
+                            "contenido": {
+                                "type": "string",
+                                "description": "Contenido del documento en texto o base64"
+                            },
+                            "tipo": {
+                                "type": "string",
+                                "enum": ["texto", "pdf", "json", "csv", "html"],
+                                "description": "Tipo de documento"
+                            },
+                            "categoria": {
+                                "type": "string",
+                                "description": "Categoría (ej: 'reportes', 'documentos', 'conversaciones')",
+                                "default": "documentos"
+                            }
+                        },
+                        "required": ["nombre", "contenido", "tipo"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "listar_documentos_guardados",
+                    "description": "Lista todos los documentos que han sido guardados en Azure Storage por el usuario.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "categoria": {
+                                "type": "string",
+                                "description": "Filtrar por categoría (ej: 'reportes', 'documentos', 'todas')",
+                                "default": "todas"
+                            },
+                            "incluir_urls": {
+                                "type": "boolean",
+                                "description": "Incluir URLs descargables en la respuesta",
+                                "default": True
+                            }
+                        },
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "enviar_email",
+                    "description": "Envía un email usando el servicio Resend. Ideal para compartir reportes, confirmaciones, alertas.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "destinatario": {
+                                "type": "string",
+                                "description": "Email del destinatario (ej: usuario@example.com)"
+                            },
+                            "asunto": {
+                                "type": "string",
+                                "description": "Asunto del email"
+                            },
+                            "cuerpo": {
+                                "type": "string",
+                                "description": "Cuerpo del email en HTML o texto plano"
+                            },
+                            "adjunto_url": {
+                                "type": "string",
+                                "description": "URL de documento adjunto (opcional, de Azure Storage)"
+                            }
+                        },
+                        "required": ["destinatario", "asunto", "cuerpo"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "crear_alerta",
+                    "description": "Crea una alerta que notificará al usuario por email cuando ocurra algo importante.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "tipo": {
+                                "type": "string",
+                                "enum": ["eventos", "cambios", "recordatorios", "notificaciones"],
+                                "description": "Tipo de alerta"
+                            },
+                            "mensaje": {
+                                "type": "string",
+                                "description": "Mensaje de la alerta"
+                            },
+                            "frecuencia": {
+                                "type": "string",
+                                "enum": ["inmediata", "diaria", "semanal", "mensual"],
+                                "description": "Frecuencia de notificación",
+                                "default": "inmediata"
+                            },
+                            "email": {
+                                "type": "string",
+                                "description": "Email para recibir la alerta"
+                            }
+                        },
+                        "required": ["tipo", "mensaje", "email"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "buscar_en_conversaciones",
+                    "description": "Busca en el historial de conversaciones guardadas en Cosmos DB. Permite encontrar información de charlas anteriores.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Término de búsqueda (ej: 'precios', 'actividades', 'contactos')"
+                            },
+                            "filtro_fecha": {
+                                "type": "string",
+                                "description": "Filtrar por rango de fechas (ej: 'últimos 7 días', 'este mes', 'últimas 24 horas')"
+                            },
+                            "limite": {
+                                "type": "integer",
+                                "description": "Número máximo de resultados (default: 10)",
+                                "default": 10
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "exportar_datos",
+                    "description": "Exporta datos de conversaciones, precios, hechos guardados a un archivo CSV/JSON y lo guarda en Azure Storage.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "tipo_datos": {
+                                "type": "string",
+                                "enum": ["conversaciones", "precios", "hechos", "usuarios", "todo"],
+                                "description": "Qué datos exportar"
+                            },
+                            "formato": {
+                                "type": "string",
+                                "enum": ["csv", "json", "xlsx"],
+                                "description": "Formato del archivo",
+                                "default": "csv"
+                            },
+                            "filtro": {
+                                "type": "string",
+                                "description": "Filtro opcional (ej: 'últimos 30 días', 'categoría: eventos')"
+                            }
+                        },
+                        "required": ["tipo_datos", "formato"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generar_reporte",
+                    "description": "Genera un reporte completo (texto, JSON, PDF) basado en los datos del usuario. Guarda automáticamente en Azure Storage.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "tipo_reporte": {
+                                "type": "string",
+                                "enum": ["resumen_conversaciones", "análisis_actividades", "estadísticas_precios", "informe_completo"],
+                                "description": "Tipo de reporte a generar"
+                            },
+                            "período": {
+                                "type": "string",
+                                "enum": ["últimas 24 horas", "esta semana", "este mes", "todo"],
+                                "description": "Período para el reporte",
+                                "default": "este mes"
+                            },
+                            "incluir_gráficos": {
+                                "type": "boolean",
+                                "description": "Incluir representaciones visuales (para PDF)",
+                                "default": False
+                            }
+                        },
+                        "required": ["tipo_reporte"]
                     }
                 }
             }
@@ -1023,6 +1230,14 @@ EJEMPLOS:
             "listar_servicios_disponibles": self.listar_servicios_disponibles,
             "verificar_salud_servicios": self.verificar_salud_servicios,
             "consultar_servicio_railway": self.consultar_servicio_railway,
+            # Critical feature tools
+            "guardar_documento": self.guardar_documento,
+            "listar_documentos_guardados": self.listar_documentos_guardados,
+            "enviar_email": self.enviar_email,
+            "crear_alerta": self.crear_alerta,
+            "buscar_en_conversaciones": self.buscar_en_conversaciones,
+            "exportar_datos": self.exportar_datos,
+            "generar_reporte": self.generar_reporte,
         }
         
         if tool_name not in tool_methods:
@@ -1837,6 +2052,433 @@ Ya mismo le paso esta información al equipo de Fundo Moraga para que se pongan 
                 "error": f"Error al consultar {servicio}: {str(e)}",
                 "tipo_error": type(e).__name__
             }
+
+
+    def guardar_documento(
+        self,
+        nombre: str,
+        contenido: str,
+        tipo: str = "text",
+        categoria: str = "general"
+    ) -> Dict[str, Any]:
+        """
+        Guarda un documento en Azure Storage.
+        
+        Args:
+            nombre: Nombre del archivo
+            contenido: Contenido a guardar
+            tipo: Tipo de contenido (text, json, csv, html)
+            categoria: Categoría/carpeta del documento
+        
+        Returns:
+            Dict con resultado del guardado
+        """
+        try:
+            from azure_storage_client import upload_text_blob
+            
+            blob_name = f"{categoria}/{nombre}"
+            
+            result = upload_text_blob(blob_name, contenido, overwrite=True)
+            
+            return {
+                "success": True,
+                "mensaje": f"Documento guardado: {nombre}",
+                "blob_name": blob_name,
+                "categoría": categoria,
+                "tipo": tipo
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al guardar documento: {str(e)}",
+                "nombre": nombre
+            }
+    
+    def listar_documentos_guardados(
+        self,
+        categoria: str = "general",
+        incluir_urls: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Lista documentos guardados en Azure Storage.
+        
+        Args:
+            categoria: Categoría de documentos a listar
+            incluir_urls: Si incluir URLs descargables
+        
+        Returns:
+            Dict con lista de documentos
+        """
+        try:
+            from azure_storage_client import get_blob_client
+            from azure.storage.blob import ContainerClient
+            
+            container_name = os.getenv("AZURE_STORAGE_CONTAINER", "hernando-docs")
+            connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+            
+            container_client = ContainerClient.from_connection_string(
+                connection_string,
+                container_name=container_name
+            )
+            
+            blobs = []
+            for blob in container_client.list_blobs(name_starts_with=f"{categoria}/"):
+                blob_info = {
+                    "nombre": blob.name.split("/")[-1],
+                    "ruta_completa": blob.name,
+                    "tamaño_bytes": blob.size,
+                    "última_modificación": str(blob.last_modified) if blob.last_modified else "N/A"
+                }
+                if incluir_urls:
+                    sas_token = self._generate_blob_sas(blob.name)
+                    blob_info["url_descarga"] = f"https://{os.getenv('AZURE_STORAGE_ACCOUNT')}.blob.core.windows.net/{container_name}/{blob.name}?{sas_token}"
+                blobs.append(blob_info)
+            
+            return {
+                "success": True,
+                "categoría": categoria,
+                "total_documentos": len(blobs),
+                "documentos": blobs
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al listar documentos: {str(e)}",
+                "categoría": categoria
+            }
+    
+    def enviar_email(
+        self,
+        destinatario: str,
+        asunto: str,
+        cuerpo: str,
+        adjunto_url: str = None
+    ) -> Dict[str, Any]:
+        """
+        Envía un email usando Resend.
+        
+        Args:
+            destinatario: Email del destinatario
+            asunto: Asunto del email
+            cuerpo: Cuerpo del mensaje
+            adjunto_url: URL del archivo adjunto (opcional)
+        
+        Returns:
+            Dict con resultado del envío
+        """
+        try:
+            from resend_client import send_email_with_template
+            
+            result = send_email_with_template(
+                to=destinatario,
+                subject=asunto,
+                html_body=cuerpo,
+                attachment_url=adjunto_url
+            )
+            
+            return {
+                "success": True,
+                "mensaje": f"Email enviado a {destinatario}",
+                "destinatario": destinatario,
+                "asunto": asunto,
+                "con_adjunto": adjunto_url is not None
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al enviar email: {str(e)}",
+                "destinatario": destinatario
+            }
+    
+    def crear_alerta(
+        self,
+        tipo: str,
+        mensaje: str,
+        frecuencia: str = "inmediata",
+        email: str = None
+    ) -> Dict[str, Any]:
+        """
+        Crea una alerta en el sistema.
+        
+        Args:
+            tipo: Tipo de alerta (info, advertencia, crítica)
+            mensaje: Mensaje de la alerta
+            frecuencia: Frecuencia de notificación (inmediata, diaria, semanal)
+            email: Email para notificación (opcional)
+        
+        Returns:
+            Dict con resultado de creación
+        """
+        try:
+            timestamp = dt.datetime.now().isoformat()
+            
+            alerta = {
+                "id": f"alerta_{timestamp}",
+                "tipo": tipo,
+                "mensaje": mensaje,
+                "frecuencia": frecuencia,
+                "email": email,
+                "timestamp": timestamp,
+                "leída": False
+            }
+            
+            # Guardar en Cosmos DB
+            from cosmos_client import insert_document
+            collection_name = "alertas"
+            
+            insert_document(collection_name, alerta)
+            
+            # Si hay email, enviar notificación
+            if email:
+                self.enviar_email(
+                    destinatario=email,
+                    asunto=f"Alerta: {tipo.upper()}",
+                    cuerpo=f"<p>{mensaje}</p><p>Timestamp: {timestamp}</p>"
+                )
+            
+            return {
+                "success": True,
+                "alerta_id": alerta["id"],
+                "tipo": tipo,
+                "mensaje": mensaje,
+                "notificación_enviada": email is not None
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al crear alerta: {str(e)}",
+                "tipo": tipo
+            }
+    
+    def buscar_en_conversaciones(
+        self,
+        query: str,
+        filtro_fecha: str = None,
+        limite: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Busca en conversaciones pasadas usando Cosmos DB.
+        
+        Args:
+            query: Texto a buscar
+            filtro_fecha: Filtro de fecha (YYYY-MM-DD)
+            limite: Número máximo de resultados
+        
+        Returns:
+            Dict con resultados de búsqueda
+        """
+        try:
+            from cosmos_client import query_documents
+            
+            # Construir query SQL
+            sql_query = f"""
+            SELECT * FROM conversaciones c
+            WHERE CONTAINS(c.mensaje, '{query}')
+            OR CONTAINS(c.respuesta, '{query}')
+            """
+            
+            if filtro_fecha:
+                sql_query += f" AND DateTimePart('yyyy-mm-dd', c.timestamp) = '{filtro_fecha}'"
+            
+            sql_query += f" ORDER BY c.timestamp DESC OFFSET 0 LIMIT {limite}"
+            
+            resultados = query_documents("conversaciones", sql_query)
+            
+            return {
+                "success": True,
+                "query": query,
+                "resultados_encontrados": len(resultados),
+                "resultados": resultados[:limite],
+                "filtro_fecha": filtro_fecha
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al buscar en conversaciones: {str(e)}",
+                "query": query
+            }
+    
+    def exportar_datos(
+        self,
+        tipo_datos: str,
+        formato: str = "json",
+        filtro: str = None
+    ) -> Dict[str, Any]:
+        """
+        Exporta datos a diferentes formatos (JSON, CSV, Excel).
+        
+        Args:
+            tipo_datos: Tipo de datos a exportar (conversaciones, usuarios, alertas, etc.)
+            formato: Formato de exportación (json, csv, xlsx)
+            filtro: Filtro SQL para los datos (opcional)
+        
+        Returns:
+            Dict con URL de descarga y detalles
+        """
+        try:
+            from cosmos_client import query_documents
+            import json
+            import csv
+            from io import StringIO
+            from datetime import datetime
+            
+            # Obtener datos
+            if filtro:
+                sql_query = f"SELECT * FROM {tipo_datos} WHERE {filtro}"
+            else:
+                sql_query = f"SELECT * FROM {tipo_datos}"
+            
+            datos = query_documents(tipo_datos, sql_query)
+            
+            # Preparar nombre de archivo
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_archivo = f"export_{tipo_datos}_{timestamp}.{formato}"
+            
+            # Convertir según formato
+            if formato == "json":
+                contenido = json.dumps(datos, indent=2, default=str)
+            elif formato == "csv":
+                if datos:
+                    output = StringIO()
+                    writer = csv.DictWriter(output, fieldnames=datos[0].keys())
+                    writer.writeheader()
+                    writer.writerows(datos)
+                    contenido = output.getvalue()
+                else:
+                    contenido = ""
+            else:
+                # Para Excel, usar pandas
+                import pandas as pd
+                df = pd.DataFrame(datos)
+                contenido = df.to_excel(index=False)
+            
+            # Guardar en Azure Storage
+            from azure_storage_client import upload_text_blob
+            blob_name = f"exports/{nombre_archivo}"
+            
+            upload_text_blob(blob_name, contenido, overwrite=True)
+            
+            return {
+                "success": True,
+                "tipo_datos": tipo_datos,
+                "formato": formato,
+                "registros_exportados": len(datos),
+                "archivo": nombre_archivo,
+                "blob_name": blob_name
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al exportar datos: {str(e)}",
+                "tipo_datos": tipo_datos
+            }
+    
+    def generar_reporte(
+        self,
+        tipo_reporte: str,
+        período: str = "mensual",
+        incluir_gráficos: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Genera un reporte comprensivo del sistema.
+        
+        Args:
+            tipo_reporte: Tipo de reporte (actividad, usuarios, ingresos, performance)
+            período: Período del reporte (diario, semanal, mensual, anual)
+            incluir_gráficos: Si incluir visualizaciones
+        
+        Returns:
+            Dict con reporte generado
+        """
+        try:
+            from cosmos_client import query_documents
+            from datetime import datetime, timedelta
+            
+            # Determinar rango de fechas
+            ahora = datetime.now()
+            if período == "diario":
+                fecha_inicio = (ahora - timedelta(days=1)).isoformat()
+            elif período == "semanal":
+                fecha_inicio = (ahora - timedelta(days=7)).isoformat()
+            elif período == "anual":
+                fecha_inicio = (ahora - timedelta(days=365)).isoformat()
+            else:  # mensual
+                fecha_inicio = (ahora - timedelta(days=30)).isoformat()
+            
+            # Construir reporte
+            reporte = {
+                "tipo": tipo_reporte,
+                "período": período,
+                "fecha_generación": ahora.isoformat(),
+                "fecha_inicio": fecha_inicio
+            }
+            
+            # Obtener datos según tipo
+            if tipo_reporte == "actividad":
+                conversaciones = query_documents(
+                    "conversaciones",
+                    f"SELECT COUNT(1) as total FROM conversaciones WHERE c.timestamp > '{fecha_inicio}'"
+                )
+                reporte["total_conversaciones"] = len(conversaciones)
+                reporte["detalle"] = "Actividad del período"
+                
+            elif tipo_reporte == "usuarios":
+                usuarios = query_documents(
+                    "usuarios",
+                    f"SELECT * FROM usuarios WHERE c.timestamp > '{fecha_inicio}'"
+                )
+                reporte["total_usuarios"] = len(usuarios)
+                reporte["usuarios_nuevos"] = len([u for u in usuarios if u.get("es_nuevo")])
+                
+            elif tipo_reporte == "performance":
+                reporte["servicios"] = self.verificar_salud_servicios(timeout=5)
+                
+            # Guardar reporte
+            from azure_storage_client import upload_text_blob
+            import json
+            
+            nombre_archivo = f"reporte_{tipo_reporte}_{período}_{datetime.now().strftime('%Y%m%d')}.json"
+            blob_name = f"reportes/{nombre_archivo}"
+            
+            contenido = json.dumps(reporte, indent=2, default=str)
+            upload_text_blob(blob_name, contenido, overwrite=True)
+            
+            return {
+                "success": True,
+                "tipo_reporte": tipo_reporte,
+                "período": período,
+                "archivo": nombre_archivo,
+                "resumen": reporte
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al generar reporte: {str(e)}",
+                "tipo_reporte": tipo_reporte
+            }
+    
+    def _generate_blob_sas(self, blob_name: str) -> str:
+        """Genera token SAS para acceso a blob."""
+        try:
+            from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+            from datetime import datetime, timedelta
+            
+            account_name = os.getenv("AZURE_STORAGE_ACCOUNT")
+            account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
+            container_name = os.getenv("AZURE_STORAGE_CONTAINER", "hernando-docs")
+            
+            sas_token = generate_blob_sas(
+                account_name=account_name,
+                container_name=container_name,
+                blob_name=blob_name,
+                account_key=account_key,
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.utcnow() + timedelta(hours=24)
+            )
+            
+            return sas_token
+        except Exception:
+            return ""
 
 
 def prepare_images_for_whatsapp(
