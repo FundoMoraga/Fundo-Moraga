@@ -13,6 +13,8 @@ import hashlib
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from cosmos_client import get_memory_store
+from personal_context_cache import get_personal_cache
+import private_knowledge
 
 SPECIAL_PERSONA_PROMPTS = {
     "efrain_moraga": {
@@ -659,6 +661,52 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         
         return base_result
 
+    def _enrich_system_prompt_with_personal_context(
+        self,
+        system_prompt: str,
+        user_id: Optional[str]
+    ) -> str:
+        """
+        Enriquece el system prompt con contexto personal del usuario.
+        
+        Para usuarios especiales como Efraín, agrega información sobre:
+        - Número de interacciones previas
+        - Temas de interés
+        - Estilo de comunicación
+        - Notas de aprendizaje
+        
+        Args:
+            system_prompt: System prompt base
+            user_id: ID del usuario
+        
+        Returns:
+            System prompt enriquecido
+        """
+        # Solo para usuarios autorizados (Efraín)
+        if not private_knowledge.is_authorized_user(user_id):
+            return system_prompt
+        
+        try:
+            personal_cache = get_personal_cache()
+            
+            # Obtener contexto personal
+            context_summary = personal_cache.get_context_summary(user_id)
+            if context_summary:
+                enriched = f"""{system_prompt}
+
+---
+INFORMACIÓN PERSONALIZADA DEL USUARIO:
+{context_summary}
+
+Nota: Esta información es para proporcionar un mejor contexto y personalización.
+Úsala para mejorar la relevancia de tus respuestas, pero siempre responde según lo que el usuario pida actualmente.
+---"""
+                return enriched
+        except Exception as e:
+            print(f"⚠️ Error enriqueciendo prompt con contexto personal: {e}")
+        
+        return system_prompt
+
     def _openai_now(self) -> datetime:
         return datetime.now(timezone.utc)
 
@@ -1072,6 +1120,13 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
                 print(f"⚠️  Error aplicando análisis de lenguaje: {e}")
                 # Si falla, usamos el system prompt original
         
+        # Enriquecer system prompt con contexto personal (para Efraín)
+        try:
+            system_prompt = self._enrich_system_prompt_with_personal_context(system_prompt, user_id)
+        except Exception as e:
+            print(f"⚠️ Error enriqueciendo contexto personal: {e}")
+            # Si falla, continuamos con el system prompt original
+        
         messages = self._build_messages(
             user_message=user_message,
             conversation_history=conversation_history,
@@ -1113,6 +1168,28 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
                     message_type = cache_key.split(":")[2] if ":" in cache_key else None
                     if response_text and message_type:
                         self._set_response_cache(cache_key, response_text, message_type)
+                
+                # Actualizar cache personal para usuarios autorizados (Efraín)
+                if user_id and private_knowledge.is_authorized_user(user_id):
+                    try:
+                        personal_cache = get_personal_cache()
+                        if isinstance(result, dict):
+                            response_text = result.get("text", "")
+                        else:
+                            response_text = result
+                        
+                        personal_cache.update_personal_context(
+                            user_id=user_id,
+                            user_message=user_message,
+                            response=response_text,
+                            metadata={
+                                "model": model if model else "cache",
+                                "has_events": isinstance(result, dict) and result.get("events"),
+                                "search_request": is_search_request
+                            }
+                        )
+                    except Exception as e:
+                        print(f"⚠️ Error actualizando cache personal: {e}")
                 
                 return result
             except Exception as e:
