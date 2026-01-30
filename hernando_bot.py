@@ -138,6 +138,30 @@ class HernandoBot:
                 extra_context_payload["admin_mode"] = "true"
             is_admin_mode = str(extra_context_payload.get("admin_mode", "")).strip().lower() in ("1", "true", "yes", "on") or extra_context_payload.get("is_admin", False)
             is_farewell = self._is_farewell_message(message_text) if not is_admin_mode else False
+            
+            # NUEVO: Manejo inteligente de imágenes
+            if extra_context_payload.get("has_image") and extra_context_payload.get("image_url"):
+                print(f"[BOT] 🖼️ Procesando imagen con contexto inteligente")
+                response_text = self._handle_image_analysis(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    message_text=message_text,
+                    image_url=extra_context_payload["image_url"],
+                    conversation_history=conversation_history,
+                    extra_context=extra_context_payload
+                )
+                
+                # Guardar respuesta en Cosmos DB
+                assistant_metadata = {"platform": platform_key, "source": source}
+                self.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=response_text,
+                    conversation_id=conversation_id,
+                    metadata=assistant_metadata,
+                )
+                
+                return self._sanitize_user_response(response_text)
 
             if not is_admin_mode:
                 # 4. Flujo determinístico de agendamiento (no depende del modelo)
@@ -648,6 +672,129 @@ class HernandoBot:
             "bye",
         )
         return any(k in t for k in farewell_keywords)
+
+    def _handle_image_analysis(
+        self,
+        user_id: str,
+        conversation_id: str,
+        message_text: str,
+        image_url: str,
+        conversation_history: list,
+        extra_context: Dict[str, Any]
+    ) -> str:
+        """
+        Maneja el análisis inteligente de imágenes usando Vision API + GPT-4.
+        Hernando es más perspicaz y contextual, como ChatGPT 5.2.
+        
+        Args:
+            user_id: ID del usuario
+            conversation_id: ID de la conversación
+            message_text: Texto del usuario ("Qué es esto", etc.)
+            image_url: URL de la imagen
+            conversation_history: Historial previo
+            extra_context: Contexto adicional
+        
+        Returns:
+            Respuesta descriptiva y útil sobre la imagen
+        """
+        from vision_client import analyze_image
+        
+        print(f"[BOT] 🔍 Analizando imagen: {image_url}")
+        
+        # 1. Analizar imagen con Vision API
+        vision_result = analyze_image(image_url)
+        
+        if not vision_result or not vision_result.get("success"):
+            return "No pude analizar la imagen en este momento. ¿Podrías intentar enviarla de nuevo o describirme qué necesitas saber?"
+        
+        # 2. Extraer información relevante del análisis
+        description = vision_result.get("description", "")
+        objects = vision_result.get("objects", [])
+        people = vision_result.get("people", [])
+        tags = vision_result.get("tags", [])
+        brands = vision_result.get("brands", [])
+        
+        # 3. Construir contexto enriquecido para GPT-4
+        vision_context = []
+        
+        if description:
+            vision_context.append(f"Descripción general: {description}")
+        
+        if objects:
+            obj_list = [f"{obj['object']} ({obj['confidence']:.0f}% confianza)" for obj in objects[:5]]
+            vision_context.append(f"Objetos detectados: {', '.join(obj_list)}")
+        
+        if people:
+            vision_context.append(f"Personas detectadas: {len(people)} persona(s)")
+        
+        if tags:
+            tag_list = [f"{tag['name']}" for tag in tags[:8]]
+            vision_context.append(f"Etiquetas: {', '.join(tag_list)}")
+        
+        if brands:
+            brand_list = [f"{brand['name']}" for brand in brands]
+            vision_context.append(f"Marcas/logos: {', '.join(brand_list)}")
+        
+        vision_summary = "\n".join(vision_context)
+        
+        # 4. Prompt inteligente para GPT-4 (estilo ChatGPT 5.2)
+        enhanced_prompt = f"""ANÁLISIS DE IMAGEN ADJUNTA:
+
+{vision_summary}
+
+PREGUNTA DEL USUARIO: "{message_text}"
+
+INSTRUCCIONES:
+- Responde de manera perspicaz y contextual
+- Si el usuario pregunta "qué es esto", identifica el objeto principal con confianza
+- Si pregunta para qué sirve, explica su uso práctico
+- Si es un problema (daño, error), ofrece diagnóstico y solución
+- Si hay marcas comerciales, identifícalas explícitamente
+- Si hay personas, menciona la cantidad pero NO describas características físicas
+- Si es un lugar/paisaje, identifica la ubicación o tipo de lugar
+- Sé conciso pero completo (máximo 4-5 oraciones)
+- Si detectas algo relacionado con Fundo Moraga, menciónalo
+
+AHORA RESPONDE CON TU ANÁLISIS EXPERTO:"""
+
+        # 5. Llamar a GPT-4 con el contexto enriquecido
+        try:
+            # Construir historial con imagen
+            messages_for_gpt = []
+            
+            # Incluir últimos 3 mensajes de contexto
+            for msg in conversation_history[-3:]:
+                messages_for_gpt.append({
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", "")
+                })
+            
+            # Agregar análisis de imagen
+            messages_for_gpt.append({
+                "role": "user",
+                "content": enhanced_prompt
+            })
+            
+            # Llamar a OpenAI sin tools (análisis puro)
+            response = self.chatbot_ai.get_response(
+                user_id=user_id,
+                user_message=enhanced_prompt,
+                conversation_history=messages_for_gpt[:-1],  # Sin el último que ya está en user_message
+                extra_context=extra_context,
+                available_tools=[]  # Sin tools para respuesta directa
+            )
+            
+            return response
+            
+        except Exception as e:
+            print(f"⚠️ Error en análisis GPT-4 de imagen: {e}")
+            # Fallback: respuesta básica con lo que detectó Vision
+            fallback = f"Analicé la imagen. "
+            if description:
+                fallback += f"Veo: {description}. "
+            if objects:
+                fallback += f"Detecté: {', '.join([obj['object'] for obj in objects[:3]])}."
+            return fallback
 
     def _handle_greeting(self, message_text: str) -> Optional[str]:
         """

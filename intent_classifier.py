@@ -27,7 +27,27 @@ class IntentClassifier:
         "saludos": "Saludo o conversación casual",
         "recomendacion": "Usuario pide recomendación personalizada",
         "disponibilidad": "Usuario pregunta disponibilidad de fechas",
+        "analisis_imagen": "Usuario quiere que analices una imagen (qué es, qué contiene, identificar algo)",
+        "subir_archivo": "Usuario quiere guardar/almacenar un archivo en el volumen privado",
         "otro": "No encaja en otras categorías"
+    }
+    
+    # Intenciones específicas para imágenes
+    IMAGE_INTENT_KEYWORDS = {
+        "analisis_imagen": [
+            "qué es", "que es", "identificar", "analizar", "analiza", "dime qué",
+            "reconocer", "detectar", "ver qué hay", "describe", "explica",
+            "qué tiene", "que tiene", "qué contiene", "que contiene",
+            "qué hay en", "que hay en", "qué aparece", "que aparece",
+            "mostrar qué", "decir qué", "identificame", "analízame",
+            "necesito saber", "quiero saber", "ayúdame a identificar"
+        ],
+        "subir_archivo": [
+            "guarda", "guardar", "almacena", "almacenar", "sube", "subir",
+            "archiva", "archivar", "guárdalo", "guardalo", "guardame",
+            "añade", "agregar", "agrégalo", "agregalo", "ponlo en",
+            "save", "upload", "store", "volumen privado"
+        ]
     }
     
     def __init__(self):
@@ -129,7 +149,9 @@ Responde SOLO con un JSON (sin código markdown, sin explicaciones):
             "disponibilidad": ["disponible", "disponibilidad", "cuándo", "qué día", "qué fechas"],
             "soporte": ["error", "problema", "no funciona", "falla", "bug", "ayuda"],
             "recomendacion": ["recomiendam", "qué me recomendas", "cuál es mejor", "cuál recomiendas"],
-            "saludos": ["hola", "buenos", "buenas", "hiii", "aloha", "wena", "ey", "hey"]
+            "saludos": ["hola", "buenos", "buenas", "hiii", "aloha", "wena", "ey", "hey"],
+            "analisis_imagen": self.IMAGE_INTENT_KEYWORDS["analisis_imagen"],
+            "subir_archivo": self.IMAGE_INTENT_KEYWORDS["subir_archivo"]
         }
         
         # Detectar intención
@@ -157,6 +179,78 @@ Responde SOLO con un JSON (sin código markdown, sin explicaciones):
             "followup_suggestion": None,
             "method": "fallback"
         }
+
+    def classify_image_intent(self, caption_text: str, user_id: str = None) -> Dict[str, Any]:
+        """
+        Clasifica la intención cuando el usuario envía una imagen con texto.
+        Determina si quiere ANALIZAR la imagen o GUARDARLA en el volumen privado.
+        
+        Args:
+            caption_text: Texto que acompaña a la imagen
+            user_id: ID del usuario (para verificar permisos de volumen privado)
+        
+        Returns:
+            Dict con:
+            - intent: "analisis_imagen" o "subir_archivo"
+            - confidence: 0-1
+            - reasoning: Explicación de por qué se eligió esa intención
+        """
+        import private_knowledge
+        
+        # Si no hay texto, asumir análisis por defecto
+        if not caption_text or caption_text.strip() == "" or caption_text == "[adjunto]":
+            return {
+                "intent": "analisis_imagen",
+                "confidence": 0.5,
+                "reasoning": "No hay texto que indique intención de guardar, asumo análisis"
+            }
+        
+        msg_lower = caption_text.lower()
+        
+        # Verificar keywords explícitos de análisis (mayor prioridad)
+        analysis_score = 0
+        for keyword in self.IMAGE_INTENT_KEYWORDS["analisis_imagen"]:
+            if keyword in msg_lower:
+                analysis_score += 1
+        
+        # Verificar keywords de subida
+        upload_score = 0
+        for keyword in self.IMAGE_INTENT_KEYWORDS["subir_archivo"]:
+            if keyword in msg_lower:
+                upload_score += 1
+        
+        # Si el usuario NO está autorizado, siempre análisis (no puede subir)
+        is_authorized = private_knowledge.is_authorized_user(user_id) if user_id else False
+        
+        if not is_authorized and upload_score > 0:
+            return {
+                "intent": "analisis_imagen",
+                "confidence": 0.9,
+                "reasoning": "Usuario solicitó subir archivo pero no está autorizado para volumen privado"
+            }
+        
+        # Decidir basado en scores
+        if analysis_score > upload_score:
+            confidence = min(0.95, 0.6 + (analysis_score * 0.1))
+            return {
+                "intent": "analisis_imagen",
+                "confidence": confidence,
+                "reasoning": f"Detecté {analysis_score} palabras de análisis vs {upload_score} de subida"
+            }
+        elif upload_score > analysis_score and is_authorized:
+            confidence = min(0.95, 0.6 + (upload_score * 0.1))
+            return {
+                "intent": "subir_archivo",
+                "confidence": confidence,
+                "reasoning": f"Detecté {upload_score} palabras de subida vs {analysis_score} de análisis, usuario autorizado"
+            }
+        else:
+            # Empate o sin keywords claros: analizar por defecto (más seguro)
+            return {
+                "intent": "analisis_imagen",
+                "confidence": 0.7,
+                "reasoning": "Sin keywords claros de intención específica, analizo por defecto"
+            }
 
 
 def get_intent_classifier() -> IntentClassifier:

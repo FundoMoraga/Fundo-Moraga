@@ -900,6 +900,74 @@ def whatsapp_webhook():
 
         # Manejar archivos adjuntos para usuarios autorizados
         if has_media and media_info:
+            from media_handler import download_and_save_media, format_save_confirmation
+            from intent_classifier import get_intent_classifier
+            
+            media_url = media_info.get("url")
+            filename = media_info.get("filename")
+            mimetype = media_info.get("mimetype")
+            caption = text if text != "[adjunto]" else None
+            
+            # NUEVO: Clasificar intención antes de procesar
+            classifier = get_intent_classifier()
+            image_intent = classifier.classify_image_intent(caption or "", user_id)
+            
+            print(f"[WAHA] 🧠 Intención detectada: {image_intent['intent']} (confianza: {image_intent['confidence']:.2f})")
+            print(f"[WAHA] 💭 Razonamiento: {image_intent['reasoning']}")
+            
+            # Caso 1: Usuario quiere ANALIZAR la imagen
+            if image_intent["intent"] == "analisis_imagen" and media_url:
+                print(f"[WAHA] 🔍 Análisis de imagen solicitado")
+                
+                # Pasar imagen al bot con contexto especial
+                extra_context = {
+                    "has_image": True,
+                    "image_url": media_url,
+                    "image_caption": caption,
+                    "mimetype": mimetype,
+                    "filename": filename
+                }
+                
+                if is_efrain:
+                    extra_context["user_name"] = user_name
+                    extra_context["is_admin"] = True
+                
+                # El bot procesará con sus herramientas de vision
+                prompt_with_image = caption if caption else "¿Qué hay en esta imagen?"
+                
+                response = bot.process_message(
+                    user_id,
+                    prompt_with_image,
+                    platform="whatsapp",
+                    source="whatsapp_webhook",
+                    message_id=str(payload.get("id") or ""),
+                    extra_context=extra_context
+                )
+                
+                _send_waha_text(chat_id, response, session)
+                handled += 1
+                continue
+            
+            # Caso 2: Usuario quiere GUARDAR en volumen privado (solo autorizados)
+            elif image_intent["intent"] == "subir_archivo" and is_auth and media_url:
+                print(f"[WAHA] 💾 Guardando en volumen privado")
+                
+                result = download_and_save_media(
+                    media_url=media_url,
+                    filename=filename,
+                    mimetype=mimetype,
+                    user_id=user_id,
+                    caption=caption
+                )
+                
+                response = format_save_confirmation(result)
+                _send_waha_text(chat_id, response, session)
+                handled += 1
+                continue
+
+
+        # Manejar archivos adjuntos para usuarios autorizados
+        if has_media and media_info:
             if is_auth:
                 from media_handler import download_and_save_media, format_save_confirmation
                 
