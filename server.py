@@ -277,6 +277,25 @@ def _extract_waha_user_id(payload: dict, chat_id: str = "") -> str:
     return (chat_id or "").strip()
 
 
+def _extract_waha_user_name(payload: dict) -> str:
+    """Extrae el nombre del usuario del payload de WAHA."""
+    # Buscar en campos comunes
+    for key in ("notifyName", "pushName", "name", "username"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    
+    # Buscar en _data
+    data = payload.get("_data", {})
+    if isinstance(data, dict):
+        for key in ("notifyName", "pushName", "name"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    
+    return ""
+
+
 def _send_waha_text(chat_id: str, text: str, session: str) -> bool:
     if not config.WAHA_API_URL:
         print("⚠️ WAHA API URL no configurada (WAHA_API_URL).")
@@ -848,22 +867,40 @@ def whatsapp_webhook():
         )
         sender_id = _extract_waha_user_id(payload, chat_id)
         user_id = f"wa_{sender_id or chat_id}"
+        user_name = _extract_waha_user_name(payload)
         
-        # DEBUG: Loguear información de usuario para diagnosticar problemas de autenticación
+        # Detectar si es Efraín Moraga por nombre (cuando @lid no tiene número)
+        import unicodedata
+        def normalize_name(text):
+            if not text:
+                return ""
+            normalized = unicodedata.normalize("NFD", text)
+            without_accents = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+            return without_accents.lower().strip()
+        
+        is_efrain = False
+        if user_name:
+            normalized = normalize_name(user_name)
+            if "efrain" in normalized and "moraga" in normalized:
+                is_efrain = True
+                print(f"[WAHA] ✅ Usuario especial detectado por nombre: {user_name}")
+        
+        # Verificar autorización por número
         import private_knowledge as pk
-        is_auth = pk.is_authorized_user(user_id)
-        if chat_id and ('56941242609' in chat_id or '56957513744' in chat_id):
-            print(f"[WAHA] Usuario especial detectado:")
-            print(f"  chat_id: {chat_id}")
-            print(f"  user_id: {user_id}")
-            print(f"  Autorizado: {is_auth}")
-            print(f"  Números config: {getattr(config, 'SPECIAL_PERSONA_WHATSAPP_NUMBERS', [])}")
+        is_auth_by_number = pk.is_authorized_user(user_id)
+        is_auth = is_auth_by_number or is_efrain
+        
+        if is_auth:
+            print(f"[WAHA] Usuario autorizado:")
+            print(f"  Nombre: {user_name}")
+            print(f"  Chat ID: {chat_id}")
+            print(f"  User ID: {user_id}")
+            print(f"  Modo: {'Por nombre' if is_efrain else 'Por número'}")
 
 
         # Manejar archivos adjuntos para usuarios autorizados
         if has_media and media_info:
-            import private_knowledge
-            if private_knowledge.is_authorized_user(user_id):
+            if is_auth:
                 from media_handler import download_and_save_media, format_save_confirmation
                 
                 media_url = media_info.get("url")
@@ -891,12 +928,31 @@ def whatsapp_webhook():
         elif not text:
             continue
         else:
-            # DEBUG: Log cuando procesamos mensajes de usuarios especiales
-            if '56941242609' in user_id or '56957513744' in user_id:
-                print(f"[WAHA] Procesando mensaje de usuario especial:")
-                print(f"  user_id: {user_id}")
-                print(f"  mensaje: {text[:80]}...")
-                print(f"  tools_enabled: {is_auth}")
+            # Si es Efraín Moraga y es primer mensaje, saludar como admin
+            conversation_history = bot.conversation_store.get_conversation_history(user_id=user_id, limit=5)
+            is_first_message = len(conversation_history) == 0
+            
+            if is_efrain and is_first_message:
+                response = f"¡Hola Efraín! ¿En qué te puedo ayudar?"
+                _send_waha_text(chat_id, response, session)
+                handled += 1
+                
+                # Guardar mensaje del usuario y respuesta
+                bot.conversation_store.save_message(
+                    user_id=user_id,
+                    role="user",
+                    message=text,
+                    conversation_id=f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}",
+                    metadata={"platform": "whatsapp", "source": "whatsapp_webhook"}
+                )
+                bot.conversation_store.save_message(
+                    user_id=user_id,
+                    role="assistant",
+                    message=response,
+                    conversation_id=f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}",
+                    metadata={"platform": "whatsapp", "persona": "efrain_moraga"}
+                )
+                continue
             
             response = bot.process_message(
                 user_id,
