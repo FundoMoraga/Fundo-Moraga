@@ -667,20 +667,21 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         user_id: Optional[str]
     ) -> str:
         """
-        Enriquece el system prompt con contexto personal del usuario.
+        Enriquece el system prompt con contexto personal del usuario (SOLO PARA EFRAÍN).
         
-        Para usuarios especiales como Efraín, agrega información sobre:
-        - Número de interacciones previas
-        - Temas de interés
-        - Estilo de comunicación
-        - Notas de aprendizaje
+        INYECTA AUTOMÁTICAMENTE:
+        1. Prompts de personalidad desde Cosmos DB
+        2. Manual de instrucciones (capacidades disponibles)
+        3. Información de interacciones previas
+        4. Temas de interés y estilo de comunicación
+        5. Notas de aprendizaje personalizadas
         
         Args:
             system_prompt: System prompt base
             user_id: ID del usuario
         
         Returns:
-            System prompt enriquecido
+            System prompt enriquecido con estructura y manual completo
         """
         # Solo para usuarios autorizados (Efraín)
         if not private_knowledge.is_authorized_user(user_id):
@@ -689,21 +690,88 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
         try:
             personal_cache = get_personal_cache()
             
-            # Obtener contexto personal
+            enriched_parts = [system_prompt]
+            
+            # ========== 1. CARGAR PROMPTS DE COSMOS DB ==========
+            cosmos_prompts = personal_cache.get_cosmos_prompts()
+            if cosmos_prompts:
+                cosmos_system = cosmos_prompts.get("system", "")
+                if cosmos_system and cosmos_system.strip():
+                    enriched_parts.append(f"""
+---
+PERSONALIZACIÓN DESDE COSMOS DB (Sistema de Entrenamiento):
+{cosmos_system[:800]}  
+---""")
+            
+            # ========== 2. INYECTAR MANUAL DE INSTRUCCIONES ==========
+            capabilities = personal_cache.get_all_capabilities()
+            if capabilities:
+                enriched_parts.append(f"""
+---
+MANUAL DE INSTRUCCIONES ESTRUCTURADO (Accesible 24/7):
+Tienes acceso a {len(capabilities)} capacidades principales:
+{', '.join(capabilities)}
+
+CÓMO ACTUAR EN CADA SITUACIÓN:
+- BÚSQUEDA WEB: Si Efraín pide información, busca en Google y extrae contenido automáticamente
+- ANÁLISIS DE IMÁGENES: Si envía fotos, analiza completamente (visual + OCR + objetos)
+- REPORTES: Si pide documentos estructurados, genera reportes con múltiples secciones
+- INVESTIGACIÓN: Búsquedas profundas con múltiples fuentes y síntesis
+- GENERACIÓN DE IDEAS: Propón 3-5 alternativas con análisis de pros/contras
+- CONTENIDO: Escribe textos SEO-optimizados para web, social, email
+- ANÁLISIS DE DATOS: Interpreta gráficas, números y tendencias
+- TRADUCCIÓN: Detecta idiomas y traduce automáticamente
+- RESOLUCIÓN: Diagnostica y propone soluciones para problemas
+
+REGLA DE ORO: Ejecuta herramientas PRIMERO, explica DESPUÉS.
+---""")
+            
+            # ========== 3. CONTEXTO PERSONAL DE EFRAÍN ==========
             context_summary = personal_cache.get_context_summary(user_id)
             if context_summary:
-                enriched = f"""{system_prompt}
-
+                enriched_parts.append(f"""
 ---
-INFORMACIÓN PERSONALIZADA DEL USUARIO:
+CONTEXTO PERSONAL DE EFRAÍN:
 {context_summary}
 
-Nota: Esta información es para proporcionar un mejor contexto y personalización.
-Úsala para mejorar la relevancia de tus respuestas, pero siempre responde según lo que el usuario pida actualmente.
----"""
-                return enriched
+NOTAS DE APRENDIZAJE PREVIAS:
+""")
+                
+                learning_notes = personal_cache.get_learning_notes(user_id)
+                if learning_notes:
+                    for i, note in enumerate(learning_notes[-5:], 1):  # Últimas 5 notas
+                        enriched_parts.append(f"{i}. {note}")
+                else:
+                    enriched_parts.append("(Sin notas de aprendizaje aún)")
+                
+                enriched_parts.append("---")
+            
+            # ========== 4. INFORMACIÓN COMPLETA DEL MANUAL ==========
+            # Agregar detalles de cada capacidad para referencia rápida
+            enriched_parts.append("""
+---
+REFERENCIA RÁPIDA DE CAPACIDADES:
+""")
+            
+            for capability in capabilities[:8]:  # Top 8 para no inflar el prompt
+                instr = personal_cache.get_instructions_for_capability(capability)
+                if instr:
+                    trigger = ", ".join(instr.get("trigger_keywords", [])[:3])
+                    enriched_parts.append(f"\n• {instr['capability']}: {instr['description']}")
+                    enriched_parts.append(f"  Palabras clave: {trigger}...")
+            
+            enriched_parts.append("""
+---
+ESTRUCTURA PERMANENTE:
+Este cache está disponible 24/7 en Redis sin expiración.
+Se actualiza continuamente con cada interacción de Efraín.
+Usa esta información para proporcionar respuestas altamente personalizadas.
+---""")
+            
+            return "\n".join(enriched_parts)
+            
         except Exception as e:
-            print(f"⚠️ Error enriqueciendo prompt con contexto personal: {e}")
+            print(f"⚠️ Error enriqueciendo prompt con contexto personal y manual: {e}")
         
         return system_prompt
 

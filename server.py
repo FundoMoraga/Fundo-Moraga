@@ -17,6 +17,7 @@ from pathlib import Path
 # Cliente de Azure Storage (opcional)
 import azure_storage_client as storage_client
 from azure_storage_client import get_blob_url, list_blobs
+from personal_cache_service import init_personal_cache_service
 
 def _config_status() -> Tuple[bool, list[str], list[str]]:
     """
@@ -98,6 +99,12 @@ CORS(app)  # Permitir peticiones desde fundomoraga.com
 RUN_SCHEDULER_THREAD = os.getenv("RUN_SCHEDULER_THREAD", "").lower() in ("1", "true", "yes", "y", "si")
 if RUN_SCHEDULER_THREAD:
     start_reminder_scheduler()
+
+# Inicializar cache personal estructural (24/7)
+try:
+    init_personal_cache_service()
+except Exception as e:
+    print(f"[STARTUP] ⚠️ Cache personal no pudo inicializarse: {e}")
 
 # Inicializar bot al arranque para evitar timeouts en primera petición
 _bot: Optional[HernandoBot] = None

@@ -1,14 +1,12 @@
 """
 Cache Personal Persistente para Efraín Moraga
-Almacena contexto, preferencias y learning en Redis
+Almacena contexto, preferencias, learning y prompts de Cosmos DB en Redis
 Se actualiza continuamente con cada interacción
+Accesible 24/7 con instrucciones estructuradas
 """
 import json
-import hashlib
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timezone, timedelta
-import private_knowledge
-import config
+from datetime import datetime, timezone
 
 try:
     from redis_cache import get_redis_cache
@@ -16,28 +14,60 @@ try:
 except ImportError:
     REDIS_AVAILABLE = False
 
+try:
+    from hernando_instructions_manual import get_instructions_manual, format_manual_for_prompt
+    INSTRUCTIONS_AVAILABLE = True
+except ImportError:
+    INSTRUCTIONS_AVAILABLE = False
+    get_instructions_manual = None
+
+try:
+    from prompts_loader import get_prompts_loader
+    PROMPTS_LOADER_AVAILABLE = True
+except ImportError:
+    PROMPTS_LOADER_AVAILABLE = False
+    get_prompts_loader = None
+
 
 class PersonalContextCache:
     """
     Cache personal persistente para usuarios especiales (Efraín).
     
-    Guarda:
+    CARACTERÍSTICAS ESTRUCTURALES (24/7):
+    - Carga prompts de personalidad desde Cosmos DB
+    - Carga manual de instrucciones para todas las capacidades
+    - Almacena contexto, preferencias y learning
+    - Sin expiración: permanente hasta que se limpie manualmente
+    - Accesible a nivel aplicación para cualquier interacción
+    
+    DATOS GUARDADOS:
+    - Prompts de personalidad desde Cosmos DB (actualizado cada 1h)
+    - Manual de instrucciones (capacidades, procedimientos, ejemplos)
     - Preferencias de conversación
     - Temas recientes discutidos
     - Preguntas frecuentes de este usuario
-    - Información que el usuario ha compartido
+    - Información compartida por el usuario
     - Estilo de comunicación aprendido
+    - Notas de aprendizaje
     
-    TTL: Se actualiza continuamente, sin expiración
+    TTL: Sin expiración (persistente en Redis)
+    Actualización: Continua con cada interacción + periódica para prompts
     """
     
     CACHE_PREFIX = "personal_context"
+    COSMOS_PROMPTS_CACHE_TTL = 3600  # 1 hora para prompts de Cosmos
+    COSMOS_PROMPTS_CACHE_KEY = f"{CACHE_PREFIX}:global:cosmos_prompts"
+    INSTRUCTIONS_CACHE_KEY = f"{CACHE_PREFIX}:global:instructions_manual"
     
     def __init__(self):
         self.redis = None
         self.enabled = False
+        self.cosmos_prompts_loaded_at = None
+        self._cosmos_prompts_cache = {}
+        self._instructions_manual = {}
         self._init_redis()
-    
+        self._load_instructions_manual()
+        
     def _init_redis(self) -> None:
         """Inicializa conexión a Redis"""
         if not REDIS_AVAILABLE:
@@ -50,13 +80,104 @@ class PersonalContextCache:
             if cache.enabled and cache.client:
                 self.redis = cache.client
                 self.enabled = True
-                print("✅ Cache personal persistente inicializado")
+                print("✅ Cache personal persistente inicializado (24/7)")
             else:
                 print("⚠️ Redis no está habilitado")
                 self.enabled = False
         except Exception as e:
             print(f"⚠️ Error inicializando cache personal: {e}")
             self.enabled = False
+    
+    def _load_instructions_manual(self) -> None:
+        """
+        Carga el manual de instrucciones al inicializar.
+        Está disponible 24/7 en memoria sin necesidad de Redis.
+        """
+        if not INSTRUCTIONS_AVAILABLE:
+            print("⚠️ Manual de instrucciones no disponible")
+            self._instructions_manual = {}
+            return
+        
+        try:
+            if self.enabled and self.redis:
+                cached = self.redis.get(self.INSTRUCTIONS_CACHE_KEY)
+                if cached:
+                    self._instructions_manual = json.loads(cached)
+                    print("✅ Manual de instrucciones cargado desde Redis")
+                    return
+
+            self._instructions_manual = get_instructions_manual()
+            if self.enabled and self.redis and self._instructions_manual:
+                self.redis.set(self.INSTRUCTIONS_CACHE_KEY, json.dumps(self._instructions_manual))
+            print(f"✅ Manual de instrucciones cargado ({len(self._instructions_manual)} capacidades)")
+        except Exception as e:
+            print(f"⚠️ Error cargando manual de instrucciones: {e}")
+            self._instructions_manual = {}
+    
+    def _load_cosmos_prompts(self, force_reload: bool = False) -> Dict[str, str]:
+        """
+        Carga los prompts de personalidad desde Cosmos DB.
+        Los mantiene en cache por 1 hora.
+        
+        Args:
+            force_reload: Forzar recarga aunque esté en cache
+        
+        Returns:
+            Dict con 'system' y 'operational' prompts
+        """
+        if not PROMPTS_LOADER_AVAILABLE:
+            print("⚠️ Prompts loader no disponible")
+            return {}
+        
+        # Verificar si tenemos cache válido (memoria)
+        if not force_reload and self._cosmos_prompts_cache and self.cosmos_prompts_loaded_at:
+            elapsed = (datetime.now(timezone.utc) - self.cosmos_prompts_loaded_at).total_seconds()
+            if elapsed < self.COSMOS_PROMPTS_CACHE_TTL:
+                return self._cosmos_prompts_cache
+
+        # Verificar cache global en Redis (persistente 24/7)
+        if not force_reload and self.enabled and self.redis:
+            cached = self.redis.get(self.COSMOS_PROMPTS_CACHE_KEY)
+            if cached:
+                try:
+                    payload = json.loads(cached)
+                    cached_at = payload.get("cached_at")
+                    prompts = payload.get("prompts") or {}
+                    if cached_at:
+                        cached_time = datetime.fromisoformat(cached_at)
+                        if cached_time.tzinfo is None:
+                            cached_time = cached_time.replace(tzinfo=timezone.utc)
+                        elapsed = (datetime.now(timezone.utc) - cached_time).total_seconds()
+                        if elapsed < self.COSMOS_PROMPTS_CACHE_TTL:
+                            self._cosmos_prompts_cache = prompts
+                            self.cosmos_prompts_loaded_at = cached_time
+                            print("✅ Prompts de Cosmos DB cargados desde Redis")
+                            return prompts
+                except Exception as e:
+                    print(f"⚠️ Error leyendo cache de prompts en Redis: {e}")
+        
+        try:
+            loader = get_prompts_loader()
+            prompts = loader.get_prompts(
+                persona="Hernando",
+                fallback_system_prompt="",
+                fallback_operational_prompt=""
+            )
+            
+            self._cosmos_prompts_cache = prompts
+            self.cosmos_prompts_loaded_at = datetime.now(timezone.utc)
+            if self.enabled and self.redis:
+                payload = {
+                    "cached_at": self.cosmos_prompts_loaded_at.isoformat(),
+                    "prompts": prompts,
+                }
+                self.redis.set(self.COSMOS_PROMPTS_CACHE_KEY, json.dumps(payload))
+            print(f"✅ Prompts de Cosmos DB cargados para cache personal")
+            return prompts
+        
+        except Exception as e:
+            print(f"⚠️ Error cargando prompts de Cosmos DB: {e}")
+            return self._cosmos_prompts_cache  # Devolver último cache válido si falla
     
     def _get_user_key(self, user_id: str) -> str:
         """Genera clave de cache para un usuario"""
@@ -165,10 +286,12 @@ class PersonalContextCache:
     def get_context_summary(self, user_id: str) -> Optional[str]:
         """
         Genera un resumen del contexto personal para usar en prompts.
+        Incluye información de Cosmos DB y manual de instrucciones.
         
         Ejemplo:
         "Efraín ha hablado conmigo 47 veces. Le interesa turismo, tecnología,
-        y tiene un estilo directo. Ha preguntado sobre precios, vehículos 4x4."
+        y tiene un estilo directo. Ha preguntado sobre precios, vehículos 4x4.
+        Tiene acceso a [web_search, image_analysis, report_generation, ...]"
         
         Args:
             user_id: ID del usuario
@@ -187,13 +310,91 @@ class PersonalContextCache:
         # Analizar patrón de comunicación
         style = self._analyze_communication_style(recent)
         
-        summary = f"""Contexto personal del usuario:
+        # Cargar prompts de Cosmos DB
+        cosmos_prompts = self._load_cosmos_prompts()
+        prompts_info = f"Sistema personalizado de Cosmos DB ({len(cosmos_prompts)} prompts)"
+        
+        # Información del manual de instrucciones
+        capabilities = list(self._instructions_manual.keys())
+        capabilities_info = f"Acceso a {len(capabilities)} capacidades: {', '.join(capabilities[:5])}..."
+        
+        summary = f"""Contexto personal de Efraín Moraga:
 - Interacciones previas: {interaction_count}
 - Temas de interés: {', '.join(topics) if topics else 'ninguno'}
 - Estilo de comunicación: {style}
+- {prompts_info}
+- {capabilities_info}
 - Última interacción: {context.get('updated_at', 'N/A')}"""
         
         return summary
+    
+    def get_cosmos_prompts(self, force_reload: bool = False) -> Dict[str, str]:
+        """
+        Obtiene los prompts de personalidad desde Cosmos DB.
+        Cacheados por 1 hora.
+        
+        Args:
+            force_reload: Forzar recarga
+        
+        Returns:
+            Dict con 'system' y 'operational' keys
+        """
+        return self._load_cosmos_prompts(force_reload)
+    
+    def get_instructions_for_capability(self, capability: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene instrucciones detalladas para una capacidad específica.
+        Útil para inyectar en contexto cuando se detecta una necesidad.
+        
+        Args:
+            capability: Nombre de la capacidad (ej: "web_search", "image_analysis")
+        
+        Returns:
+            Dict con instrucciones detalladas, o None
+        """
+        return self._instructions_manual.get(capability)
+    
+    def get_all_capabilities(self) -> List[str]:
+        """
+        Obtiene lista de todas las capacidades disponibles.
+        
+        Returns:
+            Lista de nombres de capacidades
+        """
+        return list(self._instructions_manual.keys())
+    
+    def get_instructions_summary(self) -> str:
+        """
+        Obtiene un resumen formateado del manual completo.
+        Útil para inyectar en prompts cuando es necesario.
+        
+        Returns:
+            String con manual formateado
+        """
+        if not INSTRUCTIONS_AVAILABLE:
+            return "Manual de instrucciones no disponible"
+        
+        try:
+            return format_manual_for_prompt()
+        except Exception as e:
+            print(f"⚠️ Error formateando resumen de instrucciones: {e}")
+            return ""
+
+    def refresh_instructions_manual(self) -> None:
+        """
+        Fuerza la recarga del manual de instrucciones desde el archivo local
+        y lo persiste en Redis para acceso 24/7.
+        """
+        if not INSTRUCTIONS_AVAILABLE:
+            return
+
+        try:
+            self._instructions_manual = get_instructions_manual()
+            if self.enabled and self.redis and self._instructions_manual:
+                self.redis.set(self.INSTRUCTIONS_CACHE_KEY, json.dumps(self._instructions_manual))
+            print(f"✅ Manual de instrucciones recargado ({len(self._instructions_manual)} capacidades)")
+        except Exception as e:
+            print(f"⚠️ Error recargando manual de instrucciones: {e}")
     
     def _extract_topics(self, message: str) -> List[str]:
         """
