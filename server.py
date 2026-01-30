@@ -705,14 +705,19 @@ def whatsapp_webhook():
     Webhook para WAHA (WhatsApp HTTP API).
     Espera eventos con payload de mensaje y responde vía WAHA /api/sendText.
     """
-    if config.WAHA_WEBHOOK_SECRET:
+    # Validación de secreto (opcional, solo si está configurado)
+    webhook_secret = getattr(config, 'WAHA_WEBHOOK_SECRET', None) or os.getenv('WAHA_WEBHOOK_SECRET')
+    if webhook_secret:
         provided = (
             request.headers.get("X-WAHA-SECRET")
             or request.headers.get("X-Webhook-Secret")
             or request.args.get("token")
         )
-        if provided != config.WAHA_WEBHOOK_SECRET:
+        if provided != webhook_secret:
             return jsonify({"error": "unauthorized"}), 401
+    
+    # Log para diagnosticar problemas de webhook
+    print(f"[WEBHOOK] POST /webhook/whatsapp recibido a {datetime.now().isoformat()}")
 
     data = request.get_json(silent=True)
     if data is None:
