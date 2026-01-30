@@ -64,12 +64,12 @@ def analyze_image(image_url: str) -> Optional[Dict[str, Any]]:
             resp = requests.post(
                 url,
                 json={"image_url": image_url},
-                timeout=10
+                timeout=5
             )
             if resp.status_code == 200:
                 return resp.json()
         except Exception as e:
-            print(f"⚠️ Error llamando servicio Vision HTTP: {e}")
+            print(f"⚠️ Vision Service HTTP falló (usando SDK como backup): {e}")
     
     # Fallback a SDK
     client = _get_sdk_client()

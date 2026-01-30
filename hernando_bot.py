@@ -338,8 +338,21 @@ class HernandoBot:
                     )
                     return amenities_response
 
+                # 4.75 Respuesta determinística para preguntas de ayuda/servicios
+                help_response = self._handle_help_question(message_text, user_id)
+                if help_response:
+                    help_response = self._sanitize_user_response(help_response)
+                    self.conversation_store.save_message(
+                        user_id=user_id,
+                        role="assistant",
+                        message=help_response,
+                        conversation_id=conversation_id,
+                        metadata={"platform": platform_key, "source": "help_flow"},
+                    )
+                    return help_response
+
                 # 4.8 Saludo determinístico (evita depender del modelo en el primer mensaje)
-                greeting_response = self._handle_greeting(message_text)
+                greeting_response = self._handle_greeting(message_text, user_id)
                 if greeting_response:
                     greeting_response = self._sanitize_user_response(greeting_response)
                     self.conversation_store.save_message(
@@ -705,7 +718,7 @@ class HernandoBot:
         vision_result = analyze_image(image_url)
         
         if not vision_result or not vision_result.get("success"):
-            return "No pude analizar la imagen en este momento. ¿Podrías intentar enviarla de nuevo o describirme qué necesitas saber?"
+            return "No logré analizar esa imagen (puede que el servicio esté ocupado o la imagen no llegó bien). ¿La puedes reenviar como foto? Si prefieres, cuéntame en texto qué necesitas saber de ella."
         
         # 2. Extraer información relevante del análisis
         description = vision_result.get("description", "")
@@ -737,25 +750,22 @@ class HernandoBot:
         
         vision_summary = "\n".join(vision_context)
         
-        # 4. Prompt inteligente para GPT-4 (estilo ChatGPT 5.2)
-        enhanced_prompt = f"""ANÁLISIS DE IMAGEN ADJUNTA:
+        # 4. Prompt inteligente para GPT-4 (natural y conversacional)
+        enhanced_prompt = f"""Analicé esta imagen y esto es lo que detecté:
 
 {vision_summary}
 
-PREGUNTA DEL USUARIO: "{message_text}"
+El usuario pregunta: "{message_text}"
 
-INSTRUCCIONES:
-- Responde de manera perspicaz y contextual
-- Si el usuario pregunta "qué es esto", identifica el objeto principal con confianza
-- Si pregunta para qué sirve, explica su uso práctico
-- Si es un problema (daño, error), ofrece diagnóstico y solución
-- Si hay marcas comerciales, identifícalas explícitamente
-- Si hay personas, menciona la cantidad pero NO describas características físicas
-- Si es un lugar/paisaje, identifica la ubicación o tipo de lugar
-- Sé conciso pero completo (máximo 4-5 oraciones)
-- Si detectas algo relacionado con Fundo Moraga, menciónalo
+Responde de forma natural y directa:
+- Si pregunta qué hay/objetos: nómbralos directamente sin explicaciones técnicas
+- Si pregunta qué es: identifica el objeto principal
+- Si pregunta para qué sirve: explica brevemente
+- Máximo 2-3 oraciones, conversacional
+- Sin mencionar "confianza", "etiquetas" ni términos técnicos
+- Si no hay mucho que decir, sé honesto y breve
 
-AHORA RESPONDE CON TU ANÁLISIS EXPERTO:"""
+Respuesta:"""
 
         # 5. Llamar a GPT-4 con el contexto enriquecido
         try:
@@ -796,7 +806,7 @@ AHORA RESPONDE CON TU ANÁLISIS EXPERTO:"""
                 fallback += f"Detecté: {', '.join([obj['object'] for obj in objects[:3]])}."
             return fallback
 
-    def _handle_greeting(self, message_text: str) -> Optional[str]:
+    def _handle_greeting(self, message_text: str, user_id: str) -> Optional[str]:
         """
         Responde saludos simples de forma determinística.
         Útil cuando OpenAI no está disponible o para evitar depender del modelo en el primer mensaje.
@@ -804,10 +814,32 @@ AHORA RESPONDE CON TU ANÁLISIS EXPERTO:"""
         t = (message_text or "").strip().lower()
         if not t:
             return None
+        
+        # Limpiar emojis y puntuación para análisis más flexible
+        t_clean = re.sub(r'[^\w\s]', '', t)
 
         # Saludos típicos (incluye elongaciones: holaaa, hooola, etc.)
-        if not re.fullmatch(r"(hola+|hoo+la+|buenas+|buenos\s+d[ií]as+|buenas\s+tardes+|buenas\s+noches+|hello+|hi+|wena+s?)\b[.!?]*", t):
+        # Más flexible: "hola", "hola!", "¿hola?", "holaaa", etc.
+        greeting_patterns = [
+            r'^\s*ho+la+\s*$',
+            r'^\s*hoo+la+\s*$', 
+            r'^\s*buenas+\s*$',
+            r'^\s*buenos?\s+d[ií]as?\s*$',
+            r'^\s*buenas?\s+tardes?\s*$',
+            r'^\s*buenas?\s+noches?\s*$',
+            r'^\s*hello+\s*$',
+            r'^\s*hi+\s*$',
+            r'^\s*wena+s?\s*$',
+            r'^\s*holi+\s*$',
+            r'^\s*ola+\s*$'
+        ]
+        
+        if not any(re.search(pattern, t_clean) for pattern in greeting_patterns):
             return None
+        
+        # Verificar si es usuario autorizado (Efraín)
+        import private_knowledge
+        is_authorized = private_knowledge.is_authorized_user(user_id)
 
         special_sun = self._special_open_sunday_date()
         special_tip = (
@@ -815,12 +847,92 @@ AHORA RESPONDE CON TU ANÁLISIS EXPERTO:"""
             if special_sun
             else ""
         )
-        return (
-            "¡Hola! Soy Hernando, tu anfitrión virtual del Fundo Moraga.\n\n"
-            "Te ayudo con off-road (autos/motos), turismo rural o eventos/producciones.\n\n"
-            + special_tip
-            + "Cuéntame fecha/idea y cuántas personas para avanzar al tiro."
+        
+        if is_authorized:
+            return (
+                "¡Hola Efraín! 👋\n\n"
+                "Tengo acceso completo a todas las herramientas: documentos privados, análisis de imágenes, "
+                "búsquedas web, traducción, y los 10 servicios Railway.\n\n"
+                + special_tip +
+                "¿En qué te ayudo?"
+            )
+        else:
+            return (
+                "¡Hola! Soy Hernando, tu anfitrión virtual del Fundo Moraga.\n\n"
+                "Te ayudo con off-road (autos/motos), turismo rural o eventos/producciones.\n\n"
+                + special_tip
+                + "Cuéntame fecha/idea y cuántas personas para avanzar al tiro."
+            )
+    
+    def _handle_help_question(self, message_text: str, user_id: str) -> Optional[str]:
+        """
+        Maneja preguntas sobre qué servicios ofrece Hernando/Fundo.
+        Ejemplo: "¿Qué me puedes ayudar?", "¿Qué haces?", "¿Qué ofrecen?"
+        """
+        t = (message_text or "").strip().lower()
+        if not t:
+            return None
+        
+        # Limpiar para análisis
+        t_clean = re.sub(r'[^\w\s]', '', t)
+        
+        # Patrones de preguntas de ayuda/servicios
+        help_patterns = [
+            r'\b(que|qu[ée])\s+(me\s+)?(puedes?|puede|ofreces?|ofrece|haces?|hace|tienes?|tiene)\b',
+            r'\b(en\s+que|c[oó]mo)\s+(me\s+)?(ayud|asist|apoyo)\b',
+            r'\bservicios?\b',
+            r'\bque\s+hay\b',
+        ]
+        
+        if not any(re.search(pattern, t_clean) for pattern in help_patterns):
+            return None
+        
+        # Verificar si es usuario autorizado (Efraín u otros)
+        import private_knowledge
+        is_authorized = private_knowledge.is_authorized_user(user_id)
+        
+        special_sun = self._special_open_sunday_date()
+        special_tip = (
+            f"\n\nDato: este domingo ({special_sun.isoformat()}) abrimos 10:00 a 17:00 con tarifa normal."
+            if special_sun
+            else ""
         )
+        
+        # Respuesta diferenciada para usuarios autorizados
+        if is_authorized:
+            return (
+                "Como administrador, tienes acceso completo a todas mis capacidades:\n\n"
+                "📋 **Gestión Fundo**:\n"
+                "  • Información sobre off-road, turismo rural y eventos\n"
+                "  • Consulta y actualización de precios\n"
+                "  • Historia y conocimiento privado de la familia Moraga\n\n"
+                "📁 **Documentos Privados**:\n"
+                "  • Listar y leer documentos del volumen privado\n"
+                "  • Buscar en archivos guardados\n\n"
+                "🔍 **Investigación Web**:\n"
+                "  • Buscar en Google y extraer contenido de páginas\n"
+                "  • Navegar sitios web y analizar información\n\n"
+                "🖼️ **Análisis de Imágenes**:\n"
+                "  • Detectar objetos, personas y texto en fotos\n"
+                "  • Análisis detallado con Azure Computer Vision\n\n"
+                "🌍 **Traducción e Idiomas**:\n"
+                "  • Traducir textos a más de 100 idiomas\n"
+                "  • Análisis de sentimiento y entidades\n\n"
+                "💾 **Almacenamiento**:\n"
+                "  • Guardar documentos, reportes y PDFs en Azure Storage\n\n"
+                "🎛️ **Modo Desarrollador**: Usa `Ve88967788@` para activar modo admin con comandos especiales"
+                + special_tip +
+                "\n\nDime qué necesitas y lo resuelvo."
+            )
+        else:
+            return (
+                "Te puedo ayudar con 3 cosas principalmente:\n\n"
+                "🚗 **Off-road**: Circuitos para autos y motos (todos los niveles)\n"
+                "🌾 **Turismo rural**: Visitas guiadas, trekking, naturaleza\n"
+                "📸 **Eventos/Producciones**: Filmaciones, sesiones fotográficas, eventos privados"
+                + special_tip +
+                "\n\nDime qué te interesa y la fecha aproximada para darte los detalles."
+            )
 
     def _fallback_when_ai_unavailable(self, message_text: str) -> str:
         """
@@ -829,6 +941,7 @@ AHORA RESPONDE CON TU ANÁLISIS EXPERTO:"""
         """
         # Reusar flujos determinísticos si aplican.
         for handler in (
+            self._handle_help_question,
             self._handle_public_pricing,
             self._handle_visit_interest,
             self._handle_admin_coordination,
