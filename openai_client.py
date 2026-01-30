@@ -145,6 +145,86 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
     def _weekday_es(self, dt: datetime) -> str:
         names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
         return names[dt.weekday()]
+    
+    def _get_relevant_learnings(self, user_id: str, user_message: str) -> List[str]:
+        """
+        Consulta aprendizajes relevantes basados en el mensaje del usuario.
+        Inyecta en el contexto para que Hernando use lo que aprendió previamente.
+        
+        Returns:
+            Lista de líneas con aprendizajes formateadas para el contexto
+        """
+        try:
+            from hernando_tools import get_hernando_tools
+            
+            # Extraer temas del mensaje
+            message_lower = user_message.lower()
+            topics = []
+            
+            # Identificar temas relevantes
+            if "precio" in message_lower or "costo" in message_lower:
+                topics.append("precios")
+            if "batuco" in message_lower:
+                topics.append("batuco")
+            if "reserva" in message_lower or "agendar" in message_lower:
+                topics.append("reservas")
+            if "reporte" in message_lower or "informe" in message_lower:
+                topics.append("reportes")
+            if "documento" in message_lower:
+                topics.append("documentos")
+            
+            if not topics:
+                # Si no hay temas específicos, usar "general"
+                topics.append("general")
+            
+            learning_lines = []
+            tools = get_hernando_tools(user_id)
+            
+            # Consultar aprendizajes para cada tema
+            for tema in topics[:2]:  # Limitar a 2 temas para no inflar el prompt
+                resultado = tools.execute_tool(
+                    tool_name="consultar_aprendizajes",
+                    arguments={
+                        "tema": tema,
+                        "tipo_aprendizaje": "todos",
+                        "limitar_a": 3  # Solo los 3 más relevantes por tema
+                    }
+                )
+                
+                if resultado.get("success") and resultado.get("aprendizajes"):
+                    for aprendizaje in resultado["aprendizajes"]:
+                        tipo = aprendizaje.get("tipo")
+                        clasificacion = aprendizaje.get("clasificación")
+                        respuesta_correcta = aprendizaje.get("respuesta_correcta", "")
+                        explicacion = aprendizaje.get("explicación", "")
+                        sentimiento = aprendizaje.get("sentimiento")
+                        
+                        # Formatear según clasificación
+                        if clasificacion == "ejemplo_a_seguir" or sentimiento == "positive":
+                            prefix = "✅ HACER"
+                        elif clasificacion == "ejemplo_a_evitar" or sentimiento == "negative":
+                            prefix = "❌ EVITAR"
+                        else:
+                            prefix = "📝 NOTA"
+                        
+                        # Construir línea de aprendizaje
+                        learning_text = f"{prefix} [{tema}]: {respuesta_correcta[:150]}"
+                        if explicacion:
+                            learning_text += f" | {explicacion[:100]}"
+                        
+                        learning_lines.append(learning_text)
+                        
+                        if len(learning_lines) >= 5:  # Máximo 5 aprendizajes totales
+                            break
+                
+                if len(learning_lines) >= 5:
+                    break
+            
+            return learning_lines
+            
+        except Exception as e:
+            print(f"⚠️ Error obteniendo aprendizajes relevantes: {e}")
+            return []
 
     def _build_messages(
         self,
@@ -274,6 +354,15 @@ Llama herramientas cuando el usuario haya mencionado datos naturalmente, no como
             if memory_lines:
                 context_lines.append("MEMORIA")
                 context_lines.extend(memory_lines)
+            
+            # NUEVO: Inyectar aprendizajes relevantes basados en el mensaje del usuario
+            try:
+                learning_lines = self._get_relevant_learnings(user_id, user_message)
+                if learning_lines:
+                    context_lines.append("APRENDIZAJES_PREVIOS")
+                    context_lines.extend(learning_lines)
+            except Exception as e:
+                print(f"⚠️ Error inyectando aprendizajes: {e}")
 
         if context_lines:
             messages.append({"role": "system", "content": "CONTEXTO\n" + "\n".join(context_lines)})

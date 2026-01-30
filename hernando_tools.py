@@ -679,6 +679,78 @@ EJEMPLOS:
                         "required": ["tipo_reporte"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "registrar_aprendizaje_usuario",
+                    "description": "Registra correcciones y aprendizajes de usuario con análisis de sentimiento. Sentimiento POSITIVO = replicar, NEGATIVO = evitar. Guarda permanentemente en la nube.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "tipo_aprendizaje": {
+                                "type": "string",
+                                "enum": ["corrección_respuesta", "clarificación_concepto", "preferencia_formato", "ejemplo_a_seguir", "ejemplo_a_evitar", "instrucción_nueva"],
+                                "description": "Tipo de aprendizaje. Usar 'ejemplo_a_seguir' si sentimiento positivo, 'ejemplo_a_evitar' si negativo"
+                            },
+                            "tema": {
+                                "type": "string",
+                                "description": "Tema o área del aprendizaje (ej: 'precios_batuco', 'formatos_reportes')"
+                            },
+                            "mensaje_usuario": {
+                                "type": "string",
+                                "description": "Mensaje exacto del usuario para análisis de sentimiento"
+                            },
+                            "mi_respuesta": {
+                                "type": "string",
+                                "description": "Mi respuesta que generó la reacción del usuario"
+                            },
+                            "respuesta_correcta": {
+                                "type": "string",
+                                "description": "Cómo debería responder en el futuro (o confirmar si fue correcto)"
+                            },
+                            "explicación": {
+                                "type": "string",
+                                "description": "Explicación de por qué es así"
+                            },
+                            "prioridad": {
+                                "type": "string",
+                                "enum": ["baja", "media", "alta", "crítica"],
+                                "description": "Qué tan importante es este aprendizaje",
+                                "default": "media"
+                            }
+                        },
+                        "required": ["tipo_aprendizaje", "tema", "mensaje_usuario", "respuesta_correcta"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "consultar_aprendizajes",
+                    "description": "Consulta aprendizajes previos sobre un tema específico. Se usa antes de responder para mejorar con lo que ya aprendí.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "tema": {
+                                "type": "string",
+                                "description": "Tema a consultar (ej: 'precios_batuco', 'reportes')"
+                            },
+                            "tipo_aprendizaje": {
+                                "type": "string",
+                                "enum": ["corrección_respuesta", "clarificación_concepto", "preferencia_formato", "ejemplo_correcto", "instrucción_nueva", "todos"],
+                                "description": "Filtrar por tipo específico o buscar todos",
+                                "default": "todos"
+                            },
+                            "limitar_a": {
+                                "type": "integer",
+                                "description": "Máximo número de aprendizajes a retornar",
+                                "default": 5
+                            }
+                        },
+                        "required": ["tema"]
+                    }
+                }
             }
         ]
 
@@ -1238,6 +1310,9 @@ EJEMPLOS:
             "buscar_en_conversaciones": self.buscar_en_conversaciones,
             "exportar_datos": self.exportar_datos,
             "generar_reporte": self.generar_reporte,
+            # Learning system tools
+            "registrar_aprendizaje_usuario": self.registrar_aprendizaje_usuario,
+            "consultar_aprendizajes": self.consultar_aprendizajes,
         }
         
         if tool_name not in tool_methods:
@@ -2455,6 +2530,229 @@ Ya mismo le paso esta información al equipo de Fundo Moraga para que se pongan 
                 "success": False,
                 "error": f"Error al generar reporte: {str(e)}",
                 "tipo_reporte": tipo_reporte
+            }
+    
+    def registrar_aprendizaje_usuario(
+        self,
+        tipo_aprendizaje: str,
+        tema: str,
+        mensaje_usuario: str,
+        respuesta_correcta: str,
+        mi_respuesta: str = None,
+        explicación: str = None,
+        prioridad: str = "media"
+    ) -> Dict[str, Any]:
+        """
+        Registra aprendizaje con análisis de sentimiento automático.
+        Sentimiento POSITIVO = ejemplo a seguir, NEGATIVO = ejemplo a evitar.
+        
+        Args:
+            tipo_aprendizaje: Tipo (corrección_respuesta, ejemplo_a_seguir, etc.)
+            tema: Tema del aprendizaje
+            mensaje_usuario: Mensaje del usuario para análisis de sentimiento
+            respuesta_correcta: Cómo responder correctamente
+            mi_respuesta: Mi respuesta previa (opcional)
+            explicación: Explicación adicional
+            prioridad: Importancia del aprendizaje
+        
+        Returns:
+            Dict con resultado del registro + análisis de sentimiento
+        """
+        try:
+            import language_client
+            from cosmos_client import insert_document
+            
+            timestamp = dt.datetime.now().isoformat()
+            
+            # Analizar sentimiento del mensaje del usuario
+            sentimiento_result = language_client.analyze_sentiment(mensaje_usuario)
+            
+            sentimiento = "neutral"
+            confianza = 0.5
+            
+            if sentimiento_result and "sentiment" in sentimiento_result:
+                sentimiento = sentimiento_result["sentiment"]  # positive, negative, neutral
+                confianza = sentimiento_result.get("confidence", 0.5)
+            
+            # Clasificar automáticamente según sentimiento
+            clasificación_automática = None
+            if sentimiento == "positive" and confianza > 0.6:
+                clasificación_automática = "ejemplo_a_seguir"
+            elif sentimiento == "negative" and confianza > 0.6:
+                clasificación_automática = "ejemplo_a_evitar"
+            
+            # Crear documento de aprendizaje
+            aprendizaje = {
+                "id": f"learning_{self.user_id}_{timestamp}",
+                "user_id": self.user_id,
+                "tipo_aprendizaje": tipo_aprendizaje,
+                "clasificación_automática": clasificación_automática,
+                "tema": tema,
+                "mensaje_usuario": mensaje_usuario,
+                "mi_respuesta": mi_respuesta,
+                "respuesta_correcta": respuesta_correcta,
+                "explicación": explicación,
+                "prioridad": prioridad,
+                "timestamp": timestamp,
+                # Análisis de sentimiento
+                "sentimiento": sentimiento,
+                "sentimiento_confianza": confianza,
+                "sentimiento_detalles": sentimiento_result,
+                # Metadata
+                "aplicado": False,  # Se marca True cuando se usa en una respuesta
+                "veces_consultado": 0,
+                "última_consulta": None
+            }
+            
+            # Guardar en Cosmos DB
+            insert_document("aprendizajes", aprendizaje)
+            
+            # También guardar en Azure Storage como backup
+            from azure_storage_client import upload_text_blob
+            import json
+            
+            blob_name = f"aprendizajes/{self.user_id}/{tema}_{timestamp}.json"
+            contenido = json.dumps(aprendizaje, indent=2, ensure_ascii=False)
+            upload_text_blob(blob_name, contenido, overwrite=True)
+            
+            # Respuesta detallada
+            respuesta = {
+                "success": True,
+                "mensaje": "✅ Aprendizaje registrado exitosamente",
+                "learning_id": aprendizaje["id"],
+                "tema": tema,
+                "tipo": tipo_aprendizaje,
+                "sentimiento_detectado": sentimiento,
+                "confianza_sentimiento": f"{confianza*100:.1f}%",
+                "clasificación": clasificación_automática or tipo_aprendizaje,
+                "guardado_en": ["Cosmos DB", "Azure Storage"]
+            }
+            
+            # Agregar interpretación del sentimiento
+            if sentimiento == "positive":
+                respuesta["interpretación"] = "😊 Detecté satisfacción. Guardaré esto como ejemplo a seguir."
+            elif sentimiento == "negative":
+                respuesta["interpretación"] = "😔 Detecté insatisfacción. Evitaré este tipo de respuesta en el futuro."
+            else:
+                respuesta["interpretación"] = "📝 Sentimiento neutral. Registrado como información general."
+            
+            return respuesta
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al registrar aprendizaje: {str(e)}",
+                "tema": tema
+            }
+    
+    def consultar_aprendizajes(
+        self,
+        tema: str,
+        tipo_aprendizaje: str = "todos",
+        limitar_a: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Consulta aprendizajes previos sobre un tema.
+        Filtra por sentimiento y tipo para obtener los más relevantes.
+        
+        Args:
+            tema: Tema a consultar
+            tipo_aprendizaje: Filtrar por tipo específico o "todos"
+            limitar_a: Máximo número de resultados
+        
+        Returns:
+            Dict con aprendizajes relevantes ordenados por prioridad y sentimiento
+        """
+        try:
+            from cosmos_client import query_documents
+            
+            # Construir query SQL con filtros
+            sql_query = f"""
+            SELECT * FROM aprendizajes a
+            WHERE CONTAINS(LOWER(a.tema), LOWER('{tema}'))
+            AND a.user_id = '{self.user_id}'
+            """
+            
+            if tipo_aprendizaje != "todos":
+                sql_query += f" AND a.tipo_aprendizaje = '{tipo_aprendizaje}'"
+            
+            # Ordenar por prioridad y confianza de sentimiento
+            sql_query += f" ORDER BY a.timestamp DESC OFFSET 0 LIMIT {limitar_a * 2}"
+            
+            resultados = query_documents("aprendizajes", sql_query)
+            
+            # Procesar y ordenar por relevancia
+            aprendizajes_procesados = []
+            for aprendizaje in resultados:
+                # Calcular score de relevancia
+                score = 0
+                if aprendizaje.get("prioridad") == "crítica":
+                    score += 10
+                elif aprendizaje.get("prioridad") == "alta":
+                    score += 5
+                elif aprendizaje.get("prioridad") == "media":
+                    score += 2
+                
+                # Bonus por sentimiento fuerte
+                confianza = aprendizaje.get("sentimiento_confianza", 0)
+                if confianza > 0.7:
+                    score += 3
+                
+                aprendizaje["_score"] = score
+                aprendizajes_procesados.append(aprendizaje)
+            
+            # Ordenar por score y limitar
+            aprendizajes_procesados.sort(key=lambda x: x.get("_score", 0), reverse=True)
+            aprendizajes_finales = aprendizajes_procesados[:limitar_a]
+            
+            # Actualizar contador de consultas
+            from cosmos_client import update_document
+            for aprendizaje in aprendizajes_finales:
+                try:
+                    aprendizaje["veces_consultado"] = aprendizaje.get("veces_consultado", 0) + 1
+                    aprendizaje["última_consulta"] = dt.datetime.now().isoformat()
+                    update_document("aprendizajes", aprendizaje["id"], aprendizaje)
+                except:
+                    pass  # No crítico si falla el update
+            
+            # Preparar respuesta
+            resumen = {
+                "success": True,
+                "tema_consultado": tema,
+                "total_encontrados": len(resultados),
+                "retornados": len(aprendizajes_finales),
+                "aprendizajes": []
+            }
+            
+            # Simplificar aprendizajes para respuesta
+            for a in aprendizajes_finales:
+                resumen["aprendizajes"].append({
+                    "tipo": a.get("tipo_aprendizaje"),
+                    "clasificación": a.get("clasificación_automática"),
+                    "respuesta_correcta": a.get("respuesta_correcta"),
+                    "explicación": a.get("explicación"),
+                    "sentimiento": a.get("sentimiento"),
+                    "confianza": f"{a.get('sentimiento_confianza', 0)*100:.1f}%",
+                    "prioridad": a.get("prioridad"),
+                    "fecha": a.get("timestamp", "").split("T")[0] if "T" in a.get("timestamp", "") else a.get("timestamp"),
+                    "veces_usado": a.get("veces_consultado", 0)
+                })
+            
+            # Agregar estadísticas de sentimientos
+            sentimientos_count = {}
+            for a in aprendizajes_finales:
+                sent = a.get("sentimiento", "neutral")
+                sentimientos_count[sent] = sentimientos_count.get(sent, 0) + 1
+            
+            resumen["estadísticas_sentimiento"] = sentimientos_count
+            
+            return resumen
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error al consultar aprendizajes: {str(e)}",
+                "tema": tema
             }
     
     def _generate_blob_sas(self, blob_name: str) -> str:

@@ -696,3 +696,104 @@ def get_memory_store() -> MemoryStore:
     if _memory_store is None:
         _memory_store = MemoryStore()
     return _memory_store
+
+
+# ============================================================================
+# HELPER FUNCTIONS FOR LEARNING SYSTEM
+# ============================================================================
+
+def insert_document(collection_name: str, document: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Inserta un documento en una colección de Cosmos DB.
+    Crea el container si no existe.
+    
+    Args:
+        collection_name: Nombre de la colección/container
+        document: Documento a insertar (debe tener 'id')
+    
+    Returns:
+        Documento creado
+    """
+    try:
+        client = _create_cosmos_client()
+        database = client.get_database_client(config.COSMOS_DATABASE)
+        
+        # Obtener o crear container
+        try:
+            container = database.get_container_client(collection_name)
+        except exceptions.CosmosResourceNotFoundError:
+            # Crear container si no existe (partition key = /user_id)
+            container = database.create_container(
+                id=collection_name,
+                partition_key=PartitionKey(path="/user_id")
+            )
+            print(f"✅ Container '{collection_name}' creado en Cosmos DB")
+        
+        # Insertar documento
+        created_item = container.create_item(body=document)
+        return created_item
+        
+    except Exception as e:
+        print(f"❌ Error insertando documento en {collection_name}: {str(e)}")
+        raise
+
+
+def query_documents(collection_name: str, sql_query: str) -> List[Dict[str, Any]]:
+    """
+    Consulta documentos en una colección usando SQL.
+    
+    Args:
+        collection_name: Nombre de la colección/container
+        sql_query: Query SQL (ej: "SELECT * FROM c WHERE c.tema = 'precios'")
+    
+    Returns:
+        Lista de documentos que coinciden
+    """
+    try:
+        client = _create_cosmos_client()
+        database = client.get_database_client(config.COSMOS_DATABASE)
+        container = database.get_container_client(collection_name)
+        
+        # Ejecutar query
+        items = list(container.query_items(
+            query=sql_query,
+            enable_cross_partition_query=True
+        ))
+        
+        return items
+        
+    except exceptions.CosmosResourceNotFoundError:
+        print(f"⚠️ Container '{collection_name}' no existe en Cosmos DB")
+        return []
+    except Exception as e:
+        print(f"❌ Error consultando {collection_name}: {str(e)}")
+        return []
+
+
+def update_document(collection_name: str, document_id: str, updated_document: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Actualiza un documento existente en Cosmos DB.
+    
+    Args:
+        collection_name: Nombre de la colección/container
+        document_id: ID del documento a actualizar
+        updated_document: Documento actualizado (debe incluir 'id' y partition key)
+    
+    Returns:
+        Documento actualizado
+    """
+    try:
+        client = _create_cosmos_client()
+        database = client.get_database_client(config.COSMOS_DATABASE)
+        container = database.get_container_client(collection_name)
+        
+        # Asegurar que el documento tiene el ID correcto
+        updated_document["id"] = document_id
+        
+        # Upsert (crea o actualiza)
+        replaced_item = container.upsert_item(body=updated_document)
+        return replaced_item
+        
+    except Exception as e:
+        print(f"❌ Error actualizando documento {document_id} en {collection_name}: {str(e)}")
+        raise

@@ -419,6 +419,19 @@ class HernandoBot:
                     )
             except Exception as e:
                 print(f"⚠️ No se pudo guardar el resumen en Memoria: {e}")
+            
+            # 7.5 NUEVO: Detección automática de correcciones con análisis de sentimiento
+            try:
+                if sentiment_data:
+                    self._detect_and_learn_from_sentiment(
+                        user_id=user_id,
+                        user_message=message_text,
+                        assistant_response=response_text,
+                        sentiment_data=sentiment_data,
+                        conversation_history=conversation_history
+                    )
+            except Exception as e:
+                print(f"⚠️ Error en detección automática de aprendizaje: {e}")
 
             # 7. Si el modelo ejecutó herramientas de captura/formulario, enviar email y marcar conversación
             lead_handled = False
@@ -458,6 +471,128 @@ class HernandoBot:
         except Exception as e:
             print(f"❌ Error procesando mensaje: {e}")
             return "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente."
+    
+    def _detect_and_learn_from_sentiment(
+        self,
+        user_id: str,
+        user_message: str,
+        assistant_response: str,
+        sentiment_data: Dict[str, Any],
+        conversation_history: list
+    ) -> None:
+        """
+        Detecta automáticamente si el usuario está corrigiendo/aprobando a Hernando
+        basándose en análisis de sentimiento.
+        
+        Sentimiento POSITIVO + palabras clave → Guardar como ejemplo a seguir
+        Sentimiento NEGATIVO + palabras clave → Guardar como ejemplo a evitar
+        """
+        try:
+            sentiment = sentiment_data.get("sentiment", "neutral")
+            confidence = sentiment_data.get(sentiment, 0.0)
+            
+            # Solo procesar si la confianza es alta
+            if confidence < 0.65:
+                return
+            
+            user_lower = user_message.lower()
+            
+            # Palabras clave de corrección/feedback
+            palabras_correccion = ["no", "incorrecto", "error", "mal", "equivocado", "así no", "no es así", "evita"]
+            palabras_aprobacion = ["perfecto", "excelente", "bien", "correcto", "exacto", "así es", "gracias", "bueno"]
+            
+            es_correccion = any(palabra in user_lower for palabra in palabras_correccion)
+            es_aprobacion = any(palabra in user_lower for palabra in palabras_aprobacion)
+            
+            # CASO 1: Sentimiento NEGATIVO + Palabras de corrección
+            if sentiment == "negative" and es_correccion and confidence > 0.7:
+                print(f"🔴 [AUTO-LEARN] Detectada corrección negativa (confianza: {confidence:.2f})")
+                
+                # Obtener respuesta previa si existe
+                respuesta_previa = None
+                if len(conversation_history) >= 2:
+                    respuesta_previa = conversation_history[-2].get("content")
+                
+                # Intentar extraer el tema del mensaje
+                tema = self._extract_topic_from_message(user_message)
+                
+                # Registrar automáticamente
+                from hernando_tools import get_hernando_tools
+                tools = get_hernando_tools(user_id)
+                
+                resultado = tools.execute_tool(
+                    tool_name="registrar_aprendizaje_usuario",
+                    arguments={
+                        "tipo_aprendizaje": "ejemplo_a_evitar",
+                        "tema": tema,
+                        "mensaje_usuario": user_message,
+                        "mi_respuesta": respuesta_previa or assistant_response,
+                        "respuesta_correcta": user_message,  # El usuario está corrigiendo
+                        "explicación": f"Usuario expresó insatisfacción (sentimiento: {sentiment}, confianza: {confidence:.2f})",
+                        "prioridad": "alta"
+                    }
+                )
+                
+                if resultado.get("success"):
+                    print(f"✅ [AUTO-LEARN] Aprendizaje negativo registrado: {resultado.get('learning_id')}")
+            
+            # CASO 2: Sentimiento POSITIVO + Palabras de aprobación
+            elif sentiment == "positive" and es_aprobacion and confidence > 0.7:
+                print(f"🟢 [AUTO-LEARN] Detectada aprobación positiva (confianza: {confidence:.2f})")
+                
+                # Obtener mi respuesta previa
+                respuesta_previa = None
+                if len(conversation_history) >= 2:
+                    respuesta_previa = conversation_history[-2].get("content")
+                
+                # Extraer tema
+                tema = self._extract_topic_from_message(user_message)
+                
+                # Registrar automáticamente
+                from hernando_tools import get_hernando_tools
+                tools = get_hernando_tools(user_id)
+                
+                resultado = tools.execute_tool(
+                    tool_name="registrar_aprendizaje_usuario",
+                    arguments={
+                        "tipo_aprendizaje": "ejemplo_a_seguir",
+                        "tema": tema,
+                        "mensaje_usuario": user_message,
+                        "mi_respuesta": respuesta_previa or assistant_response,
+                        "respuesta_correcta": respuesta_previa or assistant_response,  # Mi respuesta fue correcta
+                        "explicación": f"Usuario expresó satisfacción (sentimiento: {sentiment}, confianza: {confidence:.2f})",
+                        "prioridad": "media"
+                    }
+                )
+                
+                if resultado.get("success"):
+                    print(f"✅ [AUTO-LEARN] Aprendizaje positivo registrado: {resultado.get('learning_id')}")
+        
+        except Exception as e:
+            print(f"⚠️ Error en _detect_and_learn_from_sentiment: {e}")
+    
+    def _extract_topic_from_message(self, message: str) -> str:
+        """Extrae el tema principal de un mensaje."""
+        message_lower = message.lower()
+        
+        # Temas comunes
+        if "precio" in message_lower or "costo" in message_lower:
+            return "precios"
+        elif "batuco" in message_lower:
+            return "batuco"
+        elif "reserva" in message_lower or "agendar" in message_lower:
+            return "reservas"
+        elif "reporte" in message_lower or "informe" in message_lower:
+            return "reportes"
+        elif "documento" in message_lower or "archivo" in message_lower:
+            return "documentos"
+        elif "email" in message_lower or "correo" in message_lower:
+            return "emails"
+        else:
+            # Extraer primera palabra significativa
+            palabras = message_lower.split()
+            palabras_significativas = [p for p in palabras if len(p) > 4 and p not in ["esto", "esto", "hacer", "puede", "quiero"]]
+            return palabras_significativas[0] if palabras_significativas else "general"
 
     def _build_short_summary(self, user_message: str, assistant_reply: str, lead_context: dict | None = None) -> str:
         """Crea un resumen breve de la interacción para Memoria."""
