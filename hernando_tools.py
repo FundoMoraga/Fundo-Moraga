@@ -20,6 +20,22 @@ except ImportError:
     VISION_AVAILABLE = False
     vision_client = None
 
+# Steel Browser client es opcional (para navegación web)
+try:
+    from steel_browser_client import get_steel_browser_client
+    STEEL_BROWSER_AVAILABLE = True
+except ImportError:
+    STEEL_BROWSER_AVAILABLE = False
+    get_steel_browser_client = None
+
+# Vision Service client para análisis doctoral de imágenes
+try:
+    from vision_service_client import get_vision_service_client
+    VISION_SERVICE_AVAILABLE = True
+except ImportError:
+    VISION_SERVICE_AVAILABLE = False
+    get_vision_service_client = None
+
 class HernandoTools:
     """Gestiona las herramientas disponibles para Hernando"""
     
@@ -36,6 +52,12 @@ class HernandoTools:
             # Solo agregar herramientas de Vision si el módulo está disponible
             if VISION_AVAILABLE:
                 self.tools.extend(self._define_vision_tools())
+            # Agregar herramientas de navegación web si Steel Browser está disponible
+            if STEEL_BROWSER_AVAILABLE:
+                self.tools.extend(self._define_web_navigation_tools())
+            # Agregar herramientas de búsqueda de imágenes si Vision Service está disponible
+            if VISION_SERVICE_AVAILABLE:
+                self.tools.extend(self._define_image_search_tools())
     
     def _define_tools(self) -> List[Dict]:
         """
@@ -389,6 +411,208 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
             },
         ]
     
+    def _define_web_navigation_tools(self) -> List[Dict]:
+        """Herramientas de navegación web e investigación (solo para usuarios autorizados)."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "navegar_url",
+                    "description": "Navega a una URL específica y extrae su contenido principal (texto, títulos, enlaces). Útil para leer páginas web, artículos, documentación.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string",
+                                "description": "URL completa a visitar (ej: https://example.com)"
+                            },
+                            "wait_for": {
+                                "type": "string",
+                                "description": "Selector CSS a esperar antes de extraer (opcional, para contenido dinámico)"
+                            }
+                        },
+                        "required": ["url"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "extraer_contenido_web",
+                    "description": "Extrae contenido específico de una página usando selectores CSS. Útil cuando necesitas datos estructurados de una página.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string",
+                                "description": "URL de la página"
+                            },
+                            "selector": {
+                                "type": "string",
+                                "description": "Selector CSS del elemento a extraer (ej: 'article', '.content', '#main')"
+                            }
+                        },
+                        "required": ["url"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "buscar_en_google",
+                    "description": "Busca información en Google y extrae contenido relevante de los primeros resultados. Ideal para investigaciones rápidas sobre temas actuales.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Consulta de búsqueda (ej: 'últimas noticias IA Chile', 'precio dolar hoy')"
+                            },
+                            "max_results": {
+                                "type": "integer",
+                                "description": "Número de resultados a analizar (1-10, default: 5)",
+                                "default": 5
+                            }
+                        },
+                        "required": ["query"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "investigar_tema",
+                    "description": "Realiza una investigación profunda sobre un tema: busca en múltiples fuentes, analiza contenido y sintetiza hallazgos. Usa esto para análisis exhaustivos.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "topic": {
+                                "type": "string",
+                                "description": "Tema a investigar en profundidad"
+                            },
+                            "depth": {
+                                "type": "string",
+                                "enum": ["light", "medium", "deep"],
+                                "description": "Profundidad de la investigación: light (rápido, 2-3 fuentes), medium (5-7 fuentes), deep (10+ fuentes)",
+                                "default": "medium"
+                            }
+                        },
+                        "required": ["topic"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "scrape_multiples_urls",
+                    "description": "Extrae contenido de varias URLs simultáneamente. Útil para comparar información de múltiples fuentes.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "urls": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Lista de URLs a extraer (máximo 10)"
+                            }
+                        },
+                        "required": ["urls"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "capturar_screenshot",
+                    "description": "Captura una imagen (screenshot) de una página web. Útil para documentar visuales o compartir cómo se ve un sitio.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string",
+                                "description": "URL de la página a capturar"
+                            },
+                            "full_page": {
+                                "type": "boolean",
+                                "description": "Si capturar página completa (true) o solo la parte visible (false)",
+                                "default": False
+                            }
+                        },
+                        "required": ["url"],
+                    },
+                },
+            },
+        ]
+    
+    def _define_image_search_tools(self) -> List[Dict]:
+        """Herramientas de búsqueda y análisis de imágenes con Vision Service (solo para usuarios autorizados)."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "buscar_imagenes",
+                    "description": "Busca imágenes en Google Images y realiza análisis doctoral de cada una con Azure Computer Vision. Proporciona URLs, descripciones academicas y análisis detallado de contenido. Ideal para investigaciones visuales con nivel académico.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Término de búsqueda (ej: 'Jeep Wrangler', 'arquitectura colonial chilena', 'célula vegetal')"
+                            },
+                            "max_results": {
+                                "type": "integer",
+                                "description": "Número de imágenes a buscar y analizar (1-50, default: 10)",
+                                "default": 10
+                            },
+                            "doctoral_area": {
+                                "type": "string",
+                                "description": "Área doctoral para enriquecer análisis (tecnología, medicina, arquitectura, historia, etc.)",
+                                "enum": ["tecnologia", "medicina", "arquitectura", "historia", "legislacion", "investigacion", "creativo", "veterinaria", "bricolaje", "construccion"]
+                            }
+                        },
+                        "required": ["query"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "analizar_imagen_academico",
+                    "description": "Realiza análisis de una imagen con nivel doctoral usando Azure Computer Vision. Extrae objetos, personas, descripción, tags, marcas con síntesis académica.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "image_url": {
+                                "type": "string",
+                                "description": "URL de la imagen a analizar"
+                            },
+                            "doctoral_context": {
+                                "type": "string",
+                                "description": "Contexto académico para análisis especializado (ej: 'medicina', 'botánica', 'ingeniería')"
+                            }
+                        },
+                        "required": ["image_url"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "extraer_texto_imagen",
+                    "description": "Extrae texto de imágenes usando OCR (Optical Character Recognition). Útil para documentos, señales, capturas de pantalla.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "image_url": {
+                                "type": "string",
+                                "description": "URL de la imagen que contiene texto"
+                            }
+                        },
+                        "required": ["image_url"],
+                    },
+                },
+            },
+        ]
+    
     def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         Ejecuta una herramienta específica
@@ -414,6 +638,14 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
             "detectar_personas_imagen",
             "describir_imagen",
             "extraer_texto_imagen",
+            "buscar_imagenes",
+            "analizar_imagen_academico",
+            "navegar_url",
+            "extraer_contenido_web",
+            "buscar_en_google",
+            "investigar_tema",
+            "scrape_multiples_urls",
+            "capturar_screenshot",
         ]
         if tool_name in private_tools:
             if not private_knowledge.is_authorized_user(self.user_id):
@@ -459,6 +691,118 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
                         return {"success": True, "result": vision_client.get_image_description(url_imagen)}
                     elif tool_name == "extraer_texto_imagen":
                         return {"success": True, "result": vision_client.extract_text_from_image(url_imagen)}
+                
+                # Herramientas de navegación web (solo si Steel Browser está disponible)
+                if tool_name in ["navegar_url", "extraer_contenido_web", "buscar_en_google", "investigar_tema", "scrape_multiples_urls", "capturar_screenshot"]:
+                    if not STEEL_BROWSER_AVAILABLE:
+                        return {"success": False, "error": "Steel Browser no disponible"}
+                    
+                    steel_client = get_steel_browser_client()
+                    
+                    if tool_name == "navegar_url":
+                        url = (arguments or {}).get("url", "")
+                        wait_for = (arguments or {}).get("wait_for")
+                        result = steel_client.navigate(url, wait_for)
+                        return {"success": "error" not in result, "result": result}
+                    
+                    elif tool_name == "extraer_contenido_web":
+                        url = (arguments or {}).get("url", "")
+                        selector = (arguments or {}).get("selector")
+                        result = steel_client.extract_content(url, selector)
+                        return {"success": "error" not in result, "result": result}
+                    
+                    elif tool_name == "buscar_en_google":
+                        query = (arguments or {}).get("query", "")
+                        max_results = (arguments or {}).get("max_results", 5)
+                        result = steel_client.search_and_extract(query, max_results)
+                        return {"success": "error" not in result, "result": result}
+                    
+                    elif tool_name == "investigar_tema":
+                        topic = (arguments or {}).get("topic", "")
+                        depth = (arguments or {}).get("depth", "medium")
+                        result = steel_client.research(topic, depth)
+                        return {"success": "error" not in result, "result": result}
+                    
+                    elif tool_name == "scrape_multiples_urls":
+                        urls = (arguments or {}).get("urls", [])
+                        result = steel_client.scrape_multiple(urls[:10])  # Limitar a 10
+                        return {"success": "error" not in result, "result": result}
+                    
+                    elif tool_name == "capturar_screenshot":
+                        url = (arguments or {}).get("url", "")
+                        full_page = (arguments or {}).get("full_page", False)
+                        result = steel_client.screenshot(url, full_page)
+                        return {"success": "error" not in result, "result": result}
+                
+                # Herramientas de búsqueda y análisis de imágenes
+                if tool_name in ["buscar_imagenes", "analizar_imagen_academico", "extraer_texto_imagen"]:
+                    if not VISION_SERVICE_AVAILABLE:
+                        return {
+                            "success": False,
+                            "error": "Vision Service no está disponible"
+                        }
+                    
+                    vision_service = get_vision_service_client()
+                    
+                    if tool_name == "buscar_imagenes":
+                        if not STEEL_BROWSER_AVAILABLE:
+                            return {
+                                "success": False,
+                                "error": "Steel Browser no está disponible para búsqueda de imágenes"
+                            }
+                        
+                        steel_client = get_steel_browser_client()
+                        query = (arguments or {}).get("query", "")
+                        max_results = min(max(1, (arguments or {}).get("max_results", 10)), 50)
+                        doctoral_area = (arguments or {}).get("doctoral_area")
+                        
+                        # Obtener imágenes desde Steel Browser
+                        search_result = steel_client.search_images(query, max_results)
+                        
+                        if "error" in search_result or not search_result.get("images"):
+                            return {"success": False, "error": "No se encontraron imágenes", "result": search_result}
+                        
+                        images = search_result.get("images", [])
+                        
+                        # Analizar cada imagen con Vision Service para síntesis doctoral
+                        analyzed_images = []
+                        for i, img in enumerate(images):
+                            try:
+                                url = img.get("url")
+                                if not url:
+                                    continue
+                                
+                                # Análisis with doctoral synthesis
+                                analysis = vision_service.analyze_with_doctorate_synthesis(url, doctoral_area)
+                                
+                                # Enriquecer con información de la búsqueda
+                                analysis["search_index"] = i + 1
+                                analysis["search_title"] = img.get("title", "")
+                                analysis["search_source"] = img.get("source", "")
+                                
+                                analyzed_images.append(analysis)
+                            except Exception as e:
+                                print(f"Error analizando imagen {i+1}: {e}")
+                        
+                        return {
+                            "success": len(analyzed_images) > 0,
+                            "query": query,
+                            "total_found": len(images),
+                            "total_analyzed": len(analyzed_images),
+                            "images": analyzed_images
+                        }
+                    
+                    elif tool_name == "analizar_imagen_academico":
+                        image_url = (arguments or {}).get("image_url", "")
+                        doctoral_context = (arguments or {}).get("doctoral_context")
+                        
+                        result = vision_service.analyze_with_doctorate_synthesis(image_url, doctoral_context)
+                        return {"success": result.get("success", True), "result": result}
+                    
+                    elif tool_name == "extraer_texto_imagen":
+                        image_url = (arguments or {}).get("image_url", "")
+                        result = vision_service.extract_text(image_url)
+                        return {"success": result.get("success", True), "result": result}
                 
             except Exception as e:
                 return {"success": False, "error": str(e)}
@@ -550,7 +894,7 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
         # TODO: Implementar envío real (email, webhook, etc.)
         print(f"📧 Formulario recibido: {json.dumps(formulario, indent=2)}")
         
-        return f"""¡Perfecto! He enviado tu solicitud con éxito.
+        return f"¡Perfecto! He enviado tu solicitud con éxito. Te responderemos lo antes posible."
 
     # ----- Memoria: precios y hechos -----
     def guardar_precio(
@@ -589,15 +933,6 @@ IMPORTANTE: Siempre capturar con contexto adicional del interés/necesidad del u
         )
         return {"status": "ok", "saved": saved}
 
-Tu consulta sobre {tipo_solicitud} ya está en las mejores manos: las del equipo del Fundo Moraga. 
-Pronto recibirás noticias en tu email ({email}) o por teléfono ({telefono}).
-
-Recuerda que también puedes contactarnos cuando quieras en:
-📧 contacto@fundomoraga.com
-📱 WhatsApp: +5699 9392122
-
-¡Gracias por pensar en nosotros para tu proyecto! Nos ilusiona mucho la idea.
-"""
     
     def buscar_informacion_historica(self, tema: str, detalle: str = None) -> str:
         """
@@ -1036,6 +1371,36 @@ Ya mismo le paso esta información al equipo de Fundo Moraga para que se pongan 
         return mensaje
 
 
+def prepare_images_for_whatsapp(
+    image_urls: List[str],
+    chat_id: str,
+    session: str = "default"
+) -> Dict[str, Any]:
+    """
+    Prepara y envía imágenes a WhatsApp mediante WAHA.
+    
+    Args:
+        image_urls: Lista de URLs de imágenes a enviar
+        chat_id: ID del chat de WhatsApp
+        session: Sesión WAHA
+    
+    Returns:
+        Dict con resumen de envíos
+    """
+    # Importar aquí para evitar circular imports
+    try:
+        from server import _send_waha_images_batch
+        result = _send_waha_images_batch(chat_id, image_urls, session, delay_between=0.5)
+        return result
+    except ImportError:
+        return {
+            "total": len(image_urls),
+            "success": 0,
+            "failed": len(image_urls),
+            "error": "No se pudo cargar el módulo server para enviar imágenes"
+        }
+
+
 def get_hernando_tools(user_id: Optional[str] = None) -> HernandoTools:
     """
     Obtiene una instancia de HernandoTools.
@@ -1047,14 +1412,3 @@ def get_hernando_tools(user_id: Optional[str] = None) -> HernandoTools:
         Instancia de HernandoTools con herramientas apropiadas
     """
     return HernandoTools(user_id=user_id)
-
-
-# Singleton instance
-_hernando_tools = None
-
-def get_hernando_tools() -> HernandoTools:
-    """Obtiene la instancia singleton de HernandoTools"""
-    global _hernando_tools
-    if _hernando_tools is None:
-        _hernando_tools = HernandoTools()
-    return _hernando_tools

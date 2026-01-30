@@ -7,6 +7,7 @@ from datetime import datetime
 from cosmos_client import get_memory_store
 import json
 import config
+import re
 
 
 class ContinuousLearning:
@@ -14,6 +15,17 @@ class ContinuousLearning:
     
     def __init__(self):
         self.memory_store = get_memory_store()
+    
+    @staticmethod
+    def _sanitize_id(text: str) -> str:
+        """Sanitiza un ID para que sea válido en Cosmos DB (sin caracteres especiales)"""
+        if not text:
+            return "unknown"
+        # Reemplazar caracteres no permitidos por Cosmos DB
+        # Permitir solo alfanuméricos, guiones y guiones bajos
+        sanitized = re.sub(r'[^a-zA-Z0-9_-]', '_', text)
+        # Asegurar que no esté vacío después de sanitizar
+        return sanitized if sanitized else "unknown"
     
     def log_interaction(self, user_id: str, interaction: Dict[str, Any]) -> bool:
         """
@@ -35,7 +47,9 @@ class ContinuousLearning:
         """
         try:
             # Crear documento de patrón para Cosmos
-            pattern_id = f"interaction#{user_id}#{datetime.utcnow().isoformat()}"
+            sanitized_user_id = self._sanitize_id(user_id)
+            timestamp = datetime.utcnow().isoformat().replace(':', '-').replace('.', '-')
+            pattern_id = f"interaction_{sanitized_user_id}_{timestamp}"
             
             doc = {
                 "id": pattern_id,

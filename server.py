@@ -10,7 +10,7 @@ import config
 import requests
 from instagram_bot_enhanced import InstagramBotEnhanced as HernandoBot
 from reminder_scheduler import start_reminder_scheduler
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -249,6 +249,111 @@ def _send_waha_text(chat_id: str, text: str, session: str) -> bool:
 
     print(f"❌ WAHA respondió {response.status_code}: {response.text}")
     return False
+
+
+def _send_waha_image(
+    chat_id: str, 
+    image_url: str, 
+    caption: str = "", 
+    session: str = "default"
+) -> bool:
+    """
+    Envía una imagen por WhatsApp a través de WAHA.
+    
+    Args:
+        chat_id: ID del chat WhatsApp
+        image_url: URL de la imagen a enviar
+        caption: Texto opcional bajo la imagen
+        session: Sesión WAHA (default: "default")
+    
+    Returns:
+        True si fue exitoso, False si hubo error
+    """
+    if not config.WAHA_API_URL:
+        print("⚠️ WAHA API URL no configurada (WAHA_API_URL).")
+        return False
+
+    url = f"{config.WAHA_API_URL.rstrip('/')}/api/sendImage"
+    headers = {"Content-Type": "application/json"}
+    if config.WAHA_API_KEY:
+        headers["X-API-KEY"] = config.WAHA_API_KEY
+
+    payload = {
+        "session": session,
+        "chatId": chat_id,
+        "url": image_url,
+    }
+    
+    if caption:
+        payload["caption"] = caption
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+    except Exception as e:
+        print(f"❌ Error enviando imagen WhatsApp: {e}")
+        return False
+
+    if response.status_code >= 200 and response.status_code < 300:
+        return True
+
+    print(f"❌ WAHA respondió {response.status_code}: {response.text}")
+    return False
+
+
+def _send_waha_images_batch(
+    chat_id: str,
+    image_urls: list,
+    session: str = "default",
+    delay_between: float = 0.5
+) -> Dict[str, Any]:
+    """
+    Envía múltiples imágenes por WhatsApp con pequeño delay entre cada una.
+    
+    Args:
+        chat_id: ID del chat WhatsApp
+        image_urls: Lista de URLs de imágenes
+        session: Sesión WAHA
+        delay_between: Delay en segundos entre envíos
+    
+    Returns:
+        Dict con resumen de envíos
+        {
+            "total": 10,
+            "success": 9,
+            "failed": 1,
+            "failed_urls": ["url_que_falló"]
+        }
+    """
+    import time
+    
+    results = {
+        "total": len(image_urls),
+        "success": 0,
+        "failed": 0,
+        "failed_urls": []
+    }
+    
+    for i, url in enumerate(image_urls):
+        try:
+            caption = f"Imagen {i+1} de {len(image_urls)}"
+            success = _send_waha_image(chat_id, url, caption, session)
+            
+            if success:
+                results["success"] += 1
+            else:
+                results["failed"] += 1
+                results["failed_urls"].append(url)
+            
+            # Delay para evitar rate limiting
+            if i < len(image_urls) - 1:
+                time.sleep(delay_between)
+        
+        except Exception as e:
+            print(f"❌ Error procesando imagen {i+1}: {e}")
+            results["failed"] += 1
+            results["failed_urls"].append(url)
+    
+    return results
 
 
 @app.route('/oembed.json')
