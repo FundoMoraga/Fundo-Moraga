@@ -709,7 +709,7 @@ def insert_document(collection_name: str, document: Dict[str, Any]) -> Dict[str,
     
     Args:
         collection_name: Nombre de la colección/container
-        document: Documento a insertar (debe tener 'id')
+        document: Documento a insertar (debe tener 'id' y 'user_id')
     
     Returns:
         Documento creado
@@ -718,23 +718,41 @@ def insert_document(collection_name: str, document: Dict[str, Any]) -> Dict[str,
         client = _create_cosmos_client()
         database = client.get_database_client(config.COSMOS_DATABASE)
         
-        # Obtener o crear container
+        # Intentar obtener container existente
         try:
             container = database.get_container_client(collection_name)
-        except exceptions.CosmosResourceNotFoundError:
+            # Verificar si realmente existe haciendo una query simple
+            try:
+                list(container.query_items("SELECT VALUE COUNT(1) FROM c", enable_cross_partition_query=True, max_item_count=1))
+            except exceptions.CosmosResourceNotFoundError:
+                # Container no existe realmente, crear
+                container = database.create_container(
+                    id=collection_name,
+                    partition_key=PartitionKey(path="/user_id")
+                )
+                print(f"✅ Container '{collection_name}' creado en Cosmos DB")
+        except Exception as e:
             # Crear container si no existe (partition key = /user_id)
-            container = database.create_container(
-                id=collection_name,
-                partition_key=PartitionKey(path="/user_id")
-            )
-            print(f"✅ Container '{collection_name}' creado en Cosmos DB")
+            try:
+                container = database.create_container(
+                    id=collection_name,
+                    partition_key=PartitionKey(path="/user_id")
+                )
+                print(f"✅ Container '{collection_name}' creado en Cosmos DB")
+            except exceptions.CosmosResourceExistsError:
+                # Ya existe, obtenerlo
+                container = database.get_container_client(collection_name)
+        
+        # Asegurar que el documento tiene user_id (partition key)
+        if "user_id" not in document:
+            raise ValueError(f"Documento debe tener campo 'user_id' como partition key")
         
         # Insertar documento
         created_item = container.create_item(body=document)
         return created_item
         
     except Exception as e:
-        print(f"❌ Error insertando documento en {collection_name}: {str(e)}")
+        print(f"❌ Error insertando documento en {collection_name}: {type(e).__name__}: {str(e)}")
         raise
 
 
