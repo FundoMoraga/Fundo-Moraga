@@ -792,6 +792,8 @@ def whatsapp_webhook():
         payload = event.get("payload") or {}
         chat_id = _extract_waha_chat_id(payload)
         print(f"[WEBHOOK] Evento de {chat_id}: {payload.get('type', 'unknown')}")
+        # DEBUG: Log completo del payload para diagnóstico
+        print(f"[WEBHOOK] Payload completo: {json.dumps(payload, indent=2, ensure_ascii=False)}")
 
     try:
         bot = get_bot()
