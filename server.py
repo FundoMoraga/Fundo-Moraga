@@ -248,24 +248,18 @@ def _extract_waha_chat_id(payload: dict) -> str:
 def _extract_waha_user_id(payload: dict, chat_id: str = "") -> str:
     """
     Extrae el identificador real del usuario (número) cuando WAHA entrega chat_id @lid.
-    Usa campos como author/participant/sender si existen y evita @lid para autenticación.
+    Prioriza campos de autor/participante/sender para evitar usar el número del Business.
     """
-    candidates = [
+    # Preferidos: datos del remitente humano
+    preferred = [
         payload.get("author"),
         payload.get("participant"),
         payload.get("participantId"),
         payload.get("sender"),
-        payload.get("from"),
         payload.get("fromId"),
-        payload.get("chatId"),
-        payload.get("chat_id"),
-        payload.get("jid"),
-        payload.get("remoteJid"),
-        payload.get("to"),
-        chat_id,
     ]
 
-    for value in candidates:
+    for value in preferred:
         if not isinstance(value, str):
             continue
         cleaned = value.strip()
@@ -275,7 +269,11 @@ def _extract_waha_user_id(payload: dict, chat_id: str = "") -> str:
             continue
         return cleaned
 
-    # Fallback: si solo hay @lid, devolverlo para no romper el flujo
+    # Fallback: usar chat_id si no es @lid
+    if isinstance(chat_id, str) and chat_id.strip() and not chat_id.strip().endswith("@lid"):
+        return chat_id.strip()
+
+    # Último recurso: aceptar @lid para no romper el flujo
     return (chat_id or "").strip()
 
 
