@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Sin Conexión - Fundo Moraga</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1c1c1c 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .offline-container {
+            max-width: 600px;
+        }
+        
+        .offline-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            opacity: 0.8;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #d4af37 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .retry-btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #d4af37, #f4e5c3);
+            color: #0a0a0a;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.4);
+        }
+        
+        .offline-tips {
+            margin-top: 50px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .offline-tips h2 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #d4af37;
+        }
+        
+        .offline-tips ul {
+            list-style: none;
+            text-align: left;
+        }
+        
+        .offline-tips li {
+            padding: 10px 0;
+            opacity: 0.8;
+        }
+        
+        .offline-tips li::before {
+            content: "✓ ";
+            color: #d4af37;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            p {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <svg class="offline-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 9L12 2L23 9M1 9L12 16M1 9V23L12 16M23 9L12 16M23 9V23L12 16M12 16V23" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 12L16 20M16 12L8 20" stroke="#d4af37" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        
+        <h1>Sin Conexión</h1>
+        <p>
+            Parece que no tienes conexión a Internet en este momento. 
+            No te preocupes, estamos aquí cuando vuelvas a conectarte.
+        </p>
+        
+        <button class="retry-btn" onclick="window.location.reload()">
+            Reintentar
+        </button>
+        
+        <div class="offline-tips">
+            <h2>Mientras tanto, verifica:</h2>
+            <ul>
+                <li>Tu conexión WiFi o datos móviles</li>
+                <li>Modo avión desactivado</li>
+                <li>Router funcionando correctamente</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-retry when online
+        window.addEventListener('online', () => {
+            console.log('Connection restored');
+            window.location.reload();
+        });
+        
+        // Check connection status
+        if (navigator.onLine) {
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+{
+  "name": "Fundo Moraga",
+  "short_name": "Moraga",
+  "description": "Experiencias 4x4 off road en Batuco. Tu próxima aventura comienza aquí.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#d4af37",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "es-CL",
+  "dir": "ltr",
+  "categories": ["travel", "sports", "business"],
+  "icons": [
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/screenshot-mobile.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Reservar",
+      "short_name": "Reservar",
+      "description": "Reserva tu experiencia 4x4",
+      "url": "/reservas.html",
+      "icons": [
+        {
+          "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-reserva-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Mapa",
+      "short_name": "Mapa",
+      "description": "Explora rutas off road",
+      "url": "/mapa.html",
+      "icons": [
+        {
+          "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-mapa-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Blog",
+      "short_name": "Blog",
+      "description": "Noticias y consejos 4x4",
+      "url": "/blog/",
+      "icons": [
+        {
+          "src": "https://fundomoragastorage.blob.core.windows.net/assets/images/icon-blog-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

@@ -19,7 +19,46 @@
     <meta property="twitter:description" content="475 años de historia desde el Imperio Romano hasta Chile.">
     <meta property="twitter:image" content="https://fundomoragastorage.blob.core.windows.net/assets/images/Palacio%20de%20los%20Moraga.jpg">
     
+    <link rel="canonical" href="https://fundomoraga.com/historia.html">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#d4af37">
+    
     <title>Historia de la Familia Moraga - Fundo Moraga</title>
+    
+    <!-- Article Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Historia de la Familia Moraga: 475 Años de Legado",
+      "description": "Desde el Imperio Romano hasta Chile contemporáneo. 475 años de historia familiar desde Cáceres a la conquista de Chile.",
+      "image": "https://fundomoragastorage.blob.core.windows.net/assets/images/Palacio%20de%20los%20Moraga.jpg",
+      "datePublished": "2025-11-15T10:00:00-03:00",
+      "dateModified": "2026-01-31T10:00:00-03:00",
+      "author": {
+        "@type": "Organization",
+        "name": "Fundo Moraga"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Fundo Moraga",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png"
+        }
+      }
+    }
+    </script>
+    
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX', {'anonymize_ip': true});
+    </script>
+    
     <link rel="stylesheet" href="styles.20260126-1.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -935,6 +974,23 @@
                 });
             });
         });
+    </script>
+    <script src="dark-mode.js"></script>
+    <script src="accessibility.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('✅ SW registered:', registration.scope);
+            })
+            .catch(error => {
+              console.log('❌ SW registration failed:', error);
+            });
+        });
+      }
     </script>
 </body>
 </html>

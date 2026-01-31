@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Reserva tu experiencia 4x4 off-road en Fundo Moraga. Eventos corporativos, test drive, aventuras familiares en Batuco.">
+    <meta name="keywords" content="reserva, booking, eventos corporativos, test drive, 4x4, batuco, off road">
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://fundomoraga.com/reservas.html">
+    <meta property="og:title" content="Reserva tu Aventura - Fundo Moraga">
+    <meta property="og:description" content="Reserva experiencias 4x4, eventos corporativos y aventuras off-road en Batuco.">
+    <meta property="og:image" content="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png">
+    
+    <link rel="canonical" href="https://fundomoraga.com/reservas.html">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#d4af37">
+    
+    <title>Reservas | Fundo Moraga</title>
+    
+    <!-- WebPage Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Reservas Fundo Moraga",
+      "description": "Sistema de reservas para experiencias 4x4 y eventos corporativos en Batuco.",
+      "url": "https://fundomoraga.com/reservas.html"
+    }
+    </script>
+    
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX', {'anonymize_ip': true});
+    </script>
+    
+    <link rel="stylesheet" href="styles.20260126-1.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        .reservas-hero {
+            background: linear-gradient(135deg, rgba(10, 10, 10, 0.8) 0%, rgba(28, 28, 28, 0.75) 100%),
+                        url('https://fundomoragastorage.blob.core.windows.net/assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG') center/cover;
+            min-height: 40vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 100px 20px 60px;
+        }
+        
+        .reservas-hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 20px rgba(0,0,0,0.8);
+        }
+        
+        .reservas-hero p {
+            font-size: 1.3rem;
+            color: #ddd;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .reservas-container {
+            max-width: 1200px;
+            margin: -50px auto 80px;
+            padding: 0 20px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .packages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+        
+        .package-card {
+            background: #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .package-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 50px rgba(212, 175, 55, 0.3);
+        }
+        
+        .package-header {
+            background: linear-gradient(135deg, #d4af37 0%, #c19a2e 100%);
+            padding: 30px 25px;
+            text-align: center;
+            color: #fff;
+        }
+        
+        .package-header h3 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .package-price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 15px 0;
+        }
+        
+        .package-price span {
+            font-size: 1rem;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+        
+        .package-body {
+            padding: 30px 25px;
+        }
+        
+        .package-features {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 25px;
+        }
+        
+        .package-features li {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .package-features li:before {
+            content: "✓";
+            color: #d4af37;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+        
+        .package-cta {
+            width: 100%;
+            padding: 15px;
+            background: #d4af37;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .package-cta:hover {
+            background: #c19a2e;
+        }
+        
+        .booking-form-section {
+            background: #fff;
+            border-radius: 15px;
+            padding: 50px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .booking-form-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: #1c1c1c;
+            text-align: center;
+        }
+        
+        .booking-form-section > p {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+        
+        .booking-form {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .form-group label .required {
+            color: #d4af37;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: 'Poppins', sans-serif;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #d4af37;
+        }
+        
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .form-submit {
+            grid-column: 1 / -1;
+            padding: 18px;
+            background: #d4af37;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .form-submit:hover {
+            background: #c19a2e;
+        }
+        
+        .form-submit:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .form-message {
+            grid-column: 1 / -1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+        
+        .form-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .form-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .contact-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+            padding: 50px 0;
+            background: linear-gradient(135deg, #1c1c1c 0%, #2c2c2c 100%);
+            border-radius: 15px;
+            padding: 40px;
+        }
+        
+        .contact-item {
+            text-align: center;
+            color: #fff;
+        }
+        
+        .contact-item-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .contact-item h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: #d4af37;
+        }
+        
+        .contact-item p {
+            color: #ddd;
+            line-height: 1.6;
+        }
+        
+        .contact-item a {
+            color: #d4af37;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .contact-item a:hover {
+            color: #fff;
+        }
+        
+        @media (max-width: 768px) {
+            .reservas-hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .booking-form {
+                grid-template-columns: 1fr;
+            }
+            
+            .booking-form-section {
+                padding: 30px 20px;
+            }
+            
+            .packages-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-wrapper">
+                <a href="index.html">
+                    <img src="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png" 
+                         alt="Fundo Moraga Logo" 
+                         class="logo"
+                         width="120"
+                         height="120">
+                </a>
+                <button class="mobile-menu-toggle" aria-label="Abrir menú de navegación">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <ul class="nav-links">
+                    <li><a href="index.html">Inicio</a></li>
+                    <li><a href="historia.html">Historia</a></li>
+                    <li><a href="leyenda.html">Leyenda</a></li>
+                    <li><a href="mapa.html">Mapa</a></li>
+                    <li><a href="blog/">Blog</a></li>
+                    <li><a href="reservas.html" class="btn-primary">Reservar</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="reservas-hero">
+        <div>
+            <h1>Reserva tu Aventura</h1>
+            <p>Elige tu experiencia 4x4 y vive una aventura inolvidable en Batuco</p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="reservas-container">
+        <!-- Packages -->
+        <section class="packages-grid">
+            <article class="package-card">
+                <div class="package-header">
+                    <h3>Test Drive Individual</h3>
+                    <div class="package-price">
+                        Consultar
+                        <span>/ persona</span>
+                    </div>
+                </div>
+                <div class="package-body">
+                    <ul class="package-features">
+                        <li>Duración: 2-3 horas</li>
+                        <li>Vehículo 4x4 incluido</li>
+                        <li>Guía profesional</li>
+                        <li>Equipo de seguridad</li>
+                        <li>Recorrido por rutas básicas</li>
+                        <li>Refrigerio incluido</li>
+                    </ul>
+                    <button class="package-cta" onclick="scrollToForm('test-drive')">Reservar Ahora</button>
+                </div>
+            </article>
+
+            <article class="package-card">
+                <div class="package-header">
+                    <h3>Grupo Familiar</h3>
+                    <div class="package-price">
+                        Consultar
+                        <span>/ hasta 6 personas</span>
+                    </div>
+                </div>
+                <div class="package-body">
+                    <ul class="package-features">
+                        <li>Duración: 3-4 horas</li>
+                        <li>Hasta 6 personas</li>
+                        <li>2 vehículos 4x4 incluidos</li>
+                        <li>Guías profesionales</li>
+                        <li>Rutas intermedias y avanzadas</li>
+                        <li>Almuerzo campestre incluido</li>
+                        <li>Fotografías de la experiencia</li>
+                    </ul>
+                    <button class="package-cta" onclick="scrollToForm('familiar')">Reservar Ahora</button>
+                </div>
+            </article>
+
+            <article class="package-card">
+                <div class="package-header">
+                    <h3>Evento Corporativo</h3>
+                    <div class="package-price">
+                        Consultar
+                        <span>/ grupo</span>
+                    </div>
+                </div>
+                <div class="package-body">
+                    <ul class="package-features">
+                        <li>Duración personalizable</li>
+                        <li>Desde 10 hasta 50+ personas</li>
+                        <li>Flota de vehículos 4x4</li>
+                        <li>Team building activities</li>
+                        <li>Catering completo</li>
+                        <li>Espacio para presentaciones</li>
+                        <li>Coordinador de eventos</li>
+                        <li>Seguro de responsabilidad civil</li>
+                    </ul>
+                    <button class="package-cta" onclick="scrollToForm('corporativo')">Solicitar Cotización</button>
+                </div>
+            </article>
+        </section>
+
+        <!-- Booking Form -->
+        <section class="booking-form-section" id="booking-form">
+            <h2>Formulario de Reserva</h2>
+            <p>Completa el formulario y nos contactaremos contigo en menos de 24 horas</p>
+            
+            <form class="booking-form" id="reservaForm">
+                <div class="form-message" id="formMessage"></div>
+                
+                <div class="form-group">
+                    <label for="nombre">
+                        Nombre Completo <span class="required">*</span>
+                    </label>
+                    <input type="text" id="nombre" name="nombre" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">
+                        Email <span class="required">*</span>
+                    </label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="telefono">
+                        Teléfono <span class="required">*</span>
+                    </label>
+                    <input type="tel" id="telefono" name="telefono" required placeholder="+56 9 1234 5678">
+                </div>
+
+                <div class="form-group">
+                    <label for="fecha">
+                        Fecha Preferida <span class="required">*</span>
+                    </label>
+                    <input type="date" id="fecha" name="fecha" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="paquete">
+                        Tipo de Experiencia <span class="required">*</span>
+                    </label>
+                    <select id="paquete" name="paquete" required>
+                        <option value="">Seleccionar...</option>
+                        <option value="test-drive">Test Drive Individual</option>
+                        <option value="familiar">Grupo Familiar</option>
+                        <option value="corporativo">Evento Corporativo</option>
+                        <option value="personalizado">Experiencia Personalizada</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="personas">
+                        Número de Personas <span class="required">*</span>
+                    </label>
+                    <input type="number" id="personas" name="personas" min="1" max="50" required value="1">
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="mensaje">
+                        Mensaje Adicional
+                    </label>
+                    <textarea id="mensaje" name="mensaje" placeholder="Cuéntanos sobre tu experiencia ideal, necesidades especiales, o cualquier pregunta..."></textarea>
+                </div>
+
+                <button type="submit" class="form-submit" id="submitBtn">
+                    Enviar Solicitud de Reserva
+                </button>
+            </form>
+        </section>
+
+        <!-- Contact Info -->
+        <section class="contact-info">
+            <div class="contact-item">
+                <div class="contact-item-icon">📞</div>
+                <h3>Teléfono</h3>
+                <p>
+                    <a href="tel:+56941242609">+56 9 4124 2609</a>
+                </p>
+                <p style="font-size: 0.9rem; margin-top: 5px;">Lun-Vie: 08:30 - 17:00</p>
+            </div>
+
+            <div class="contact-item">
+                <div class="contact-item-icon">📧</div>
+                <h3>Email</h3>
+                <p>
+                    <a href="mailto:contacto@fundomoraga.com">contacto@fundomoraga.com</a>
+                </p>
+                <p style="font-size: 0.9rem; margin-top: 5px;">Respuesta en 24 hrs</p>
+            </div>
+
+            <div class="contact-item">
+                <div class="contact-item-icon">📍</div>
+                <h3>Ubicación</h3>
+                <p>Camino Coquimbo SN<br>Batuco, Lampa<br>Región Metropolitana</p>
+            </div>
+
+            <div class="contact-item">
+                <div class="contact-item-icon">💬</div>
+                <h3>WhatsApp</h3>
+                <p>
+                    <a href="https://wa.me/56941242609" target="_blank" rel="noopener">
+                        Chatea con nosotros
+                    </a>
+                </p>
+                <p style="font-size: 0.9rem; margin-top: 5px;">Respuesta inmediata</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Fundo Moraga</h4>
+                    <p>Tu próxima aventura 4x4 off-road en Batuco, Lampa. Experiencias únicas a minutos de Santiago.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Enlaces Rápidos</h4>
+                    <ul>
+                        <li><a href="index.html">Inicio</a></li>
+                        <li><a href="historia.html">Historia</a></li>
+                        <li><a href="leyenda.html">Leyenda</a></li>
+                        <li><a href="mapa.html">Mapa</a></li>
+                        <li><a href="blog/">Blog</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contacto</h4>
+                    <p>📞 <a href="tel:+56941242609">+56 9 4124 2609</a></p>
+                    <p>📧 <a href="mailto:contacto@fundomoraga.com">contacto@fundomoraga.com</a></p>
+                    <p>📍 Camino Coquimbo SN, Batuco, Lampa</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Fundo Moraga. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.20260126-1.js"></script>
+    <script src="dark-mode.js"></script>
+    <script src="accessibility.js"></script>
+    
+    <script>
+        // Set minimum date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('fecha').setAttribute('min', today);
+        
+        // Scroll to form function
+        function scrollToForm(packageType) {
+            const form = document.getElementById('booking-form');
+            const selectElement = document.getElementById('paquete');
+            
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            setTimeout(() => {
+                selectElement.value = packageType;
+                selectElement.focus();
+            }, 500);
+        }
+        
+        // Form submission handler
+        document.getElementById('reservaForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const messageDiv = document.getElementById('formMessage');
+            
+            // Disable button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando...';
+            
+            // Get form data
+            const formData = {
+                nombre: document.getElementById('nombre').value,
+                email: document.getElementById('email').value,
+                telefono: document.getElementById('telefono').value,
+                fecha: document.getElementById('fecha').value,
+                paquete: document.getElementById('paquete').value,
+                personas: document.getElementById('personas').value,
+                mensaje: document.getElementById('mensaje').value
+            };
+            
+            // Track event in GA4
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'form_submission', {
+                    'event_category': 'Reservas',
+                    'event_label': formData.paquete,
+                    'value': formData.personas
+                });
+            }
+            
+            try {
+                // TODO: Replace with actual API endpoint
+                // const response = await fetch('/api/reservas', {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify(formData)
+                // });
+                
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Success message
+                messageDiv.className = 'form-message success';
+                messageDiv.style.display = 'block';
+                messageDiv.textContent = '✓ ¡Solicitud enviada exitosamente! Nos contactaremos contigo pronto.';
+                
+                // Reset form
+                this.reset();
+                
+                // Hide message after 5 seconds
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 5000);
+                
+            } catch (error) {
+                // Error message
+                messageDiv.className = 'form-message error';
+                messageDiv.style.display = 'block';
+                messageDiv.textContent = '✗ Hubo un error al enviar la solicitud. Por favor intenta nuevamente o contáctanos directamente.';
+                
+                console.error('Form submission error:', error);
+            } finally {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar Solicitud de Reserva';
+            }
+        });
+    </script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('✅ SW registered:', registration.scope);
+            })
+            .catch(error => {
+              console.log('❌ SW registration failed:', error);
+            });
+        });
+      }
+    </script>
+</body>
+</html>

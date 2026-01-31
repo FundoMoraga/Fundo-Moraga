@@ -13,7 +13,38 @@
     <meta property="og:description" content="El misterioso huaso de negro que recorre los cerros sin dejar huella. Una historia real del Fundo Moraga.">
     <meta property="og:image" content="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png">
     
+    <link rel="canonical" href="https://fundomoraga.com/leyenda.html">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0a0a0a">
+    
     <title>La Sombra del Fundo Moraga | La Leyenda</title>
+    
+    <!-- CreativeWork Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "CreativeWork",
+      "name": "La Sombra del Fundo Moraga",
+      "description": "El misterioso huaso de negro que recorre los cerros sin dejar huella. Una historia real del Fundo Moraga en Batuco.",
+      "image": "https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png",
+      "author": {
+        "@type": "Organization",
+        "name": "Fundo Moraga"
+      },
+      "genre": "Leyenda Local",
+      "inLanguage": "es-CL"
+    }
+    </script>
+    
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX', {'anonymize_ip': true});
+    </script>
+    
     <script>
         document.documentElement.classList.remove('no-js');
         document.documentElement.classList.add('js');
@@ -526,5 +557,22 @@
         })();
     </script>
     <script src="leyenda-script.20260107-1.js"></script>
+    <script src="dark-mode.js"></script>
+    <script src="accessibility.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('✅ SW registered:', registration.scope);
+            })
+            .catch(error => {
+              console.log('❌ SW registration failed:', error);
+            });
+        });
+      }
+    </script>
 </body>
 </html>
