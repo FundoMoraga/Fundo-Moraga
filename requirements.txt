@@ -26,6 +26,7 @@ google-auth>=2.29.0
 
 # Date/time handling
 python-dateutil>=2.8.2
+tzdata>=2025.3  # Timezone data for Windows
 
 # News aggregation and blog automation
 beautifulsoup4>=4.12.0
