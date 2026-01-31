@@ -325,8 +325,9 @@ class BlogPublisher:
             
             print(f"✅ Artículo publicado: {filepath}")
             
-            # 3. Actualizar índice del blog (implementación simple)
+            # 3. Actualizar índice del blog y sitemap
             self._update_blog_index(article, filename)
+            self._update_sitemap()
             
             return {
                 "success": True,
@@ -343,11 +344,19 @@ class BlogPublisher:
             }
     
     def _update_blog_index(self, article: Dict[str, Any], filename: str):
-        """Actualiza el índice del blog con el nuevo artículo (placeholder)"""
-        # TODO: Implementar actualización dinámica del index.html
-        # Por ahora solo log
+        """Actualiza el índice del blog con el nuevo artículo"""
         print(f"📋 Artículo '{article.get('title')}' listo para añadir al índice")
         print(f"   URL: /blog/articulos/{filename}")
+        # TODO: Implementar actualización dinámica del index.html
+    
+    def _update_sitemap(self):
+        """Actualiza sitemap.xml con artículos nuevos"""
+        try:
+            from sitemap_generator import update_sitemap_file
+            update_sitemap_file()
+            print("✅ Sitemap actualizado")
+        except Exception as e:
+            print(f"⚠️  No se pudo actualizar sitemap: {e}")
     
     def get_recent_articles(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Obtiene artículos recientes de Cosmos DB"""

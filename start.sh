@@ -5,6 +5,10 @@ if [ -n "${START_COMMAND:-}" ]; then
   exec /bin/sh -lc "$START_COMMAND"
 fi
 
+# Inyectar configuraciones dinámicas en HTMLs (GA ID, etc)
+echo "🔧 Inyectando configuraciones en archivos HTML..."
+python3 build_inject_config.py || echo "⚠️  Build script falló, continuando..."
+
 # Gunicorn con logs a stdout/stderr para que Railway los muestre
 PORT_VALUE="${PORT:-8080}"
 exec gunicorn \

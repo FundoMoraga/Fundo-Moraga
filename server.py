@@ -96,6 +96,13 @@ def _save_uploaded_file(file_storage, base_dir: Path, relative_path: Path) -> di
 app = Flask(__name__, static_folder='Web', static_url_path='')
 CORS(app)  # Permitir peticiones desde fundomoraga.com
 
+# Configurar middleware de optimización (compresión, seguridad, cache)
+try:
+    from middleware import setup_middleware
+    setup_middleware(app)
+except Exception as e:
+    print(f"[STARTUP] ⚠️ Middleware no pudo configurarse: {e}")
+
 # Evitar doble scheduler cuando existe un servicio dedicado.
 RUN_SCHEDULER_THREAD = os.getenv("RUN_SCHEDULER_THREAD", "").lower() in ("1", "true", "yes", "y", "si")
 if RUN_SCHEDULER_THREAD:

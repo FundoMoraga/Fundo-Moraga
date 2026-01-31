@@ -1,7 +1,7 @@
 // Service Worker - Fundo Moraga PWA
-// Version 1.0.0 - 2026-01-31
+// Version 1.1.0 - 2026-01-31 (Optimizado)
 
-const CACHE_NAME = 'fundo-moraga-v1.0.0';
+const CACHE_NAME = 'fundo-moraga-v1.1.0';
 const RUNTIME_CACHE = 'fundo-moraga-runtime';
 const IMAGE_CACHE = 'fundo-moraga-images';
 
@@ -9,10 +9,14 @@ const IMAGE_CACHE = 'fundo-moraga-images';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/css/tokens.css',
+  '/css/buttons.css',
   '/styles.20260126-1.css',
   '/script.20260126-1.js',
   '/manifest.json',
   '/offline.html',
+  '/blog/',
+  '/blog/index.html',
   'https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png',
   'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap'
 ];
