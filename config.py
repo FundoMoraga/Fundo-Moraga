@@ -148,6 +148,17 @@ REMINDER_SEND_HOUR = int(os.getenv("REMINDER_SEND_HOUR", "9"))
 PENDING_EMAIL_RETRY_MINUTES = int(os.getenv("PENDING_EMAIL_RETRY_MINUTES", "10"))
 PENDING_EMAIL_RETRY_MAX_MINUTES = int(os.getenv("PENDING_EMAIL_RETRY_MAX_MINUTES", "60"))
 
+# News Scheduler - Publicaciones automáticas del blog
+NEWS_SCHEDULER_ENABLED = os.getenv("NEWS_SCHEDULER_ENABLED", "true").lower() in (
+    "true",
+    "1",
+    "yes",
+    "y",
+    "si",
+)
+NEWS_PUBLISH_HOUR = int(os.getenv("NEWS_PUBLISH_HOUR", "8"))  # 08:00 AM Chile
+NEWS_CHECK_INTERVAL_MINUTES = int(os.getenv("NEWS_CHECK_INTERVAL_MINUTES", "30"))
+
 # Validar configuración requerida
 def validate_config():
     """Valida que todas las variables de entorno requeridas estén configuradas"""

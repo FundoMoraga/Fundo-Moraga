@@ -10,6 +10,7 @@ import config
 import requests
 from instagram_bot_enhanced import InstagramBotEnhanced as HernandoBot
 from reminder_scheduler import start_reminder_scheduler
+from news_scheduler import start_news_scheduler
 from typing import Optional, Tuple, Dict, Any
 from datetime import datetime, timezone
 import json
@@ -99,6 +100,7 @@ CORS(app)  # Permitir peticiones desde fundomoraga.com
 RUN_SCHEDULER_THREAD = os.getenv("RUN_SCHEDULER_THREAD", "").lower() in ("1", "true", "yes", "y", "si")
 if RUN_SCHEDULER_THREAD:
     start_reminder_scheduler()
+    start_news_scheduler()  # Publicaciones automáticas del blog
 
 # Inicializar cache personal estructural (24/7)
 try:
