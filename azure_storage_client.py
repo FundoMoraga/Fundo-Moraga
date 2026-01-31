@@ -44,3 +44,99 @@ def list_blobs(prefix: Optional[str] = None) -> Iterable[str]:
     _require_clients()
     return [blob.name for blob in container_client.list_blobs(name_starts_with=prefix)]
 
+
+def upload_blob(blob_name: str, data: bytes, content_type: str = "text/plain", overwrite: bool = False) -> str:
+    """
+    Carga un blob a Azure Storage.
+    
+    Args:
+        blob_name: Nombre del blob (ej: 'documentos/reporte_2024.txt')
+        data: Contenido en bytes
+        content_type: Tipo MIME (ej: 'text/plain', 'application/pdf', 'text/csv')
+        overwrite: Si sobrescribir si existe
+    
+    Returns:
+        URL pública del blob
+    """
+    _require_clients()
+    try:
+        container_client.upload_blob(blob_name, data, content_type=content_type, overwrite=overwrite)
+        logging.info(f"Blob subido: {blob_name}")
+        return get_blob_url(blob_name)
+    except Exception as e:
+        logging.error(f"Error subiendo blob {blob_name}: {e}")
+        raise
+
+
+def upload_text_blob(blob_name: str, content: str, overwrite: bool = False) -> str:
+    """
+    Carga un archivo de texto a Azure Storage.
+    
+    Args:
+        blob_name: Nombre del blob
+        content: Contenido de texto
+        overwrite: Si sobrescribir si existe
+    
+    Returns:
+        URL pública del blob
+    """
+    return upload_blob(blob_name, content.encode("utf-8"), content_type="text/plain", overwrite=overwrite)
+
+
+def download_blob(blob_name: str) -> bytes:
+    """
+    Descarga un blob desde Azure Storage.
+    
+    Args:
+        blob_name: Nombre del blob
+    
+    Returns:
+        Contenido en bytes
+    """
+    _require_clients()
+    try:
+        blob_client = container_client.get_blob_client(blob_name)
+        return blob_client.download_blob().readall()
+    except Exception as e:
+        logging.error(f"Error descargando blob {blob_name}: {e}")
+        raise
+
+
+def delete_blob(blob_name: str) -> bool:
+    """
+    Elimina un blob de Azure Storage.
+    
+    Args:
+        blob_name: Nombre del blob
+    
+    Returns:
+        True si se eliminó, False si no existe
+    """
+    _require_clients()
+    try:
+        blob_client = container_client.get_blob_client(blob_name)
+        blob_client.delete_blob()
+        logging.info(f"Blob eliminado: {blob_name}")
+        return True
+    except Exception as e:
+        logging.warning(f"Blob no encontrado o error al eliminar {blob_name}: {e}")
+        return False
+
+
+def blob_exists(blob_name: str) -> bool:
+    """
+    Verifica si un blob existe en Azure Storage.
+    
+    Args:
+        blob_name: Nombre del blob
+    
+    Returns:
+        True si existe, False si no
+    """
+    _require_clients()
+    try:
+        blob_client = container_client.get_blob_client(blob_name)
+        return blob_client.exists()
+    except Exception:
+        return False
+
