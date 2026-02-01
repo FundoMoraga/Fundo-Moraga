@@ -17,10 +17,17 @@ class BlogPublisher:
     def __init__(self):
         self.blog_dir = Path("Web/blog")
         self.articles_dir = self.blog_dir / "articulos"
-        self.conversation_store = get_conversation_store()
+        self._conversation_store = None  # Lazy initialization
         
         # Crear directorio de artículos si no existe
         self.articles_dir.mkdir(parents=True, exist_ok=True)
+    
+    @property
+    def conversation_store(self):
+        """Lazy initialization of Cosmos DB connection"""
+        if self._conversation_store is None:
+            self._conversation_store = get_conversation_store()
+        return self._conversation_store
     
     def _sanitize_slug(self, slug: str) -> str:
         """Sanitiza el slug para nombre de archivo"""

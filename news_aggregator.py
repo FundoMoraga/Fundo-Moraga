@@ -153,18 +153,21 @@ CONTEXTO DE TENDENCIAS ACTUALES (solo referencias):
 {headlines_context}
 
 TAREA:
-Basándote en las tendencias actuales del mundo automotriz mostradas arriba, crea un artículo COMPLETAMENTE ORIGINAL de 600-800 palabras que:
+Basándote en las tendencias actuales del mundo automotriz mostradas arriba, crea un artículo COMPLETAMENTE ORIGINAL de 1200-1500 palabras (mínimo 1500 caracteres) que:
 
 1. **Tema Principal**: {focus_topic if focus_topic else 'Resume las tendencias más relevantes del mundo automotriz 4x4/off-road'}
 2. **Perspectiva**: Enfoca el contenido hacia entusiastas del 4x4 y off-road en Chile
 3. **Estilo**: Profesional pero accesible, con personalidad aventurera
-4. **Estructura**:
+4. **Estructura** (MÍNIMO 1500 CARACTERES):
    - Título atractivo y SEO-friendly
-   - Introducción enganchadora (2-3 párrafos)
-   - 3-4 secciones de desarrollo con subtítulos
+   - Introducción enganchadora (3-4 párrafos explicando el tema)
+   - 4-6 secciones de desarrollo con subtítulos descriptivos
+   - Cada sección debe tener 2-3 párrafos bien desarrollados
+   - Incluir ejemplos concretos, datos técnicos y consejos prácticos
    - Conclusión con call-to-action hacia Fundo Moraga
 5. **SEO**: Incluye keywords naturalmente: 4x4, off-road, Chile, Batuco, manejo todoterreno
 6. **Originalidad**: NO copies texto de las fuentes - genera contenido 100% nuevo
+7. **Longitud**: El artículo debe tener MÍNIMO 1500 caracteres de contenido (sin contar HTML tags)
 
 FORMATO DE SALIDA (JSON):
 {{
@@ -188,11 +191,11 @@ IMPORTANTE: El contenido debe ser 100% original, transformativo y añadir valor 
             response = self.chatbot_ai.client.chat.completions.create(
                 model=config.OPENAI_MODEL,
                 messages=[
-                    {"role": "system", "content": "Eres un redactor experto en contenido automotriz. Generas contenido 100% original y transformativo."},
+                    {"role": "system", "content": "Eres un redactor experto en contenido automotriz. Generas contenido 100% original, transformativo y detallado. Tus artículos siempre superan los 1500 caracteres."},
                     {"role": "user", "content": article_prompt}
                 ],
                 temperature=0.8,  # Mayor creatividad
-                max_tokens=2500,
+                max_tokens=4000,  # Aumentado para artículos más largos
                 response_format={"type": "json_object"}
             )
             
