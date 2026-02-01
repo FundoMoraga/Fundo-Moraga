@@ -12,6 +12,7 @@ import time
 from openai_client import get_chatbot_ai
 import config
 import re
+from pexels_client import get_pexels_client
 
 # Categorías de artículos del blog con tópicos específicos
 BLOG_CATEGORIES = {
@@ -351,12 +352,81 @@ IMPORTANTE: Genera contenido original que agregue valor único. ¡No plagies!"""
             article_data["author"] = "Hernando IA"
             article_data["source_headlines_count"] = len(headlines)
             
+            # Obtener imagen principal para el artículo
+            title = article_data.get('title', '')
+            featured_image = self._get_featured_image(title, category)
+            if featured_image:
+                article_data["featured_image"] = featured_image
+            
             print(f"   ✅ {article_data.get('title', 'Sin título')}")
             return article_data
             
         except Exception as e:
             print(f"   ❌ Error: {e}")
             raise
+    
+    def _get_featured_image(self, article_title: str, category: str) -> Optional[Dict[str, str]]:
+        """
+        Busca una imagen principal relevante en Pexels para el artículo
+        
+        Args:
+            article_title: Título del artículo para generar términos de búsqueda
+            category: Categoría del blog para mejor contextualización
+        
+        Returns:
+            Dict con URL y metadata de la imagen, o None si falla
+        """
+        try:
+            pexels = get_pexels_client(api_key=config.PEXELS_API_KEY)
+            
+            # Crear términos de búsqueda basados en categoría y título
+            search_queries = []
+            
+            if category == "historia":
+                search_queries = ["4x4 adventure Chile", "off-road tradition", "truck history"]
+            elif category == "guías":
+                search_queries = ["vehicle maintenance", "4x4 repair", "truck preparation"]
+            elif category == "rutas":
+                search_queries = ["off-road trail", "mountain road", "adventure landscape"]
+            elif category == "eventos":
+                search_queries = ["off-road competition", "4x4 rally", "adventure sports"]
+            elif category == "noticias":
+                search_queries = ["4x4 truck", "off-road vehicle", "automotive news"]
+            else:
+                search_queries = ["4x4 off-road", "adventure", "outdoor"]
+            
+            # Intentar búsquedas en orden hasta obtener resultados
+            for query in search_queries:
+                photos = pexels.search_images(query, per_page=5, orientation="landscape")
+                if photos:
+                    best_photo = photos[0]
+                    image_url = pexels.get_best_image_url(photos, size="large")
+                    
+                    if image_url:
+                        return {
+                            "url": image_url,
+                            "photographer": best_photo.get("photographer", "Photographer"),
+                            "source": "pexels",
+                            "attribution": pexels.format_attribution(best_photo)
+                        }
+            
+            # Fallback: usar imágenes curadas si la búsqueda falla
+            curated_photos = pexels.get_curated_images(per_page=5, orientation="landscape")
+            if curated_photos:
+                image_url = pexels.get_best_image_url(curated_photos, size="large")
+                if image_url:
+                    return {
+                        "url": image_url,
+                        "photographer": curated_photos[0].get("photographer", "Photographer"),
+                        "source": "pexels",
+                        "attribution": pexels.format_attribution(curated_photos[0])
+                    }
+            
+            return None
+            
+        except Exception as e:
+            print(f"   ⚠️  No se pudo obtener imagen: {e}")
+            return None
     
     def create_daily_digest(self) -> Dict[str, Any]:
         """

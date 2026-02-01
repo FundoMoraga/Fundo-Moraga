@@ -67,6 +67,11 @@ class BlogPublisher:
         author = article.get("author", "Hernando IA")
         published_date = article.get("published_at", article.get("generated_at", datetime.now(timezone.utc).isoformat()))
         
+        # Obtener imagen destacada (de Pexels o fallback)
+        featured_image_info = article.get("featured_image", {})
+        featured_image_url = featured_image_info.get("url", "https://fundomoragastorage.blob.core.windows.net/assets/images/blog-default.jpg")
+        featured_image_attr = featured_image_info.get("attribution", "")
+        
         date_formatted = self._format_date(published_date, "long")
         
         # Template HTML completo
@@ -84,14 +89,14 @@ class BlogPublisher:
     <meta property="og:url" content="https://fundomoraga.com/blog/articulos/{slug}.html">
     <meta property="og:title" content="{title}">
     <meta property="og:description" content="{excerpt}">
-    <meta property="og:image" content="https://fundomoragastorage.blob.core.windows.net/assets/images/blog-default.jpg">
+    <meta property="og:image" content="{featured_image_url}">
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://fundomoraga.com/blog/articulos/{slug}.html">
     <meta property="twitter:title" content="{title}">
     <meta property="twitter:description" content="{excerpt}">
-    <meta property="twitter:image" content="https://fundomoragastorage.blob.core.windows.net/assets/images/blog-default.jpg">
+    <meta property="twitter:image" content="{featured_image_url}">
     
     <!-- Article metadata -->
     <meta property="article:published_time" content="{published_date}">
@@ -144,10 +149,39 @@ class BlogPublisher:
             gap: 8px;
         }}
         
+        .featured-image {{
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            margin: 40px auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.2);
+            display: block;
+        }}
+        
+        .image-attribution {{
+            text-align: center;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 10px;
+            margin-bottom: 40px;
+        }}
+        
+        .image-attribution a {{
+            color: rgba(212, 175, 55, 0.8);
+            text-decoration: none;
+        }}
+        
+        .image-attribution a:hover {{
+            color: rgb(212, 175, 55);
+            text-decoration: underline;
+        }}
+        
         .article-content {{
             max-width: 800px;
             margin: 60px auto;
             padding: 0 20px;
+
             line-height: 1.8;
             color: #e0e0e0;
         }}
@@ -256,6 +290,9 @@ class BlogPublisher:
 
     <!-- Article Content -->
     <main id="article-content">
+        <!-- Featured Image -->
+        {f'<div style="text-align: center; max-width: 800px; margin: 40px auto;"><img src="{featured_image_url}" alt="{title}" class="featured-image" loading="lazy"><div class="image-attribution">{featured_image_attr}</div></div>' if featured_image_url else ''}
+        
         <article class="article-content">
             {content_html}
         </article>

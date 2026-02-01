@@ -159,6 +159,9 @@ NEWS_SCHEDULER_ENABLED = os.getenv("NEWS_SCHEDULER_ENABLED", "true").lower() in 
 NEWS_PUBLISH_HOUR = int(os.getenv("NEWS_PUBLISH_HOUR", "8"))  # 08:00 AM Chile
 NEWS_CHECK_INTERVAL_MINUTES = int(os.getenv("NEWS_CHECK_INTERVAL_MINUTES", "30"))
 
+# Pexels API - Imágenes gratuitas para artículos del blog
+PEXELS_API_KEY = _clean_env(os.getenv("PEXELS_API_KEY"))  # Opcional (sin clave funciona con límites)
+
 # Validar configuración requerida
 def validate_config():
     """Valida que todas las variables de entorno requeridas estén configuradas"""
