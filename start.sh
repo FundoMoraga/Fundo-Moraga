@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 if [ -n "${START_COMMAND:-}" ]; then
   echo "Starting with START_COMMAND: ${START_COMMAND}"
   exec sh -c "$START_COMMAND"
