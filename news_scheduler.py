@@ -3,11 +3,18 @@ Scheduler para generación y publicación automática diaria de artículos del b
 Se ejecuta en segundo plano y genera contenido diariamente a las 08:00 AM Chile
 """
 from __future__ import annotations
+import sys
+import io
 import threading
 import time
 from datetime import datetime, time as dt_time, timezone, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
+
+# Fix encoding para Windows
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 import config
 from news_aggregator import get_news_aggregator

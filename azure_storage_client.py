@@ -140,3 +140,19 @@ def blob_exists(blob_name: str) -> bool:
     except Exception:
         return False
 
+
+def upload_blog_image(image_data: bytes, filename: str, content_type: str = "image/jpeg") -> str:
+    """
+    Sube una imagen del blog a Azure Storage en la carpeta assets/images/blog/
+    
+    Args:
+        image_data: Datos binarios de la imagen
+        filename: Nombre del archivo (ej: 'featured_20260201.jpg')
+        content_type: Tipo MIME de la imagen
+    
+    Returns:
+        URL pública de la imagen
+    """
+    blob_name = f"assets/images/blog/{filename}"
+    return upload_blob(blob_name, image_data, content_type=content_type, overwrite=True)
+

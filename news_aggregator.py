@@ -183,6 +183,58 @@ class NewsAggregator:
         print(f"\n📊 Total: {len(all_headlines)} titulares agregados")
         return all_headlines
     
+    def _generate_featured_image(self, article_title: str, article_excerpt: str) -> Optional[str]:
+        """
+        Genera una imagen featured usando DALL-E 3 y la sube a Azure Storage
+        Retorna la URL pública de la imagen o None si falla
+        """
+        try:
+            from azure_storage_client import upload_blog_image
+            import requests
+            from datetime import datetime
+            
+            print("🎨 Generando imagen featured con DALL-E 3...")
+            
+            # Prompt optimizado para imágenes de blog automotriz
+            image_prompt = f"""Professional automotive photography for a blog article titled '{article_title[:100]}'. 
+            High-quality image showing 4x4 vehicles, off-road terrain, or automotive technology in action. 
+            Modern, dynamic composition with dramatic lighting. Photorealistic style, suitable for blog header."""
+            
+            # Generar imagen con DALL-E 3
+            response = self.chatbot_ai.client.images.generate(
+                model="dall-e-3",
+                prompt=image_prompt,
+                size="1792x1024",  # Formato 16:9 ideal para blog
+                quality="standard",
+                n=1
+            )
+            
+            image_url = response.data[0].url
+            print(f"✓ Imagen generada: {image_url[:80]}...")
+            
+            # Descargar imagen temporalmente
+            img_response = requests.get(image_url, timeout=30)
+            img_response.raise_for_status()
+            
+            # Generar nombre de archivo único
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"blog_featured_{timestamp}.jpg"
+            
+            # Subir a Azure Storage
+            print("☁️  Subiendo imagen a Azure Storage...")
+            public_url = upload_blog_image(
+                image_data=img_response.content,
+                filename=filename,
+                content_type="image/jpeg"
+            )
+            
+            print(f"✅ Imagen publicada: {public_url}")
+            return public_url
+            
+        except Exception as e:
+            print(f"⚠️  Error generando imagen (continuando sin imagen): {e}")
+            return None
+    
     def generate_original_article(
         self, 
         headlines: List[Dict[str, str]], 
@@ -191,6 +243,7 @@ class NewsAggregator:
         """
         Genera un artículo COMPLETAMENTE ORIGINAL usando IA
         Basado en múltiples fuentes pero con contenido 100% nuevo
+        Incluye generación de imagen featured con DALL-E 3
         """
         if not headlines:
             raise ValueError("No hay titulares disponibles para generar artículo")
@@ -256,11 +309,18 @@ IMPORTANTE: El contenido debe ser 100% original, transformativo y añadir valor 
             
             article_data = json.loads(response.choices[0].message.content)
             
+            # Generar imagen featured
+            featured_image = self._generate_featured_image(
+                article_title=article_data.get("title", "Artículo 4x4"),
+                article_excerpt=article_data.get("excerpt", "")
+            )
+            
             # Añadir metadata
             article_data["generated_at"] = datetime.now(timezone.utc).isoformat()
             article_data["status"] = "draft"
             article_data["author"] = "Hernando IA"
             article_data["source_headlines_count"] = len(headlines)
+            article_data["featured_image"] = featured_image
             
             print(f"✅ Artículo generado: '{article_data.get('title', 'Sin título')}'")
             return article_data
