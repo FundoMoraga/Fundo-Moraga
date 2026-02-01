@@ -80,7 +80,7 @@ RAILWAY_SERVICES = {
     "vision_service": {
         "name": "Vision Service",
         "description": "Azure Computer Vision - Image analysis, OCR, object detection, with doctoral synthesis",
-        "url": os.getenv("VISION_SERVICE_URL") or config.VISION_SERVICE_URL or "http://vision-service.railway.internal:5000",
+        "url": os.getenv("VISION_SERVICE_URL") or config.VISION_SERVICE_URL or "http://vision-service.railway.internal:8080",
         "available": VISION_SERVICE_AVAILABLE or bool(config.VISION_SERVICE_URL),
         "capabilities": ["análisis_imágenes", "OCR", "detección_objetos", "síntesis_doctoral"],
     },
