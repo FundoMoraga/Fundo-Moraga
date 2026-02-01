@@ -1,8 +1,8 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -eo pipefail
 if [ -n "${START_COMMAND:-}" ]; then
   echo "Starting with START_COMMAND: ${START_COMMAND}"
-  exec /bin/sh -lc "$START_COMMAND"
+  exec bash -c "$START_COMMAND"
 fi
 
 # Inyectar configuraciones dinámicas en HTMLs (GA ID, etc)
