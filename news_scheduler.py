@@ -56,37 +56,54 @@ def _generate_and_publish() -> None:
     """
     Ejecuta el proceso completo:
     1. Agrega noticias de múltiples fuentes
-    2. Genera artículo original con IA
-    3. Publica en el blog
+    2. Genera múltiples artículos (uno por categoría)
+    3. Publica todos en el blog
     """
     try:
         print("\n" + "="*70)
-        print(f"🚀 INICIANDO PUBLICACIÓN AUTOMÁTICA DIARIA")
+        print(f"🚀 INICIANDO PUBLICACIÓN AUTOMÁTICA DIARIA (MULTI-CATEGORÍA)")
         print(f"   📅 {datetime.now(CHILE_TZ).strftime('%d/%m/%Y %H:%M:%S %Z')}")
         print("="*70 + "\n")
         
-        # Paso 1: Agregar noticias y generar artículo
+        # Paso 1: Agregar noticias y generar múltiples artículos
         aggregator = get_news_aggregator()
         digest = aggregator.create_daily_digest()
         
-        article = digest.get("article")
-        if not article:
-            print("❌ No se pudo generar artículo")
+        articles = digest.get("articles", [])
+        if not articles:
+            print("❌ No se pudieron generar artículos")
             return
         
-        # Paso 2: Publicar artículo
-        publisher = get_blog_publisher()
-        result = publisher.publish_article(article, save_to_cosmos=True)
+        print(f"\n📝 {len(articles)} artículos generados. Iniciando publicación...\n")
         
-        if result.get("success"):
-            print("\n" + "="*70)
-            print("✅ PUBLICACIÓN COMPLETADA EXITOSAMENTE")
-            print(f"   📝 Título: {article.get('title', 'N/A')}")
-            print(f"   🔗 URL: {result.get('url', 'N/A')}")
-            print(f"   📄 Archivo: {result.get('filepath', 'N/A')}")
-            print("="*70 + "\n")
-        else:
-            print(f"\n❌ Error en publicación: {result.get('error', 'Unknown')}\n")
+        # Paso 2: Publicar cada artículo
+        publisher = get_blog_publisher()
+        published_count = 0
+        failed_count = 0
+        
+        for idx, article in enumerate(articles, 1):
+            try:
+                print(f"[{idx}/{len(articles)}] Publicando: {article.get('title', 'Sin título')}")
+                result = publisher.publish_article(article, save_to_cosmos=True)
+                
+                if result.get("success"):
+                    print(f"   ✅ {article.get('category', 'N/A').upper()} - {result.get('url', 'N/A')}")
+                    published_count += 1
+                else:
+                    print(f"   ❌ Error: {result.get('error', 'Unknown')}")
+                    failed_count += 1
+                    
+            except Exception as e:
+                print(f"   ❌ Excepción: {e}")
+                failed_count += 1
+        
+        # Resumen final
+        print("\n" + "="*70)
+        print("✅ PUBLICACIÓN AUTOMÁTICA COMPLETADA")
+        print(f"   📊 Exitosas: {published_count}/{len(articles)}")
+        if failed_count > 0:
+            print(f"   ⚠️  Fallidas: {failed_count}")
+        print("="*70 + "\n")
             
     except Exception as e:
         print(f"\n❌ Error en proceso de publicación automática: {e}\n")
