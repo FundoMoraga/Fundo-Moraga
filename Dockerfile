@@ -1,19 +1,19 @@
-FROM python:3.10-slim
+FROM nginx:alpine
 
-# Install system dependencies (curl for health/debug, build essentials for some libs)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential curl && \
-    rm -rf /var/lib/apt/lists/*
+# Render debe desplegar la página web estática, no el backend Python.
+COPY Web/nginx.conf /etc/nginx/nginx.conf
+COPY Web/docker-entrypoint.d/10-seed-assets.sh /docker-entrypoint.d/10-seed-assets.sh
+COPY Web/ /usr/share/nginx/html/
 
-WORKDIR /app
+RUN chmod +x /docker-entrypoint.d/10-seed-assets.sh \
+    && mkdir -p /seed \
+    && if [ -d /usr/share/nginx/html/assets ]; then mv /usr/share/nginx/html/assets /seed/assets; fi \
+    && rm -f /usr/share/nginx/html/Dockerfile \
+    /usr/share/nginx/html/nginx.conf \
+    /usr/share/nginx/html/railway.json \
+    /usr/share/nginx/html/MEJORAS-PREMIUM.md \
+    && rm -rf /usr/share/nginx/html/docker-entrypoint.d
 
-# Install Python dependencies first (better caching)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+EXPOSE 8080
 
-# Copy application code
-COPY . .
-
-ENV PORT=8080
-
-CMD ["bash", "start.sh"]
+CMD ["nginx", "-g", "daemon off;"]

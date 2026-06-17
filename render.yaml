@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: fundo-moraga-static
+    runtime: static
+    branch: main
+    buildCommand: ""
+    staticPublishPath: ./Web
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
