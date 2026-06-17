@@ -74,6 +74,15 @@
         customCursor.className = 'custom-cursor';
         document.body.appendChild(customCursor);
 
+        // Crear pabilo (wick) y base azul (blue) como partes anatómicas de una llama de vela real
+        const wick = document.createElement('div');
+        wick.className = 'custom-cursor-wick';
+        customCursor.appendChild(wick);
+
+        const blueBase = document.createElement('div');
+        blueBase.className = 'custom-cursor-blue';
+        customCursor.appendChild(blueBase);
+
         // Cursor follower (círculo exterior animado)
         customCursorFollower = document.createElement('div');
         customCursorFollower.id = 'customCursorFollower';
@@ -133,13 +142,16 @@
             el: particle,
             x, y,
             vx: Math.cos(angle) * speed * (Math.random() > 0.5 ? 1 : -0.5),
-            vy: Math.sin(angle) * speed * 0.8 - 0.3, // Sube ligeramente
+            vy: Math.sin(angle) * speed * 0.8 - 0.5, // Sube ligeramente más rápido al inicio
             life: 1,
-            decay: config.particleDecay + Math.random() * 0.01,
-            scale: 0.4 + Math.random() * 0.8,
-            hue: 15 + Math.random() * 50, // Naranja a rojo
+            decay: config.particleDecay + Math.random() * 0.015, // decay un poco más rápido para chispas pequeñas
+            scale: 0.3 + Math.random() * 0.7,
+            hue: 15 + Math.random() * 45, // Naranja dorado a rojizo
+            phase: Math.random() * Math.PI * 2, // Fase aleatoria para el bamboleo de convección
+            swaySpeed: 4 + Math.random() * 8, // Velocidad del bamboleo
+            swayAmp: 0.3 + Math.random() * 0.8, // Amplitud del bamboleo
             maxLife: config.particleMaxLife,
-            skew: -8 + Math.random() * 16
+            skew: -15 + Math.random() * 30
         });
 
         if (particles.length > config.particleCount) {
@@ -152,11 +164,20 @@
         for (let i = particles.length - 1; i >= 0; i--) {
             const p = particles[i];
             p.life -= p.decay;
-            p.x += p.vx;
+            
+            // Simular arrastre por corrientes de aire caliente (convección):
+            // 1. Aceleración térmica hacia arriba (vy se vuelve más negativo)
+            p.vy -= 0.12; 
+            
+            // 2. Bamboleo sinusoidal horizontal imitando turbulencia térmica
+            const sway = Math.sin(Date.now() * 0.001 * p.swaySpeed + p.phase) * p.swayAmp;
+            
+            p.x += p.vx + sway;
             p.y += p.vy;
-            p.vx *= 0.985;
-            p.vy *= 0.98;
-            p.scale *= 0.992;
+            
+            p.vx *= 0.96; // Arrastre horizontal amortiguado rápido
+            p.vy *= 0.95; // Límite de velocidad terminal para la convección
+            p.scale *= 0.985; // Se desvanecen encogiéndose
 
             if (p.life <= 0) {
                 try { p.el.remove(); } catch {}
@@ -193,30 +214,39 @@
         const stretch = 1 + motionEnergy * 0.3 + hoverEnergy * 0.12;
         const tilt = clamp(velocityX * 2.4, -18, 18);
 
-        setEnvironmentLight(followerX, followerY, intensity, stretch, tilt);
+        // Micro-parpadeo orgánico (flicker) no periódico basado en ondas complejas y ruido térmico
+        const time = Date.now() * 0.007;
+        const flickerIntensity = 1 + (Math.sin(time) * 0.045 + Math.cos(time * 2.3) * 0.03 + (Math.random() - 0.5) * 0.035);
+        const flickerStretch = 1 + (Math.cos(time * 1.6) * 0.035 + Math.sin(time * 3.1) * 0.025 + (Math.random() - 0.5) * 0.02);
+
+        const currentIntensity = clamp(intensity * flickerIntensity, 0.16, 1);
+        const currentStretch = clamp(stretch * flickerStretch, 0.86, 1.55);
+
+        setEnvironmentLight(followerX, followerY, currentIntensity, currentStretch, tilt);
 
         if (customCursorFollower) {
             customCursorFollower.style.left = `${followerX}px`;
             customCursorFollower.style.top = `${followerY}px`;
             customCursorFollower.style.setProperty('--cursor-tilt', `${tilt.toFixed(2)}deg`);
-            customCursorFollower.style.setProperty('--cursor-stretch', stretch.toFixed(3));
-            customCursorFollower.style.setProperty('--cursor-intensity', intensity.toFixed(3));
+            customCursorFollower.style.setProperty('--cursor-stretch', currentStretch.toFixed(3));
+            customCursorFollower.style.setProperty('--cursor-intensity', currentIntensity.toFixed(3));
         }
 
         if (customCursor) {
             customCursor.style.setProperty('--cursor-tilt', `${tilt.toFixed(2)}deg`);
-            customCursor.style.setProperty('--cursor-stretch', stretch.toFixed(3));
-            customCursor.style.setProperty('--cursor-intensity', intensity.toFixed(3));
+            customCursor.style.setProperty('--cursor-stretch', currentStretch.toFixed(3));
+            customCursor.style.setProperty('--cursor-intensity', currentIntensity.toFixed(3));
         }
 
         if (customCursorGlow) {
-            customCursorGlow.style.setProperty('--cursor-intensity', intensity.toFixed(3));
-            customCursorGlow.style.setProperty('--cursor-stretch', stretch.toFixed(3));
+            customCursorGlow.style.setProperty('--cursor-intensity', currentIntensity.toFixed(3));
+            customCursorGlow.style.setProperty('--cursor-stretch', currentStretch.toFixed(3));
         }
 
         if (customCursorAmbient) {
-            customCursorAmbient.style.setProperty('--cursor-intensity', intensity.toFixed(3));
-            customCursorAmbient.style.setProperty('--cursor-stretch', stretch.toFixed(3));
+            customCursorAmbient.style.setProperty('--cursor-intensity', currentIntensity.toFixed(3));
+            customCursorAmbient.style.setProperty('--cursor-stretch', currentStretch.toFixed(3));
+        }
         }
 
         requestAnimationFrame(animateFollower);

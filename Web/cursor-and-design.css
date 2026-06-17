@@ -75,6 +75,40 @@
     isolation: isolate;
 }
 
+/* El Pabilo (Wick) de la vela */
+.custom-cursor-wick {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    width: 1.5px;
+    height: 9px;
+    background: linear-gradient(to top, #111111, #444444, #885522);
+    border-radius: 1px 1px 0 0;
+    transform: translate(-50%, 0) rotate(calc(var(--cursor-tilt) * -0.6));
+    pointer-events: none;
+    z-index: 2;
+    opacity: calc(0.88 - var(--cursor-intensity) * 0.15);
+    transform-origin: center bottom;
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* La base de combustión azul de la llama */
+.custom-cursor-blue {
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    width: 15px;
+    height: 9px;
+    background: radial-gradient(ellipse at 50% 80%, rgba(0, 102, 255, 0.88) 0%, rgba(0, 44, 188, 0.44) 40%, rgba(0, 12, 100, 0.1) 70%, transparent 100%);
+    border-radius: 50% 50% 45% 45%;
+    transform: translate(-50%, 0) scale(calc(0.92 + var(--cursor-intensity) * 0.18));
+    pointer-events: none;
+    z-index: 1;
+    filter: blur(0.5px);
+    mix-blend-mode: screen;
+    opacity: calc(0.72 + var(--cursor-intensity) * 0.18);
+}
+
 .custom-cursor::before,
 .custom-cursor::after {
     content: '';
