@@ -68,38 +68,52 @@
     };
 
     const initCursor = () => {
-        // Cursor principal (círculo interior)
-        customCursor = document.createElement('div');
-        customCursor.id = 'customCursor';
-        customCursor.className = 'custom-cursor';
-        document.body.appendChild(customCursor);
+        // Cursor principal (círculo interior) - Reutilizar si ya existe en el DOM
+        customCursor = document.getElementById('customCursor') || document.createElement('div');
+        if (!customCursor.parentNode) {
+            customCursor.id = 'customCursor';
+            customCursor.className = 'custom-cursor';
+            document.body.appendChild(customCursor);
+        }
 
         // Crear pabilo (wick) y base azul (blue) como partes anatómicas de una llama de vela real
-        const wick = document.createElement('div');
-        wick.className = 'custom-cursor-wick';
-        customCursor.appendChild(wick);
+        let wick = customCursor.querySelector('.custom-cursor-wick');
+        if (!wick) {
+            wick = document.createElement('div');
+            wick.className = 'custom-cursor-wick';
+            customCursor.appendChild(wick);
+        }
 
-        const blueBase = document.createElement('div');
-        blueBase.className = 'custom-cursor-blue';
-        customCursor.appendChild(blueBase);
+        let blueBase = customCursor.querySelector('.custom-cursor-blue');
+        if (!blueBase) {
+            blueBase = document.createElement('div');
+            blueBase.className = 'custom-cursor-blue';
+            customCursor.appendChild(blueBase);
+        }
 
-        // Cursor follower (círculo exterior animado)
-        customCursorFollower = document.createElement('div');
-        customCursorFollower.id = 'customCursorFollower';
-        customCursorFollower.className = 'custom-cursor-follower';
-        document.body.appendChild(customCursorFollower);
+        // Cursor follower (círculo exterior animado) - Reutilizar si ya existe en el DOM
+        customCursorFollower = document.getElementById('customCursorFollower') || document.createElement('div');
+        if (!customCursorFollower.parentNode) {
+            customCursorFollower.id = 'customCursorFollower';
+            customCursorFollower.className = 'custom-cursor-follower';
+            document.body.appendChild(customCursorFollower);
+        }
 
         // Glow effect
-        customCursorGlow = document.createElement('div');
-        customCursorGlow.id = 'customCursorGlow';
-        customCursorGlow.className = 'custom-cursor-glow';
-        document.body.appendChild(customCursorGlow);
+        customCursorGlow = document.getElementById('customCursorGlow') || document.createElement('div');
+        if (!customCursorGlow.parentNode) {
+            customCursorGlow.id = 'customCursorGlow';
+            customCursorGlow.className = 'custom-cursor-glow';
+            document.body.appendChild(customCursorGlow);
+        }
 
-        // Luz ambiental para interactuar con el entorno.
-        customCursorAmbient = document.createElement('div');
-        customCursorAmbient.id = 'customCursorAmbient';
-        customCursorAmbient.className = 'custom-cursor-ambient';
-        document.body.appendChild(customCursorAmbient);
+        // Luz ambiental para interactuar con el entorno
+        customCursorAmbient = document.getElementById('customCursorAmbient') || document.createElement('div');
+        if (!customCursorAmbient.parentNode) {
+            customCursorAmbient.id = 'customCursorAmbient';
+            customCursorAmbient.className = 'custom-cursor-ambient';
+            document.body.appendChild(customCursorAmbient);
+        }
 
         // Ocultar cursor por defecto
         document.body.style.cursor = 'none';
