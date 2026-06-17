@@ -935,6 +935,7 @@ const videoSupport = (() => {
 
 const fallbackPoster = 'https://fundomoragastorage.blob.core.windows.net/assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG';
 const instagramGalleryGrid = document.getElementById('instagramGalleryGrid');
+const instagramLoadMore = document.getElementById('instagramLoadMore');
 
 const instagramPosts = [
     {
@@ -1291,9 +1292,10 @@ if (mainVideo) {
 
     function renderInstagramGallery() {
         if (!instagramGalleryGrid) return;
+        const shouldCollapse = window.matchMedia('(max-width: 768px)').matches;
 
-        instagramGalleryGrid.innerHTML = instagramPosts.map((post) => `
-            <article class="instagram-embed-card">
+        instagramGalleryGrid.innerHTML = instagramPosts.map((post, index) => `
+            <article class="instagram-embed-card${shouldCollapse && index >= 4 ? ' is-mobile-hidden' : ''}">
                 <div class="instagram-embed-meta">
                     <span class="instagram-embed-source">${post.source}</span>
                     <div class="instagram-embed-title">${post.title}</div>
@@ -1304,6 +1306,16 @@ if (mainVideo) {
                 <p class="instagram-embed-fallback">Abrir publicación original: <a href="${post.url}" target="_blank" rel="noopener noreferrer">ver en Instagram</a>.</p>
             </article>
         `).join('');
+
+        if (instagramLoadMore) {
+            instagramLoadMore.hidden = !(shouldCollapse && instagramPosts.length > 4);
+            instagramLoadMore.textContent = `Ver ${instagramPosts.length - 4} publicaciones más`;
+            instagramLoadMore.onclick = () => {
+                document.querySelectorAll('.instagram-embed-card.is-mobile-hidden').forEach((card) => card.classList.remove('is-mobile-hidden'));
+                instagramLoadMore.hidden = true;
+                window.instgrm?.Embeds?.process?.();
+            };
+        }
 
         ensureInstagramEmbedScript();
     }

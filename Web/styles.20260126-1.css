@@ -1317,7 +1317,8 @@ section {
 .chat-widget {
     position: fixed;
     bottom: 30px;
-    right: 30px;
+    left: 30px;
+    right: auto;
     z-index: 999;
 }
 
@@ -1609,6 +1610,8 @@ section {
         padding: 40px 20px;
         box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
         transition: var(--transition);
+        max-height: calc(100svh - 80px);
+        overflow-y: auto;
     }
 
     .nav-links.active {
@@ -1623,6 +1626,10 @@ section {
     .contact-grid,
     .footer-content {
         grid-template-columns: 1fr;
+    }
+
+    .container {
+        max-width: 100%;
     }
 
     .gallery-grid {
