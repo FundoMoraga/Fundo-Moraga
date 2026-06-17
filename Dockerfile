@@ -1,19 +1,16 @@
-FROM nginx:alpine
+FROM python:3.10-slim
 
-# Render debe desplegar la página web estática, no el backend Python.
-COPY Web/nginx.conf /etc/nginx/nginx.conf
-COPY Web/docker-entrypoint.d/10-seed-assets.sh /docker-entrypoint.d/10-seed-assets.sh
-COPY Web/ /usr/share/nginx/html/
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential curl \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN chmod +x /docker-entrypoint.d/10-seed-assets.sh \
-    && mkdir -p /seed \
-    && if [ -d /usr/share/nginx/html/assets ]; then mv /usr/share/nginx/html/assets /seed/assets; fi \
-    && rm -f /usr/share/nginx/html/Dockerfile \
-    /usr/share/nginx/html/nginx.conf \
-    /usr/share/nginx/html/railway.json \
-    /usr/share/nginx/html/MEJORAS-PREMIUM.md \
-    && rm -rf /usr/share/nginx/html/docker-entrypoint.d
+WORKDIR /app
 
-EXPOSE 8080
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["nginx", "-g", "daemon off;"]
+COPY . .
+
+ENV PORT=8080
+
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "90", "--error-logfile", "-", "--capture-output", "--log-level", "info", "server:app"]

@@ -500,7 +500,7 @@ const chatBadge = document.querySelector('.chat-badge');
 const RAILWAY_API_URL = (() => {
     const host = window.location.hostname;
     const isLocal = host === 'localhost' || host === '127.0.0.1';
-    return isLocal ? '/api' : 'https://fundo-moraga-ai-chat.onrender.com/api';
+    return isLocal ? '/api' : 'https://fundo-moraga-chat-api.onrender.com/api';
 })();
 const DEFAULT_GREETING = '¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?';
 let _hernandoGreetingInitialized = false;
