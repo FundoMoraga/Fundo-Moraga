@@ -1294,27 +1294,24 @@ if (mainVideo) {
         if (!instagramGalleryGrid) return;
         const shouldCollapse = window.matchMedia('(max-width: 768px)').matches;
 
-        instagramGalleryGrid.innerHTML = instagramPosts.map((post, index) => `
-            <article class="instagram-embed-card${shouldCollapse && index >= 4 ? ' is-mobile-hidden' : ''}">
+        instagramGalleryGrid.innerHTML = instagramPosts.map((post) => {
+            const isCompact = shouldCollapse;
+            return `
+            <article class="instagram-embed-card${isCompact ? ' is-mobile-compact' : ''}">
                 <div class="instagram-embed-meta">
                     <span class="instagram-embed-source">${post.source}</span>
                     <div class="instagram-embed-title">${post.title}</div>
                 </div>
                 <div class="instagram-embed-frame">
-                    <blockquote class="instagram-media" data-instgrm-permalink="${post.url}" data-instgrm-version="14" style="background:#FFF; border:0; margin:0; padding:0; width:100%;"></blockquote>
+                    ${isCompact ? '' : `<blockquote class="instagram-media" data-instgrm-permalink="${post.url}" data-instgrm-version="14" style="background:#FFF; border:0; margin:0; padding:0; width:100%;"></blockquote>`}
                 </div>
                 <p class="instagram-embed-fallback">Abrir publicación original: <a href="${post.url}" target="_blank" rel="noopener noreferrer">ver en Instagram</a>.</p>
             </article>
-        `).join('');
+        `;
+        }).join('');
 
         if (instagramLoadMore) {
-            instagramLoadMore.hidden = !(shouldCollapse && instagramPosts.length > 4);
-            instagramLoadMore.textContent = `Ver ${instagramPosts.length - 4} publicaciones más`;
-            instagramLoadMore.onclick = () => {
-                document.querySelectorAll('.instagram-embed-card.is-mobile-hidden').forEach((card) => card.classList.remove('is-mobile-hidden'));
-                instagramLoadMore.hidden = true;
-                window.instgrm?.Embeds?.process?.();
-            };
+            instagramLoadMore.hidden = true;
         }
 
         ensureInstagramEmbedScript();

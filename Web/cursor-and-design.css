@@ -1511,22 +1511,30 @@ p {
         border-radius: 20px;
     }
 
-    .instagram-embed-card.is-mobile-hidden {
-        display: none;
-    }
-
-    .instagram-load-more {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .instagram-load-more[hidden] {
-        display: none;
-    }
-
     .instagram-embed-title {
         font-size: 0.98rem;
+    }
+
+    .instagram-embed-card.is-mobile-compact {
+        min-height: 0;
+    }
+
+    .instagram-embed-card.is-mobile-compact .instagram-embed-frame {
+        display: none;
+    }
+
+    .instagram-embed-card.is-mobile-compact .instagram-embed-fallback {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 999px;
+        background: rgba(246, 211, 137, 0.08);
+        border: 1px solid rgba(246, 211, 137, 0.14);
+        text-align: center;
+    }
+
+    .instagram-embed-card.is-mobile-compact .instagram-embed-fallback a {
+        font-weight: 700;
+        text-decoration: none;
     }
 
     .instagram-embed-source {
