@@ -37,6 +37,13 @@ OPENAI_API_KEY = _clean_env(os.getenv("OPENAI_API_KEY"))
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2-2025-12-11")
 OPENAI_SEARCH_MODEL = os.getenv("OPENAI_SEARCH_MODEL", "gpt-5-search-api-2025-10-14")
 
+# Azure OpenAI (proxy seguro para chat web)
+AZURE_OPENAI_CHAT_URL = _clean_env(os.getenv("AZURE_OPENAI_CHAT_URL"))
+AZURE_OPENAI_API_KEY = _clean_env(os.getenv("AZURE_OPENAI_API_KEY"))
+AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-5.4")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
+AZURE_OPENAI_DIRECT_CHAT = os.getenv("AZURE_OPENAI_DIRECT_CHAT", "false").lower() in ("1", "true", "yes", "y", "si")
+
 # Azure Translator (Text Translation)
 AZURE_TRANSLATOR_ENDPOINT = os.getenv(
     "AZURE_TRANSLATOR_ENDPOINT", "https://hernando.cognitiveservices.azure.com/"
@@ -170,8 +177,9 @@ def validate_config():
     missing = []
     if not cosmos_ok:
         missing.append("COSMOS_CONNECTION_STRING o COSMOS_ENDPOINT+COSMOS_KEY")
-    if not OPENAI_API_KEY:
-        missing.append("OPENAI_API_KEY")
+    azure_openai_ok = bool(AZURE_OPENAI_API_KEY and (AZURE_OPENAI_CHAT_URL or AZURE_OPENAI_DEPLOYMENT))
+    if not (OPENAI_API_KEY or azure_openai_ok):
+        missing.append("OPENAI_API_KEY o AZURE_OPENAI_API_KEY+AZURE_OPENAI_CHAT_URL")
 
     if missing:
         raise ValueError(
