@@ -758,8 +758,6 @@ def web_chat():
             except Exception as e:
                 print(f"[WARNING] Error enviando resumen final: {e}")
         
-        from datetime import datetime, timezone
-        
         return jsonify({
             "response": response,
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -808,7 +806,6 @@ def web_chat_init():
 
         greeting = bot.start_web_conversation(user_id=user_id)
 
-        from datetime import datetime, timezone
         return jsonify({
             "greeting": greeting,
             "timestamp": datetime.now(timezone.utc).isoformat(),
