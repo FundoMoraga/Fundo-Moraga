@@ -934,6 +934,70 @@ const videoSupport = (() => {
 })();
 
 const fallbackPoster = 'https://fundomoragastorage.blob.core.windows.net/assets/images/066D82F6-A14A-4BBC-818F-FB3411BB8D6D.JPEG';
+const instagramGalleryGrid = document.getElementById('instagramGalleryGrid');
+
+const instagramPosts = [
+    {
+        url: 'https://www.instagram.com/reel/DItxI_Wxtpp/',
+        source: '@batuco_offroad',
+        title: 'Batuco Off Road en pista con comunidad 4x4'
+    },
+    {
+        url: 'https://www.instagram.com/reel/DOy1aNtEbmy/',
+        source: '@batuco_offroad',
+        title: 'Regreso de Batuco Off Road con jornada abierta en terreno'
+    },
+    {
+        url: 'https://www.instagram.com/p/DNb-R-_MOVG/',
+        source: '@fundomoraga',
+        title: 'Encuentro Land Rover en Batuco Off Road'
+    },
+    {
+        url: 'https://www.instagram.com/reel/DXpndHWkXmM/',
+        source: '@fundomoraga / @batuco_offroad',
+        title: 'Clínica off-road anunciada en el entorno de Batuco'
+    },
+    {
+        url: 'https://www.instagram.com/reel/DPAae56DBM4/',
+        source: '@fundomoraga / @batuco_offroad',
+        title: 'Activación en terreno con foco en aventura y marca'
+    },
+    {
+        url: 'https://www.instagram.com/p/DX9iPwKEbMt/',
+        source: '@fundomoraga',
+        title: 'Paisaje, identidad y experiencia desde el territorio Fundo Moraga'
+    },
+    {
+        url: 'https://www.instagram.com/reel/C_eqTN_Jn6p/',
+        source: '@batuco_offroad',
+        title: 'Batuco Off Road como escenario de lanzamiento automotriz'
+    },
+    {
+        url: 'https://www.instagram.com/p/C5wfaY6Ph-K/',
+        source: '@batuco_offroad',
+        title: 'Invitación a conocer la pista con vista abierta a Batuco'
+    },
+    {
+        url: 'https://www.instagram.com/p/C5wfiHNPu2Q/',
+        source: '@batuco_offroad',
+        title: 'Publicación temprana de la pista y su experiencia panorámica'
+    },
+    {
+        url: 'https://www.instagram.com/reel/DPKjhyjj0Ab/',
+        source: '@underdog_racing_development',
+        title: 'Preparación y cultura off-road conectadas con Batuco'
+    },
+    {
+        url: 'https://www.instagram.com/p/DM9VvBLM-oe/',
+        source: '@fundomoraga',
+        title: 'Paisaje y evento en el entorno natural del fundo'
+    },
+    {
+        url: 'https://www.instagram.com/p/DOPFt5eDU5v/',
+        source: '@volkswagendanielachondo',
+        title: 'Registro social de lanzamiento automotriz asociado a la experiencia off-road'
+    }
+];
 
 const pickClipSource = (clip) => {
     if (!clip || !clip.src) return null;
@@ -1209,6 +1273,41 @@ if (mainVideo) {
         });
     }
 
+    function ensureInstagramEmbedScript() {
+        if (document.querySelector('script[data-instgrm-embed]')) {
+            window.instgrm?.Embeds?.process?.();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://www.instagram.com/embed.js';
+        script.setAttribute('data-instgrm-embed', 'true');
+        script.onload = () => {
+            window.instgrm?.Embeds?.process?.();
+        };
+        document.body.appendChild(script);
+    }
+
+    function renderInstagramGallery() {
+        if (!instagramGalleryGrid) return;
+
+        instagramGalleryGrid.innerHTML = instagramPosts.map((post) => `
+            <article class="instagram-embed-card">
+                <div class="instagram-embed-meta">
+                    <span class="instagram-embed-source">${post.source}</span>
+                    <div class="instagram-embed-title">${post.title}</div>
+                </div>
+                <div class="instagram-embed-frame">
+                    <blockquote class="instagram-media" data-instgrm-permalink="${post.url}" data-instgrm-version="14" style="background:#FFF; border:0; margin:0; padding:0; width:100%;"></blockquote>
+                </div>
+                <p class="instagram-embed-fallback">Abrir publicación original: <a href="${post.url}" target="_blank" rel="noopener noreferrer">ver en Instagram</a>.</p>
+            </article>
+        `).join('');
+
+        ensureInstagramEmbedScript();
+    }
+
     function setMainVideo(clip) {
         if (!clip || !mainVideo) return;
         setVideoStarted(false);
@@ -1277,6 +1376,7 @@ if (mainVideo) {
     }
 
     renderVideoGallery();
+    renderInstagramGallery();
 }
 
 // Old lightbox code (can be removed if not needed)
@@ -1398,60 +1498,78 @@ contactForm?.addEventListener('submit', async (e) => {
 });
 
 // ============================================
-// PARALLAX SCROLL EFFECTS
+// HOME EDITORIAL SCROLL SYSTEM
 // ============================================
-window.addEventListener('scroll', () => {
-    const scrolled = window.pageYOffset;
-    
-    // Parallax on hero
+const initHomeEditorialMotion = () => {
+    if (!document.body.classList.contains('home-page')) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const choreoElements = Array.from(document.querySelectorAll('.scroll-choreo, .service-card, .stat-card, .testimonial-card, .info-card'));
+    const depthElements = Array.from(document.querySelectorAll('[data-scroll-depth], .video-player, .video-gallery-grid, .contact-form-container, .contact-info, .contact-cta, .footer-content'));
     const hero = document.querySelector('.hero');
-    if (hero) {
-        hero.style.backgroundPositionY = scrolled * 0.5 + 'px';
-    }
-    
-    // Parallax on about image
     const aboutImage = document.querySelector('.about-image');
-    if (aboutImage && isInViewport(aboutImage)) {
-        aboutImage.style.transform = `translateY(${scrolled * 0.1}px) rotate(2deg)`;
-    }
-});
 
-function isInViewport(element) {
-    const rect = element.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-}
-
-// ============================================
-// SMOOTH REVEAL ANIMATIONS
-// ============================================
-const revealElements = document.querySelectorAll('.service-card, .gallery-item, .info-card, .testimonial-card, .stat-card');
-
-const revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry, index) => {
-        if (entry.isIntersecting) {
-            setTimeout(() => {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-            }, index * 100);
-            revealObserver.unobserve(entry.target);
-        }
+    choreoElements.forEach((element, index) => {
+        element.style.setProperty('--scroll-delay', `${Math.min(index * 55, 360)}ms`);
     });
-}, {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-});
 
-revealElements.forEach(el => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(50px)';
-    el.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
-    revealObserver.observe(el);
-});
+    if (prefersReducedMotion || !('IntersectionObserver' in window)) {
+        choreoElements.forEach((element) => element.classList.add('is-visible'));
+        return;
+    }
+
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('is-visible');
+            revealObserver.unobserve(entry.target);
+        });
+    }, {
+        threshold: 0.14,
+        rootMargin: '0px 0px -12% 0px'
+    });
+
+    choreoElements.forEach((element) => revealObserver.observe(element));
+
+    let ticking = false;
+    const updateScrollDepth = () => {
+        ticking = false;
+        const viewportHeight = window.innerHeight || 1;
+        const scrolled = window.pageYOffset || window.scrollY || 0;
+
+        if (hero) {
+            hero.style.backgroundPositionY = `${scrolled * 0.16}px`;
+        }
+
+        if (aboutImage) {
+            const rect = aboutImage.getBoundingClientRect();
+            const progress = clamp((viewportHeight - rect.top) / (viewportHeight + rect.height), 0, 1);
+            const offset = (0.5 - progress) * 30;
+            aboutImage.style.transform = `translate3d(0, ${offset.toFixed(1)}px, 0) scale(${(1.01 + progress * 0.02).toFixed(3)})`;
+        }
+
+        depthElements.forEach((element) => {
+            const rect = element.getBoundingClientRect();
+            const progress = clamp((viewportHeight - rect.top) / (viewportHeight + rect.height), 0, 1);
+            const depth = Number(element.dataset.scrollDepth || 18);
+            const shift = (0.52 - progress) * depth;
+            element.style.setProperty('--scroll-shift', `${shift.toFixed(1)}px`);
+            element.style.setProperty('--scroll-progress', progress.toFixed(3));
+        });
+    };
+
+    const onScroll = () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(updateScrollDepth);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    updateScrollDepth();
+};
+
+initHomeEditorialMotion();
 
 // ============================================
 // TILT EFFECT ON SERVICE CARDS

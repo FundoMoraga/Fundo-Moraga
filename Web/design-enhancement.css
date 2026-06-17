@@ -1,0 +1,523 @@
+/**
+ * DESIGN ENHANCEMENTS - NIVEL DOCTORAL
+ * Fundo Moraga - Diseño de Alta Calidad tipo Unreal Engine
+ * Enfoque en Misterio, Aventura e Inmersión
+ */
+
+/* ============================================
+   VARIABLES AVANZADAS - PALETA DOCTORAL
+   ============================================ */
+:root {
+    /* Colores primarios (oscuros misteriosos) */
+    --primary-color: #0a0a0a;
+    --secondary-color: #1a1a1a;
+    --tertiary-color: #252525;
+    
+    /* Acentos premium */
+    --accent-gold: #d4af37;
+    --accent-copper: #b87333;
+    --accent-fire: #ff6b35;
+    --accent-glow: #ffa500;
+    
+    /* Colores de aventura */
+    --adventure-dark: #0f1419;
+    --adventure-forest: #1a2e1a;
+    --adventure-sand: #3d2817;
+    
+    /* Efectos de profundidad */
+    --shadow-deep: 0 20px 60px rgba(0, 0, 0, 0.8);
+    --shadow-medium: 0 10px 30px rgba(0, 0, 0, 0.6);
+    --shadow-light: 0 5px 15px rgba(0, 0, 0, 0.4);
+    --glow-soft: 0 0 30px rgba(212, 175, 55, 0.3);
+    --glow-strong: 0 0 50px rgba(212, 175, 55, 0.5);
+    
+    /* Transiciones suaves */
+    --ease-smooth: cubic-bezier(0.35, 0, 0.65, 1);
+    --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* ============================================
+   MEJORAS GLOBALES
+   ============================================ */
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background: linear-gradient(135deg, #0a0a0a 0%, #0f1419 50%, #0a0a0a 100%);
+    color: #e0e0e0;
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    letter-spacing: 0.5px;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Efecto de película/cinemático */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.15) 100%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* ============================================
+   NAVEGACIÓN MEJORADA
+   ============================================ */
+
+.navbar {
+    background: linear-gradient(135deg, rgba(10, 10, 10, 0.95) 0%, rgba(20, 20, 20, 0.92) 100%);
+    backdrop-filter: blur(12px);
+    border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+    box-shadow: var(--shadow-deep), var(--glow-soft);
+    transition: all 0.4s var(--ease-smooth);
+}
+
+.navbar:hover {
+    border-bottom-color: rgba(212, 175, 55, 0.4);
+    box-shadow: var(--shadow-deep), var(--glow-strong);
+}
+
+.logo {
+    filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.3));
+    transition: all 0.4s var(--ease-smooth);
+}
+
+.logo:hover {
+    filter: drop-shadow(0 0 20px rgba(212, 175, 55, 0.6)) brightness(1.1);
+    transform: scale(1.08) translateY(-2px);
+}
+
+/* Links de navegación con efecto glow */
+.nav-links a {
+    position: relative;
+    color: #e0e0e0;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    transition: all 0.3s var(--ease-smooth);
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+.nav-links a::before {
+    content: '';
+    position: absolute;
+    inset: -4px -6px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(255, 107, 53, 0.1));
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.3s var(--ease-smooth);
+    z-index: -1;
+}
+
+.nav-links a:hover::before {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+}
+
+.nav-links a:hover {
+    color: var(--accent-gold);
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+    transform: translateY(-2px);
+}
+
+/* ============================================
+   BOTONES DOCTORALES
+   ============================================ */
+
+.btn {
+    position: relative;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.4s var(--ease-smooth);
+    border: none;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s var(--ease-smooth);
+}
+
+.btn:hover::before {
+    transform: translateX(100%);
+}
+
+/* Botón Primario */
+.btn--primary {
+    background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-copper) 100%);
+    color: #0a0a0a;
+    padding: 14px 32px;
+    border-radius: 4px;
+    box-shadow: var(--shadow-deep), 0 0 30px rgba(212, 175, 55, 0.3);
+}
+
+.btn--primary:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: var(--shadow-deep), 0 0 50px rgba(212, 175, 55, 0.6);
+    text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+}
+
+.btn--primary:active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+/* Botón Secundario */
+.btn--secondary {
+    background: rgba(212, 175, 55, 0.15);
+    color: var(--accent-gold);
+    border: 2px solid var(--accent-gold);
+    padding: 12px 28px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 20px rgba(212, 175, 55, 0.1);
+    transition: all 0.4s var(--ease-smooth);
+}
+
+.btn--secondary:hover {
+    background: rgba(212, 175, 55, 0.25);
+    box-shadow: inset 0 0 30px rgba(212, 175, 55, 0.2), 0 0 30px rgba(212, 175, 55, 0.3);
+    transform: translateY(-3px);
+}
+
+/* Botón Tertiary (para menús) */
+.btn--tertiary {
+    background: transparent;
+    color: var(--accent-light);
+    border: none;
+    transition: all 0.3s var(--ease-smooth);
+}
+
+.btn--tertiary:hover {
+    color: var(--accent-gold);
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+/* ============================================
+   SECCIONES CON INMERSIÓN
+   ============================================ */
+
+section {
+    position: relative;
+    padding: 80px var(--container-padding);
+}
+
+section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+}
+
+section::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+}
+
+/* Fondo alterno */
+section:nth-child(even) {
+    background: linear-gradient(135deg, rgba(25, 25, 25, 0.5) 0%, rgba(15, 20, 25, 0.3) 100%);
+}
+
+/* ============================================
+   TARJETAS CON EFECTO 3D
+   ============================================ */
+
+.card, .service-card, .feature-box {
+    position: relative;
+    background: linear-gradient(135deg, rgba(30, 30, 35, 0.9), rgba(25, 25, 30, 0.7));
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 8px;
+    padding: 32px;
+    backdrop-filter: blur(10px);
+    transition: all 0.4s var(--ease-smooth);
+    box-shadow: var(--shadow-medium);
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(600px at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(212, 175, 55, 0.1), transparent 80%);
+    opacity: 0;
+    transition: opacity 0.4s;
+}
+
+.card:hover {
+    transform: translateY(-8px) rotateX(3deg);
+    border-color: rgba(212, 175, 55, 0.5);
+    box-shadow: var(--shadow-deep), var(--glow-strong);
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+/* ============================================
+   TIPOGRAFÍA MEJORADA
+   ============================================ */
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--accent-gold);
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+    line-height: 1.2;
+}
+
+h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-copper));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+h2 {
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+    margin-bottom: 16px;
+}
+
+h3 {
+    font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+}
+
+p {
+    color: #c0c0c0;
+    font-size: 1.05rem;
+    line-height: 1.7;
+}
+
+/* ============================================
+   IMÁGENES DOCTORALES
+   ============================================ */
+
+img {
+    transition: all 0.5s var(--ease-smooth);
+    filter: brightness(0.95) contrast(1.05);
+}
+
+.image-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: var(--shadow-deep), 0 0 40px rgba(212, 175, 55, 0.2);
+}
+
+.image-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(255, 107, 53, 0.05));
+    z-index: 2;
+}
+
+.image-hero:hover {
+    transform: scale(1.05);
+    filter: brightness(1.05) contrast(1.1);
+}
+
+/* ============================================
+   ANIMACIONES CINEMATOGRÁFICAS
+   ============================================ */
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(212, 175, 55, 0.6);
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.animate-on-scroll {
+    animation: slideInUp 0.8s var(--ease-smooth) forwards;
+    opacity: 0;
+}
+
+.animate-on-scroll.visible {
+    opacity: 1;
+}
+
+/* ============================================
+   EFECTOS DE TEXTO
+   ============================================ */
+
+.text-gradient {
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-fire));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.text-glow {
+    text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+}
+
+.text-shadow-deep {
+    text-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        0 8px 16px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(212, 175, 55, 0.2);
+}
+
+/* ============================================
+   EFECTOS DE HOVER AVANZADOS
+   ============================================ */
+
+.hover-lift {
+    transition: all 0.4s var(--ease-smooth);
+}
+
+.hover-lift:hover {
+    transform: translateY(-8px);
+    filter: brightness(1.1);
+}
+
+.hover-glow {
+    transition: all 0.4s var(--ease-smooth);
+}
+
+.hover-glow:hover {
+    filter: drop-shadow(0 0 15px rgba(212, 175, 55, 0.5));
+}
+
+/* ============================================
+   LINEAS DECORATIVAS
+   ============================================ */
+
+.divider {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(212, 175, 55, 0.3), 
+        transparent);
+    margin: 40px 0;
+}
+
+.line-accent {
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-gold), var(--accent-fire));
+    margin: 0 0 20px 0;
+    border-radius: 2px;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+}
+
+/* ============================================
+   EFECTOS DE FONDO DINÁMICO
+   ============================================ */
+
+.bg-effect-grid {
+    position: relative;
+}
+
+.bg-effect-grid::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: 
+        linear-gradient(0deg, transparent 24%, rgba(212, 175, 55, 0.05) 25%, rgba(212, 175, 55, 0.05) 26%, transparent 27%, transparent 74%, rgba(212, 175, 55, 0.05) 75%, rgba(212, 175, 55, 0.05) 76%, transparent 77%, transparent),
+        linear-gradient(90deg, transparent 24%, rgba(212, 175, 55, 0.05) 25%, rgba(212, 175, 55, 0.05) 26%, transparent 27%, transparent 74%, rgba(212, 175, 55, 0.05) 75%, rgba(212, 175, 55, 0.05) 76%, transparent 77%, transparent);
+    background-size: 50px 50px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    h1 {
+        font-size: 2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    .card {
+        padding: 20px;
+    }
+
+    section {
+        padding: 60px var(--container-padding);
+    }
+}

@@ -43,7 +43,9 @@
     </script>
     <link rel="stylesheet" href="/css/tokens.css">
     <link rel="stylesheet" href="/css/buttons.css">
-    <link rel="stylesheet" href="styles.20260126-1.css">
+    <link rel="stylesheet" href="styles.20260126-1.css?v=20260617i">
+    <!-- Cursor y Diseño Profesional - Nivel Doctoral -->
+    <link rel="stylesheet" href="cursor-and-design.css?v=20260617g">
     <link rel="stylesheet" href="mapa-styles.20260107-1.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -262,11 +264,19 @@
     <script src="mapa-script.20260107-1.js"></script>
     <script src="dark-mode.js"></script>
     <script src="accessibility.js"></script>
+    <!-- Cursor Profesional - Llama Realista -->
+    <script src="custom-cursor-pro.js?v=20260617c"></script>
     
     <!-- Service Worker Registration -->
     <script>
-      if ('serviceWorker' in navigator) {
+            if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
+                    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                        navigator.serviceWorker.getRegistrations().then((registrations) => {
+                            registrations.forEach((registration) => registration.unregister());
+                        });
+                        return;
+                    }
           navigator.serviceWorker.register('/sw.js')
             .then(registration => {
               console.log('✅ SW registered:', registration.scope);
