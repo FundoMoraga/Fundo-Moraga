@@ -25,13 +25,8 @@ def generate_sitemap() -> str:
         else:
             ET.register_namespace('', uri)
     
-    # Root element
-    urlset = ET.Element('urlset')
-    for prefix, uri in namespaces.items():
-        if prefix:
-            urlset.set(f'xmlns:{prefix}', uri)
-        else:
-            urlset.set('xmlns', uri)
+    # Root element (namespace handled via ET registration to avoid duplicate xmlns attributes)
+    urlset = ET.Element(f"{{{namespaces['']}}}urlset")
     
     # Páginas estáticas
     static_pages = [

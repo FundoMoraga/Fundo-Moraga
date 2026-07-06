@@ -129,6 +129,14 @@ NEWS_SOURCES = [
     )
 ]
 
+
+def _token_param_for_model(model: str) -> str:
+    """Compatibilidad de nombre de limite de tokens por familia de modelo."""
+    normalized = (model or "").strip().lower()
+    if normalized.startswith("gpt-5") or normalized.startswith(("o1", "o3")):
+        return "max_completion_tokens"
+    return "max_tokens"
+
 class NewsAggregator:
     """Agrega noticias de múltiples fuentes y genera contenido original"""
     
@@ -138,6 +146,71 @@ class NewsAggregator:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (compatible; FundoMoragaBot/1.0; +https://fundomoraga.com)'
         })
+
+    def _azure_direct_chat_enabled(self) -> bool:
+        return bool(
+            config.AZURE_OPENAI_DIRECT_CHAT
+            and config.AZURE_OPENAI_API_KEY
+            and config.AZURE_OPENAI_CHAT_URL
+        )
+
+    def _generate_article_json(self, article_prompt: str) -> Dict[str, Any]:
+        """Usa la misma API activa del chat cuando Azure Direct Chat esta habilitado."""
+        system_prompt = (
+            "Eres un redactor experto en contenido automotriz. "
+            "Generas contenido 100% original, transformativo y detallado. "
+            "Tus articulos siempre superan los 1500 caracteres."
+        )
+
+        if self._azure_direct_chat_enabled():
+            payload: Dict[str, Any] = {
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": article_prompt},
+                ],
+                "temperature": 0.8,
+                "response_format": {"type": "json_object"},
+                "max_completion_tokens": 4000,
+            }
+            chat_url = (config.AZURE_OPENAI_CHAT_URL or "").strip().lower()
+            if "/openai/v1/" in chat_url and config.AZURE_OPENAI_DEPLOYMENT:
+                payload["model"] = config.AZURE_OPENAI_DEPLOYMENT
+            headers = {
+                "Content-Type": "application/json",
+                "api-key": config.AZURE_OPENAI_API_KEY,
+            }
+            response = requests.post(
+                config.AZURE_OPENAI_CHAT_URL,
+                headers=headers,
+                json=payload,
+                timeout=60,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            choices = data.get("choices") or []
+            if not choices:
+                raise RuntimeError("Azure OpenAI no devolvio opciones")
+
+            message = choices[0].get("message") or {}
+            content = (message.get("content") or "").strip()
+            if not content:
+                raise RuntimeError("Azure OpenAI devolvio contenido vacio")
+            return json.loads(content)
+
+        completion_args: Dict[str, Any] = {
+            "model": config.OPENAI_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": article_prompt},
+            ],
+            "temperature": 0.8,
+            "response_format": {"type": "json_object"},
+        }
+        token_param = _token_param_for_model(config.OPENAI_MODEL)
+        completion_args[token_param] = 4000
+        response = self.chatbot_ai.client.chat.completions.create(**completion_args)
+        return json.loads(response.choices[0].message.content)
 
     def _normalize_text(self, text: str) -> str:
         """Normaliza texto para comparaciones robustas (minusculas y sin acentos)."""
@@ -427,20 +500,7 @@ IMPORTANTE: El contenido debe ser 100% original, transformativo y añadir valor 
 
         try:
             print("🤖 Generando artículo original con IA...")
-            
-            # Usar el cliente OpenAI existente
-            response = self.chatbot_ai.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "Eres un redactor experto en contenido automotriz. Generas contenido 100% original, transformativo y detallado. Tus artículos siempre superan los 1500 caracteres."},
-                    {"role": "user", "content": article_prompt}
-                ],
-                temperature=0.8,  # Mayor creatividad
-                max_tokens=4000,  # Aumentado para artículos más largos
-                response_format={"type": "json_object"}
-            )
-            
-            article_data = json.loads(response.choices[0].message.content)
+            article_data = self._generate_article_json(article_prompt)
             
             # Generar imagen featured
             featured_image = self._generate_featured_image(
@@ -527,19 +587,7 @@ IMPORTANTE: Genera contenido original que agregue valor único. ¡No plagies!"""
         
         try:
             print(f"🤖 Generando artículo de {category}: {topic}")
-            
-            response = self.chatbot_ai.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "Eres un redactor experto en contenido automotriz. Generas contenido 100% original, transformativo y detallado. Tus artículos siempre superan los 1500 caracteres."},
-                    {"role": "user", "content": article_prompt}
-                ],
-                temperature=0.8,
-                max_tokens=4000,
-                response_format={"type": "json_object"}
-            )
-            
-            article_data = json.loads(response.choices[0].message.content)
+            article_data = self._generate_article_json(article_prompt)
             article_data["generated_at"] = datetime.now(timezone.utc).isoformat()
             article_data["status"] = "draft"
             article_data["author"] = "Hernando IA"
@@ -640,7 +688,8 @@ IMPORTANTE: Genera contenido original que agregue valor único. ¡No plagies!"""
         headlines = self.fetch_all_headlines(max_per_source=5)
         
         if not headlines:
-            raise ValueError("No se pudieron obtener titulares de ninguna fuente")
+            print("⚠️ No se obtuvieron titulares externos. Activando modo degradado con tópicos internos.")
+            headlines = []
         
         print(f"📰 Titulares agregados: {len(headlines)}")
         print("📝 Generando artículos por categoría...\n")

@@ -296,7 +296,7 @@ class BlogPublisher:
 
     <!-- Featured Image -->
     <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
-        <img src="{featured_image}" alt="{title}" style="width: 100%; height: auto; border-radius: 12px; margin: 40px 0; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+        <img src="{featured_image_url}" alt="{title}" style="width: 100%; height: auto; border-radius: 12px; margin: 40px 0; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
     </div>
 
     <!-- Article Content -->

@@ -256,6 +256,9 @@ def _azure_direct_chat(user_message: str, user_id: str = "") -> str:
         ],
         "max_completion_tokens": 700,
     }
+    chat_url = (config.AZURE_OPENAI_CHAT_URL or "").strip().lower()
+    if "/openai/v1/" in chat_url and config.AZURE_OPENAI_DEPLOYMENT:
+        payload["model"] = config.AZURE_OPENAI_DEPLOYMENT
     headers = {
         "Content-Type": "application/json",
         "api-key": config.AZURE_OPENAI_API_KEY,

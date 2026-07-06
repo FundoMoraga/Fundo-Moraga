@@ -21,12 +21,15 @@ class PexelsClient:
         Args:
             api_key: Clave API de Pexels (opcional - sin clave funciona con límites)
         """
-        self.api_key = api_key
+        self.api_key = (api_key or "").strip()
+        self.enabled = bool(self.api_key and len(self.api_key) >= 20)
         self.headers = {
             "User-Agent": "Fundo-Moraga-Blog/1.0"
         }
-        if api_key:
-            self.headers["Authorization"] = api_key
+        if self.enabled:
+            self.headers["Authorization"] = self.api_key
+        else:
+            logger.info("ℹ️ Pexels deshabilitado: falta PEXELS_API_KEY valida, se usara imagen fallback.")
     
     def search_images(
         self,
@@ -47,6 +50,8 @@ class PexelsClient:
         Returns:
             Lista de imágenes con información de URLs
         """
+        if not self.enabled:
+            return []
         try:
             url = f"{self.BASE_URL}/search"
             params: Dict[str, Any] = {
@@ -88,6 +93,8 @@ class PexelsClient:
         Returns:
             Lista de imágenes curadas
         """
+        if not self.enabled:
+            return []
         try:
             url = f"{self.BASE_URL}/curated"
             params: Dict[str, Any] = {
