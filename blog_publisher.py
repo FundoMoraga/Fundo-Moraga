@@ -11,6 +11,8 @@ from pathlib import Path
 from cosmos_client import get_conversation_store
 import config
 
+DEFAULT_BLOG_FEATURED_IMAGE = "https://www.fundomoraga.com/assets/images/Humedal%20de%20Batuco.jpeg"
+
 class BlogPublisher:
     """Publica artículos generados al blog HTML estático"""
     
@@ -68,10 +70,10 @@ class BlogPublisher:
         published_date = article.get("published_at", article.get("generated_at", datetime.now(timezone.utc).isoformat()))
         
         # Obtener imagen destacada (puede ser dict de Pexels o string directo de DALL-E)
-        featured_image_raw = article.get("featured_image", "https://fundomoragastorage.blob.core.windows.net/assets/images/blog-default.jpg")
+        featured_image_raw = article.get("featured_image", DEFAULT_BLOG_FEATURED_IMAGE)
         if isinstance(featured_image_raw, dict):
             # Formato Pexels: {"url": "...", "attribution": "..."}
-            featured_image_url = featured_image_raw.get("url", "https://fundomoragastorage.blob.core.windows.net/assets/images/blog-default.jpg")
+            featured_image_url = featured_image_raw.get("url", DEFAULT_BLOG_FEATURED_IMAGE)
             featured_image_attr = featured_image_raw.get("attribution", "")
         else:
             # Formato string directo (DALL-E o URL simple)
@@ -293,11 +295,6 @@ class BlogPublisher:
             </div>
         </div>
     </header>
-
-    <!-- Featured Image -->
-    <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
-        <img src="{featured_image_url}" alt="{title}" style="width: 100%; height: auto; border-radius: 12px; margin: 40px 0; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-    </div>
 
     <!-- Article Content -->
     <main id="article-content">
