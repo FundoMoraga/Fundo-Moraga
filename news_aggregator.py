@@ -12,7 +12,23 @@ import time
 from openai_client import get_chatbot_ai
 import config
 import re
+import unicodedata
 from pexels_client import get_pexels_client
+
+FALLBACK_BLOG_IMAGE_URL = "https://fundomoragastorage.blob.core.windows.net/assets/images/blog-default.jpg"
+
+# Marcas para validacion semantica basica de coherencia titulo/imagen
+KNOWN_AUTO_BRANDS = {
+    "toyota", "maxus", "changan", "mercedes", "lamborghini", "ford", "nissan", "chevrolet",
+    "mitsubishi", "jeep", "subaru", "suzuki", "kia", "hyundai", "renault", "peugeot",
+    "volkswagen", "audi", "bmw", "honda", "mazda", "fiat", "land", "rover", "gwm", "jac"
+}
+
+GENERIC_MODEL_STOPWORDS = {
+    "nuevos", "nuevo", "nueva", "nuevas", "disenados", "disenada", "aventura", "off", "road",
+    "chile", "analisis", "mercado", "llega", "futuro", "tendencias", "camionetas", "suv", "suvs",
+    "segmento", "modelo", "modelos", "turismo", "experiencia", "mejores", "lanzamientos"
+}
 
 # Categorías de artículos del blog con tópicos específicos
 BLOG_CATEGORIES = {
@@ -122,6 +138,123 @@ class NewsAggregator:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (compatible; FundoMoragaBot/1.0; +https://fundomoraga.com)'
         })
+
+    def _normalize_text(self, text: str) -> str:
+        """Normaliza texto para comparaciones robustas (minusculas y sin acentos)."""
+        if not text:
+            return ""
+        normalized = unicodedata.normalize("NFKD", text)
+        normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+        return normalized.lower()
+
+    def _extract_vehicle_entities(self, title: str) -> Dict[str, Any]:
+        """Extrae marca esperada y tokens de modelo desde el titulo."""
+        t = self._normalize_text(title)
+        words = re.findall(r"[a-z0-9]+", t)
+
+        expected_brand = None
+        for brand in KNOWN_AUTO_BRANDS:
+            if re.search(rf"\b{re.escape(brand)}\b", t):
+                expected_brand = brand
+                break
+
+        model_tokens: List[str] = []
+        if expected_brand and expected_brand in words:
+            bidx = words.index(expected_brand)
+            for w in words[bidx + 1:bidx + 5]:
+                if w in GENERIC_MODEL_STOPWORDS:
+                    continue
+                if w.isdigit() and len(w) == 4:
+                    continue
+                if len(w) < 2:
+                    continue
+                model_tokens.append(w)
+
+        # Tokens con letras+numeros suelen ser buenos identificadores de modelo (ej: t90)
+        for w in words:
+            if re.search(r"[a-z]+\d+|\d+[a-z]+", w) and w not in model_tokens:
+                model_tokens.append(w)
+
+        # Limitar ruido
+        model_tokens = model_tokens[:3]
+
+        return {
+            "brand": expected_brand,
+            "model_tokens": model_tokens,
+            "title_norm": t,
+        }
+
+    def _build_image_queries(self, article_title: str, category: str, vehicle_entities: Dict[str, Any]) -> List[str]:
+        """Construye queries en orden de precision para evitar imagenes incongruentes."""
+        expected_brand = vehicle_entities.get("brand")
+        model_tokens: List[str] = vehicle_entities.get("model_tokens", [])
+
+        queries: List[str] = []
+        if expected_brand:
+            model_part = " ".join(model_tokens).strip()
+            if model_part:
+                queries.append(f"{expected_brand} {model_part} 4x4")
+                queries.append(f"{expected_brand} {model_part} suv")
+                queries.append(f"{expected_brand} {model_part} pickup")
+            queries.append(f"{expected_brand} 4x4")
+            queries.append(f"{expected_brand} suv")
+            queries.append(f"{expected_brand} pickup truck")
+
+        if category == "historia":
+            queries.extend(["off-road tradition", "truck history", "4x4 adventure chile"])
+        elif category == "guías":
+            queries.extend(["vehicle maintenance", "4x4 repair", "truck preparation"])
+        elif category == "rutas":
+            queries.extend(["off-road trail", "mountain road", "adventure landscape"])
+        elif category == "eventos":
+            queries.extend(["off-road competition", "4x4 rally", "adventure sports"])
+        else:
+            queries.extend(["4x4 truck", "off-road vehicle", "automotive news"])
+
+        # dedupe preservando orden
+        seen = set()
+        deduped = []
+        for q in queries:
+            qq = q.strip().lower()
+            if qq and qq not in seen:
+                seen.add(qq)
+                deduped.append(q)
+        return deduped
+
+    def _photo_relevance_score(self, photo: Dict[str, Any], vehicle_entities: Dict[str, Any]) -> int:
+        """Calcula puntaje de relevancia y descarta marcas contradictorias."""
+        text = self._normalize_text(
+            f"{photo.get('alt', '')} {photo.get('photographer', '')} {photo.get('url', '')}"
+        )
+
+        expected_brand = vehicle_entities.get("brand")
+        model_tokens: List[str] = vehicle_entities.get("model_tokens", [])
+        score = 0
+
+        if expected_brand:
+            if re.search(rf"\b{re.escape(expected_brand)}\b", text):
+                score += 60
+            else:
+                # Si el titulo exige marca y la foto no la evidencia, baja fuerte
+                score -= 40
+
+            # Penalizacion extrema por marca contradictoria
+            for b in KNOWN_AUTO_BRANDS:
+                if b == expected_brand:
+                    continue
+                if re.search(rf"\b{re.escape(b)}\b", text):
+                    score -= 120
+
+            for token in model_tokens:
+                if re.search(rf"\b{re.escape(token)}\b", text):
+                    score += 25
+        else:
+            # Sin marca objetivo, preferir descriptores off-road
+            for token in ("off", "road", "4x4", "suv", "pickup", "trail", "adventure"):
+                if re.search(rf"\b{re.escape(token)}\b", text):
+                    score += 8
+
+        return score
     
     def fetch_headlines(self, source: NewsSource, max_items: int = 5) -> List[Dict[str, str]]:
         """
@@ -438,55 +571,59 @@ IMPORTANTE: Genera contenido original que agregue valor único. ¡No plagies!"""
         """
         try:
             pexels = get_pexels_client(api_key=config.PEXELS_API_KEY)
-            
-            # Crear términos de búsqueda basados en categoría y título
-            search_queries = []
-            
-            if category == "historia":
-                search_queries = ["4x4 adventure Chile", "off-road tradition", "truck history"]
-            elif category == "guías":
-                search_queries = ["vehicle maintenance", "4x4 repair", "truck preparation"]
-            elif category == "rutas":
-                search_queries = ["off-road trail", "mountain road", "adventure landscape"]
-            elif category == "eventos":
-                search_queries = ["off-road competition", "4x4 rally", "adventure sports"]
-            elif category == "noticias":
-                search_queries = ["4x4 truck", "off-road vehicle", "automotive news"]
-            else:
-                search_queries = ["4x4 off-road", "adventure", "outdoor"]
-            
-            # Intentar búsquedas en orden hasta obtener resultados
-            for query in search_queries:
-                photos = pexels.search_images(query, per_page=5, orientation="landscape")
-                if photos:
-                    best_photo = photos[0]
-                    image_url = pexels.get_best_image_url(photos, size="large")
-                    
-                    if image_url:
-                        return {
-                            "url": image_url,
-                            "photographer": best_photo.get("photographer", "Photographer"),
-                            "source": "pexels",
-                            "attribution": pexels.format_attribution(best_photo)
-                        }
-            
-            # Fallback: usar imágenes curadas si la búsqueda falla
-            curated_photos = pexels.get_curated_images(per_page=5, orientation="landscape")
-            if curated_photos:
-                image_url = pexels.get_best_image_url(curated_photos, size="large")
+            entities = self._extract_vehicle_entities(article_title)
+            expected_brand = entities.get("brand")
+            queries = self._build_image_queries(article_title, category, entities)
+
+            best_photo: Optional[Dict[str, Any]] = None
+            best_score = -999
+
+            for query in queries:
+                photos = pexels.search_images(query, per_page=12, orientation="landscape")
+                if not photos:
+                    continue
+
+                for photo in photos:
+                    score = self._photo_relevance_score(photo, entities)
+                    if score > best_score:
+                        best_score = score
+                        best_photo = photo
+
+                # Corte temprano solo si hay alta confianza real
+                if expected_brand and best_score >= 80:
+                    break
+                if not expected_brand and best_score >= 45:
+                    break
+
+            # Regla anti-error: si el titulo menciona marca y no hay confianza alta, usar imagen neutra
+            required_score = 70 if expected_brand else 35
+            if best_photo and best_score >= required_score:
+                src = best_photo.get("src", {})
+                image_url = src.get("large") or src.get("medium") or src.get("small")
                 if image_url:
                     return {
                         "url": image_url,
-                        "photographer": curated_photos[0].get("photographer", "Photographer"),
+                        "photographer": best_photo.get("photographer", "Photographer"),
                         "source": "pexels",
-                        "attribution": pexels.format_attribution(curated_photos[0])
+                        "attribution": pexels.format_attribution(best_photo),
                     }
-            
-            return None
-            
+
+            # Fallback seguro: imagen referencial neutra para evitar asociaciones de marca incorrectas.
+            return {
+                "url": FALLBACK_BLOG_IMAGE_URL,
+                "photographer": "Fundo Moraga",
+                "source": "fallback_local",
+                "attribution": "Imagen referencial de Fundo Moraga",
+            }
+
         except Exception as e:
             print(f"   ⚠️  No se pudo obtener imagen: {e}")
-            return None
+            return {
+                "url": FALLBACK_BLOG_IMAGE_URL,
+                "photographer": "Fundo Moraga",
+                "source": "fallback_local",
+                "attribution": "Imagen referencial de Fundo Moraga",
+            }
     
     def create_daily_digest(self) -> Dict[str, Any]:
         """
