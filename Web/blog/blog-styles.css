@@ -449,6 +449,36 @@ body[data-theme="dark"] .search-bar input {
 }
 
 @media (max-width: 768px) {
+    .navbar {
+        z-index: 3000;
+    }
+
+    .nav-wrapper {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .mobile-menu-toggle {
+        display: none !important;
+    }
+
+    .nav-links {
+        position: static !important;
+        left: 0 !important;
+        width: 100%;
+        padding: 0;
+        margin-top: 4px;
+        max-height: none;
+        overflow: visible;
+        box-shadow: none;
+        background: transparent;
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 8px;
+        z-index: 2999;
+    }
+
     .blog-hero {
         min-height: 50vh;
         padding: 80px 20px 40px;

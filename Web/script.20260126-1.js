@@ -300,15 +300,8 @@ const initIntro = () => {
         document.body.style.overflow = 'auto';
 
         setTimeout(() => {
-            const chatWindow = document.getElementById('chatWindow');
-            const chatBadge = document.querySelector('.chat-badge');
-            if (chatWindow) {
-                chatWindow.classList.add('active');
-                setChatOpen(true);
-                if (chatBadge) chatBadge.style.display = 'none';
-            }
-            try { initHernandoGreeting({ force: true }); } catch (e) {}
-        }, 1500);
+            try { initHernandoGreeting(); } catch (e) {}
+        }, 800);
     };
 
     const hideIntro = () => {
@@ -458,26 +451,32 @@ window.addEventListener('scroll', () => {
 });
 
 // Mobile menu toggle
-mobileMenuToggle?.addEventListener('click', () => {
-    navLinks.classList.toggle('active');
-    
-    // Animate hamburger
-    const spans = mobileMenuToggle.querySelectorAll('span');
-    if (navLinks.classList.contains('active')) {
-        spans[0].style.transform = 'rotate(45deg) translate(7px, 7px)';
-        spans[1].style.opacity = '0';
-        spans[2].style.transform = 'rotate(-45deg) translate(7px, -7px)';
-    } else {
-        spans[0].style.transform = '';
-        spans[1].style.opacity = '1';
-        spans[2].style.transform = '';
-    }
-});
+if (mobileMenuToggle && navLinks && !mobileMenuToggle.dataset.menuBound) {
+    mobileMenuToggle.dataset.menuBound = '1';
+    mobileMenuToggle.addEventListener('click', () => {
+        navLinks.classList.toggle('active');
+        const isOpen = navLinks.classList.contains('active');
+        mobileMenuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+        // Animate hamburger
+        const spans = mobileMenuToggle.querySelectorAll('span');
+        if (isOpen) {
+            spans[0].style.transform = 'rotate(45deg) translate(7px, 7px)';
+            spans[1].style.opacity = '0';
+            spans[2].style.transform = 'rotate(-45deg) translate(7px, -7px)';
+        } else {
+            spans[0].style.transform = '';
+            spans[1].style.opacity = '1';
+            spans[2].style.transform = '';
+        }
+    });
+}
 
 // Close mobile menu when clicking a link
 document.querySelectorAll('.nav-links a').forEach(link => {
     link.addEventListener('click', () => {
         navLinks.classList.remove('active');
+        mobileMenuToggle?.setAttribute('aria-expanded', 'false');
         const spans = mobileMenuToggle?.querySelectorAll('span');
         spans?.forEach(span => {
             span.style.transform = '';
@@ -499,9 +498,13 @@ const chatBadge = document.querySelector('.chat-badge');
 
 // Configuration
 const RAILWAY_API_URL = (() => {
-    const host = window.location.hostname;
-    const isLocal = host === 'localhost' || host === '127.0.0.1';
-    return isLocal ? '/api' : 'https://fundo-moraga-chat-api.onrender.com/api';
+    const explicit = window.__HERNANDO_API_URL || window.HERNANDO_API_URL;
+    if (typeof explicit === 'string' && explicit.trim()) {
+        return explicit.trim().replace(/\/+$/, '');
+    }
+    const host = (window.location.hostname || '').toLowerCase();
+    const isProdHost = host === 'fundomoraga.com' || host.endsWith('.fundomoraga.com');
+    return isProdHost ? '/api' : 'https://fundo-moraga-chat-api.onrender.com/api';
 })();
 const DEFAULT_GREETING = '¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?';
 let _hernandoGreetingInitialized = false;
@@ -615,6 +618,15 @@ async function initHernandoGreeting(options = {}) {
     }
 
     const userId = getOrCreateUserId();
+    const host = (window.location.hostname || '').toLowerCase();
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+
+    if (isLocalHost) {
+        addMessageToChat(DEFAULT_GREETING, 'bot');
+        sessionStorage.setItem('hernando_greeted', '1');
+        _hernandoGreetingInitialized = true;
+        return;
+    }
 
     try {
         const response = await fetch(`${RAILWAY_API_URL}/chat/init`, {

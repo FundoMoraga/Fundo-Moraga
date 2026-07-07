@@ -184,26 +184,34 @@
     // ============================================
     const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
     const navLinks = document.querySelector('.nav-links');
-    
-    mobileMenuToggle?.addEventListener('click', () => {
-        const isExpanded = mobileMenuToggle.getAttribute('aria-expanded') === 'true';
-        
-        mobileMenuToggle.setAttribute('aria-expanded', !isExpanded);
-        navLinks?.classList.toggle('active');
-        
-        // Animate hamburger
-        const spans = mobileMenuToggle.querySelectorAll('span');
-        if (!isExpanded) {
-            spans[0].style.transform = 'rotate(45deg) translate(7px, 7px)';
-            spans[1].style.opacity = '0';
-            spans[2].style.transform = 'rotate(-45deg) translate(7px, -7px)';
-        } else {
-            spans.forEach(span => {
-                span.style.transform = '';
-                span.style.opacity = '1';
-            });
-        }
-    });
+
+    if (mobileMenuToggle && navLinks) {
+        const handleMobileMenuToggle = (event) => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            const isExpanded = mobileMenuToggle.getAttribute('aria-expanded') === 'true';
+            const nextExpanded = (!isExpanded).toString();
+            mobileMenuToggle.setAttribute('aria-expanded', nextExpanded);
+            navLinks.classList.toggle('active', nextExpanded === 'true');
+
+            // Animate hamburger
+            const spans = mobileMenuToggle.querySelectorAll('span');
+            if (!isExpanded) {
+                spans[0].style.transform = 'rotate(45deg) translate(7px, 7px)';
+                spans[1].style.opacity = '0';
+                spans[2].style.transform = 'rotate(-45deg) translate(7px, -7px)';
+            } else {
+                spans.forEach(span => {
+                    span.style.transform = '';
+                    span.style.opacity = '1';
+                });
+            }
+        };
+
+        // Capture=true para evitar conflictos con otros listeners globales.
+        mobileMenuToggle.addEventListener('click', handleMobileMenuToggle, true);
+    }
     
     // ============================================
     // SCROLL TO TOP

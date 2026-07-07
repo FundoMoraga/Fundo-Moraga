@@ -245,7 +245,7 @@ a {
     right: 0;
     background: #000000;
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
+    z-index: 1300;
     transition: var(--transition);
 }
 
@@ -1319,7 +1319,7 @@ section {
     bottom: 30px;
     left: 30px;
     right: auto;
-    z-index: 999;
+    z-index: 1200;
 }
 
 .chat-toggle {
@@ -1387,6 +1387,7 @@ section {
     display: none;
     flex-direction: column;
     overflow: hidden;
+    z-index: 1201;
 }
 
 .chat-window.active {
@@ -1582,6 +1583,7 @@ section {
         padding: 40px 20px;
         box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
         transition: var(--transition);
+        z-index: 1301;
     }
 
     .nav-links.active {
@@ -1590,6 +1592,8 @@ section {
 
     .mobile-menu-toggle {
         display: flex;
+        position: relative;
+        z-index: 1302;
     }
 
     .nav-links .btn-map {
@@ -1612,6 +1616,7 @@ section {
         transition: var(--transition);
         max-height: calc(100svh - 80px);
         overflow-y: auto;
+        z-index: 1301;
     }
 
     .nav-links.active {
@@ -1620,6 +1625,8 @@ section {
 
     .mobile-menu-toggle {
         display: flex;
+        position: relative;
+        z-index: 1302;
     }
 
     .about-content,
@@ -1637,11 +1644,11 @@ section {
     }
 
     .chat-window {
-        width: calc(100vw - 40px);
-        right: 20px;
-        bottom: 100px;
-        height: min(520px, calc(100svh - 140px));
-        max-height: calc(100svh - 140px);
+        width: calc(100vw - 24px);
+        right: 12px;
+        bottom: 92px;
+        height: min(460px, calc(100svh - 120px));
+        max-height: calc(100svh - 120px);
     }
 }
 
