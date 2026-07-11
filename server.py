@@ -1006,6 +1006,53 @@ def api_reservas():
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
+@app.route('/api/contacto', methods=['POST'])
+def api_contacto():
+    """
+    Recibe el formulario general de contacto (Web/index.html, sección #contacto) y
+    notifica al equipo por email. Endpoint público. A diferencia de /api/reservas, no
+    requiere fecha (es una consulta general, no necesariamente una reserva con fecha).
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+
+        nombre = (data.get('name') or '').strip()
+        email = (data.get('email') or '').strip()
+        telefono = (data.get('phone') or '').strip()
+        servicio = (data.get('service') or '').strip()
+        mensaje = (data.get('message') or '').strip()
+
+        if not (nombre and email and telefono and servicio and mensaje):
+            return jsonify({"error": "Faltan campos requeridos (name, email, phone, service, message)"}), 400
+
+        from resend_client import get_resend_client
+        resend_client_instance = get_resend_client()
+
+        if not resend_client_instance.is_configured():
+            print("[CONTACTO] ⚠️ Email no configurado (SMTP/Resend); no se puede notificar la solicitud.")
+            return jsonify({"error": "Servicio de notificaciones no disponible, contáctanos por WhatsApp"}), 503
+
+        conversation_id = f"contacto_web_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        result = resend_client_instance.send_contact_sheet(
+            user_name=nombre,
+            user_contact=f"{telefono} / {email}",
+            user_interest=servicio,
+            conversation_id=conversation_id,
+            platform="Web - Formulario de Contacto",
+            notes=mensaje,
+        )
+
+        if not result.get("success"):
+            print(f"[CONTACTO] Error enviando notificación: {result.get('error')}")
+            return jsonify({"error": "No se pudo procesar la solicitud, contáctanos por WhatsApp"}), 502
+
+        return jsonify({"ok": True}), 200
+
+    except Exception as e:
+        print(f"[ERROR] Error en /api/contacto: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+
 # ============= WHATSAPP (WAHA) WEBHOOK =============
 
 @app.route('/webhook/whatsapp', methods=['POST'])
@@ -1334,6 +1381,17 @@ def api_docs():
                     "paquete": "string (requerido)",
                     "personas": "number (opcional)",
                     "mensaje": "string (opcional)"
+                }
+            },
+            "/api/contacto": {
+                "method": "POST",
+                "description": "Formulario general de contacto (Web/index.html)",
+                "body": {
+                    "name": "string (requerido)",
+                    "email": "string (requerido)",
+                    "phone": "string (requerido)",
+                    "service": "string (requerido)",
+                    "message": "string (requerido)"
                 }
             }
         },

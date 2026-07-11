@@ -14,6 +14,10 @@
     <meta property="og:image" content="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png">
     
     <link rel="canonical" href="https://fundomoraga.com/reservas.html">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/favicon-16.png">
+    <link rel="apple-touch-icon" href="/assets/images/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#d4af37">
     
@@ -114,6 +118,12 @@
             font-size: 1.8rem;
             margin-bottom: 10px;
             font-weight: 700;
+            /* La regla global h1..h6 aplica color dorado + text-shadow oscuro pensado para
+               fondos oscuros; acá el encabezado va sobre un fondo claro (gradiente dorado)
+               con texto blanco a propósito (heredado de .package-header), así que se anula
+               el shadow para que no se vea como un halo/texto duplicado. */
+            color: #fff;
+            text-shadow: none;
         }
         
         .package-price {

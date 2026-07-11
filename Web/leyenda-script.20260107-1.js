@@ -419,6 +419,19 @@
         const duration = document.getElementById('audioDuration');
         const mute = document.getElementById('audioMute');
 
+        // Antes, si el <audio> no existía (el archivo de relato aún no está subido, ver
+        // comentario junto a #audioRelato en leyenda.html), esta función retornaba sin hacer
+        // nada, pero dejaba visibles y con apariencia interactiva los controles del
+        // reproductor (play, mute, barra de progreso), que no respondían a ningún clic sin
+        // avisar por qué. Ahora se oculta el reproductor y se muestra un aviso claro.
+        if (!audio && player) {
+            player.classList.add('audio-player--unavailable');
+            const unavailableNote = document.createElement('p');
+            unavailableNote.className = 'audio-unavailable-note';
+            unavailableNote.textContent = 'El relato en audio estará disponible próximamente.';
+            player.replaceWith(unavailableNote);
+            return () => {};
+        }
         if (!audio || !player || !toggle || !track || !fill) return () => {};
 
         const formatTime = (seconds) => {

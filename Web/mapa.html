@@ -6,8 +6,12 @@
     <meta name="description" content="Mapa virtual del Fundo Moraga: rutas Batuco Off Road con vista satelital y detalles.">
     
     <link rel="canonical" href="https://fundomoraga.com/mapa.html">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/favicon-16.png">
+    <link rel="apple-touch-icon" href="/assets/images/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1a1a1a">
+    <meta name="theme-color" content="#d4af37">
     
     <title>Mapa Virtual | Fundo Moraga</title>
     
@@ -36,7 +40,6 @@
       gtag('config', 'G-43GCJKN7KX', {'anonymize_ip': true});
     </script>
     
-    <link rel="icon" type="image/png" href="https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png">
     <script>
         document.documentElement.classList.remove('no-js');
         document.documentElement.classList.add('js');
@@ -175,7 +178,14 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""
     ></script>
-    <script src="https://unpkg.com/@tmcw/togeojson@0.16.0/dist/togeojson.umd.js"></script>
+    <!-- v0.16.0 nunca existió publicada (siempre devolvía 404 y el mapa fallaba con
+         "toGeoJSON no disponible"); v5.6.2 es la última versión que aún publica el build
+         UMD y expone window.toGeoJSON.kml(), que es lo que usa mapa-script.js. -->
+    <script
+        src="https://unpkg.com/@tmcw/togeojson@5.6.2/dist/togeojson.umd.js"
+        integrity="sha256-8v2Nuou2qezgysPx4/Hz67Zj4zjYfHnYw6mKbqSutS4="
+        crossorigin="anonymous"
+    ></script>
     <script>
         (function () {
             'use strict';

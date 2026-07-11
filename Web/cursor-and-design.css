@@ -1330,13 +1330,25 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1.2;
 }
 
-h1 {
+/* Antes esto era un selector "h1" genérico: el gradiente con background-clip:text +
+   -webkit-text-fill-color:transparent se aplicaba a TODO <h1> del sitio (historia.html,
+   mapa.html, reservas.html, el título del blog, etc.), no solo al hero de la portada donde
+   se diseñó. Combinado con el color/text-shadow blanco de fallback de cada página, producía
+   un efecto de texto "fantasma" duplicado. Se acota a .hero-title, que es el único lugar
+   donde realmente se usa (index.html). El resto de h1 mantiene el color sólido + text-shadow
+   de la regla h1..h6 de arriba, sin el recorte de gradiente. */
+h1.hero-title {
     font-size: clamp(2.5rem, 5vw, 4rem);
     margin-bottom: 20px;
     background: linear-gradient(135deg, var(--accent-gold), var(--accent-fire-light));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    margin-bottom: 20px;
 }
 
 h2 {

@@ -472,6 +472,18 @@ html.js {
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
+/* Reemplaza a .audio-player cuando el archivo de relato aún no está disponible
+   (ver initAudioPlayer en leyenda-script). */
+.audio-unavailable-note {
+    margin: 0;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px dashed rgba(212, 175, 55, 0.28);
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(176, 176, 176, 0.85);
+    font-style: italic;
+}
+
 .audio-toggle {
     display: inline-flex;
     align-items: center;

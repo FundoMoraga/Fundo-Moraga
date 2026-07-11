@@ -497,6 +497,7 @@ const chatBody = document.getElementById('chatBody');
 const chatBadge = document.querySelector('.chat-badge');
 
 // Configuration
+// RAILWAY_API_URL: backend Flask del propio sitio (formularios: /api/reservas, /api/contacto).
 const RAILWAY_API_URL = (() => {
     const explicit = window.__HERNANDO_API_URL || window.HERNANDO_API_URL;
     if (typeof explicit === 'string' && explicit.trim()) {
@@ -506,8 +507,32 @@ const RAILWAY_API_URL = (() => {
     const isProdHost = host === 'fundomoraga.com' || host.endsWith('.fundomoraga.com');
     return isProdHost ? '/api' : 'https://fundo-moraga-chat-api.onrender.com/api';
 })();
+
+// HERNANDO_CHAT_API_URL: backend del chat conversacional. Es FundoMoragaIA (endpoint
+// público /api/chat/public, sin login), el mismo que atiende asistente.fundomoraga.com.
+const HERNANDO_CHAT_API_URL = (() => {
+    const explicit = window.__HERNANDO_CHAT_API_URL || window.HERNANDO_CHAT_API_URL;
+    if (typeof explicit === 'string' && explicit.trim()) {
+        return explicit.trim().replace(/\/+$/, '');
+    }
+    return 'https://asistente.fundomoraga.com';
+})();
+
 const DEFAULT_GREETING = '¡Hola! Soy Hernando, tu anfitrión en el Fundo Moraga. ¿En qué puedo ayudarte?';
 let _hernandoGreetingInitialized = false;
+// Historial de la conversación en memoria (se envía en cada turno para dar contexto al
+// modelo); el backend además persiste por sessionId para continuidad entre recargas.
+let chatConversation = [];
+
+function getOrCreateChatSessionId() {
+    let sessionId = '';
+    try { sessionId = localStorage.getItem('hernando_chat_session_id') || ''; } catch {}
+    if (!/^[a-zA-Z0-9_-]{8,120}$/.test(sessionId)) {
+        sessionId = 'web_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+        try { localStorage.setItem('hernando_chat_session_id', sessionId); } catch {}
+    }
+    return sessionId;
+}
 
 // Toggle chat window
 chatToggle?.addEventListener('click', () => {
@@ -527,66 +552,106 @@ chatClose?.addEventListener('click', () => {
     chatWindow.classList.remove('active');
 });
 
-// Send message function
+// Send message function (streaming SSE contra FundoMoragaIA)
 async function sendMessage(message) {
-    if (!message.trim()) return;
-    
+    const trimmed = message.trim();
+    if (!trimmed) return;
+
     // Add user message to chat
-    addMessageToChat(message, 'user');
+    addMessageToChat(trimmed, 'user');
+    chatConversation.push({ role: 'user', content: trimmed });
     chatInput.value = '';
-    
+
     // Show typing indicator
     const typingIndicator = addTypingIndicator();
-    
+    let botBubble = null;
+    let visibleText = '';
+    let rawText = '';
+    const removeTyping = () => { if (typingIndicator.isConnected) typingIndicator.remove(); };
+
     try {
-        // Call Hernando API
-        console.log('Enviando mensaje a Hernando:', message);
-        const response = await fetch(`${RAILWAY_API_URL}/chat`, {
+        const response = await fetch(`${HERNANDO_CHAT_API_URL}/api/chat/public`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_id: getOrCreateUserId(),
-                message: message
+                messages: chatConversation.slice(-20),
+                sessionId: getOrCreateChatSessionId()
             })
         });
-        
-        console.log('Respuesta recibida:', response.status, response.statusText);
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('Datos:', data);
-            typingIndicator.remove();
-            addMessageToChat(data.response || data.message || 'Gracias por tu mensaje. Te responderé pronto.', 'bot');
-        } else {
-            const errorText = await response.text();
-            console.error('Error en respuesta:', response.status, errorText);
-            throw new Error(`Error ${response.status}: ${errorText}`);
+
+        if (!response.ok || !response.body) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine.startsWith('data: ')) continue;
+                const dataStr = trimmedLine.slice(6);
+                if (dataStr === '[DONE]') continue;
+
+                let parsed;
+                try { parsed = JSON.parse(dataStr); } catch { continue; }
+
+                if (parsed.error) throw new Error(parsed.error);
+                if (typeof parsed.t !== 'string') continue;
+
+                rawText += parsed.t;
+                // El backend puede agregar un bloque ```lead_capture {...}``` al final de
+                // la respuesta para avisar al equipo por email; nunca debe mostrarse al
+                // usuario. Mientras llega en vivo, se oculta todo desde que se abre el fence.
+                const fenceIdx = rawText.indexOf('```lead_capture');
+                visibleText = fenceIdx === -1 ? rawText : rawText.slice(0, fenceIdx).trimEnd();
+
+                removeTyping();
+                if (!botBubble) botBubble = addMessageToChat('', 'bot');
+                botBubble.querySelector('p').textContent = visibleText;
+                chatBody.scrollTop = chatBody.scrollHeight;
+            }
+        }
+
+        removeTyping();
+        if (!visibleText) {
+            visibleText = 'Gracias por tu mensaje. Te responderé pronto.';
+            addMessageToChat(visibleText, 'bot');
+        }
+        chatConversation.push({ role: 'assistant', content: visibleText });
     } catch (error) {
-        console.error('Error completo:', error);
-        typingIndicator.remove();
+        console.error('Error en chat:', error);
+        removeTyping();
+        if (botBubble) botBubble.remove();
         addMessageToChat('Lo siento, hay un problema de conexión. Por favor intenta más tarde o contáctanos al +56 9 4124 2609', 'bot');
     }
-    
+
     // Scroll to bottom
     chatBody.scrollTop = chatBody.scrollHeight;
 }
 
-// Add message to chat UI
+// Add message to chat UI. Devuelve el nodo para poder actualizarlo en vivo (streaming).
 function addMessageToChat(text, sender) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${sender}`;
-    
+
     const messageP = document.createElement('p');
     messageP.textContent = text;
-    
+
     messageDiv.appendChild(messageP);
     chatBody.appendChild(messageDiv);
-    
+
     // Scroll to bottom
     chatBody.scrollTop = chatBody.scrollHeight;
+    return messageDiv;
 }
 
 // Add typing indicator
@@ -617,49 +682,14 @@ async function initHernandoGreeting(options = {}) {
         return;
     }
 
-    const userId = getOrCreateUserId();
-    const host = (window.location.hostname || '').toLowerCase();
-    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-
-    if (isLocalHost) {
-        addMessageToChat(DEFAULT_GREETING, 'bot');
-        sessionStorage.setItem('hernando_greeted', '1');
-        _hernandoGreetingInitialized = true;
-        return;
-    }
-
-    try {
-        const response = await fetch(`${RAILWAY_API_URL}/chat/init`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: userId })
-        });
-
-        let greeting = DEFAULT_GREETING;
-        if (response.ok) {
-            const data = await response.json();
-            if (data?.greeting) greeting = data.greeting;
-        }
-
-        addMessageToChat(greeting, 'bot');
-        sessionStorage.setItem('hernando_greeted', '1');
-        _hernandoGreetingInitialized = true;
-    } catch (e) {
-        // Fallback silencioso
-        addMessageToChat(DEFAULT_GREETING, 'bot');
-        sessionStorage.setItem('hernando_greeted', '1');
-        _hernandoGreetingInitialized = true;
-    }
-}
-
-// Get or create user ID
-function getOrCreateUserId() {
-    let userId = localStorage.getItem('hernando_user_id');
-    if (!userId) {
-        userId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('hernando_user_id', userId);
-    }
-    return userId;
+    // El endpoint público de FundoMoragaIA no tiene un "/chat/init" que genere un saludo
+    // dinámico (a diferencia del backend Flask anterior): el saludo inicial siempre es el
+    // mensaje local por defecto. Se registra igual en el historial para que el modelo sepa
+    // que ya se saludó y no lo repita.
+    addMessageToChat(DEFAULT_GREETING, 'bot');
+    chatConversation.push({ role: 'assistant', content: DEFAULT_GREETING });
+    sessionStorage.setItem('hernando_greeted', '1');
+    _hernandoGreetingInitialized = true;
 }
 
 // Send message on button click
@@ -1392,13 +1422,30 @@ if (mainVideo) {
             });
         };
 
-        // Esperar a que el medio esté listo antes de reproducir
+        // Esperar a que el medio esté listo antes de reproducir. Antes no había listener de
+        // error: si el archivo no cargaba (404, red, formato no soportado), "canplay" nunca
+        // disparaba y el video quedaba con el overlay de carga trabado para siempre, sin
+        // avisar nada al usuario.
         const onCanPlay = () => {
-            mainVideo.removeEventListener('canplay', onCanPlay);
+            mainVideo.removeEventListener('error', onError);
             attemptPlay();
+        };
+        const onError = () => {
+            mainVideo.removeEventListener('canplay', onCanPlay);
+            mainVideo.removeAttribute('src');
+            mainVideo.poster = fallbackPoster;
+            mainVideo.load();
+            videoOverlay?.classList.remove('hidden');
+            setPlayButtonState(false);
+            playPauseBtn?.querySelector('.play-icon')?.style.setProperty('display', 'block');
+            playPauseBtn?.querySelector('.pause-icon')?.style.setProperty('display', 'none');
+            videoControls?.classList.remove('show');
+            if (videoSubtitleEl) videoSubtitleEl.textContent = 'Este video no está disponible por ahora. Prueba con otro clip de la galería.';
+            setVideoStarted(false);
         };
 
         mainVideo.addEventListener('canplay', onCanPlay, { once: true });
+        mainVideo.addEventListener('error', onError, { once: true });
     }
 
     renderVideoGallery();
@@ -1488,19 +1535,21 @@ contactForm?.addEventListener('submit', async (e) => {
     submitButton.disabled = true;
     
     try {
-        // Enviar al backend de Hernando (API oficial)
-        // Enviar al endpoint correcto (RAILWAY_API_URL ya incluye "/api")
-        const response = await fetch(`${RAILWAY_API_URL}/chat`, {
+        // Envío directo a Fundo Moraga (backend Flask, mismo origen vía /api/).
+        const response = await fetch(`${RAILWAY_API_URL}/contacto`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                user_id: `form_${getOrCreateUserId()}`,
-                message: `📋 FORMULARIO DE CONTACTO\n\nNombre: ${data.name}\nEmail: ${data.email}\nTeléfono: ${data.phone}\nServicio: ${data.service}\n\nMensaje:\n${data.message}`
+                name: data.name,
+                email: data.email,
+                phone: data.phone,
+                service: data.service,
+                message: data.message
             })
         });
-        
+
         if (response.ok) {
             formStatus.textContent = '¡Mensaje enviado exitosamente! Nos contactaremos contigo pronto.';
             formStatus.className = 'form-status success';
@@ -1626,78 +1675,13 @@ serviceCards.forEach(card => {
     });
 });
 
-// ============================================
-// SCROLL TO TOP BUTTON
-// ============================================
-const scrollToTop = document.createElement('button');
-scrollToTop.className = 'scroll-to-top';
-scrollToTop.innerHTML = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>';
-scrollToTop.setAttribute('aria-label', 'Volver arriba');
-document.body.appendChild(scrollToTop);
-
-window.addEventListener('scroll', () => {
-    if (window.pageYOffset > 500) {
-        scrollToTop.classList.add('visible');
-    } else {
-        scrollToTop.classList.remove('visible');
-    }
-});
-
-scrollToTop.addEventListener('click', () => {
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
-});
-
-// ============================================
-// CUSTOM CURSOR (DESKTOP ONLY)
-// ============================================
-if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-    const cursor = document.createElement('div');
-    cursor.className = 'custom-cursor';
-    const cursorFollower = document.createElement('div');
-    cursorFollower.className = 'custom-cursor-follower';
-    
-    document.body.appendChild(cursor);
-    document.body.appendChild(cursorFollower);
-    
-    let mouseX = 0, mouseY = 0;
-    let followerX = 0, followerY = 0;
-    
-    document.addEventListener('mousemove', (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        
-        cursor.style.left = mouseX + 'px';
-        cursor.style.top = mouseY + 'px';
-    });
-    
-    // Smooth follower
-    function animateFollower() {
-        followerX += (mouseX - followerX) * 0.1;
-        followerY += (mouseY - followerY) * 0.1;
-        
-        cursorFollower.style.left = followerX + 'px';
-        cursorFollower.style.top = followerY + 'px';
-        
-        requestAnimationFrame(animateFollower);
-    }
-    animateFollower();
-    
-    // Scale on interactive elements
-    const interactiveElements = document.querySelectorAll('a, button, .gallery-item, .service-card');
-    interactiveElements.forEach(el => {
-        el.addEventListener('mouseenter', () => {
-            cursor.style.transform = 'scale(1.5)';
-            cursorFollower.style.transform = 'scale(1.5)';
-        });
-        el.addEventListener('mouseleave', () => {
-            cursor.style.transform = 'scale(1)';
-            cursorFollower.style.transform = 'scale(1)';
-        });
-    });
-}
+// Nota: el botón "volver arriba" y el cursor personalizado se inicializan más abajo
+// ("SCROLL TO TOP BUTTON" y custom-cursor-pro.js), reusando los elementos estáticos del
+// HTML (#scrollToTop, #customCursor, #customCursorFollower). Antes había una segunda
+// implementación acá mismo que creaba nodos DOM nuevos y duplicados con las mismas clases
+// (dos botones "volver arriba", dos cursores superpuestos), y en el caso del cursor,
+// competía por los mismos elementos estáticos contra custom-cursor-pro.js en cada
+// mousemove/rAF — trabajo duplicado sin efecto visual adicional, solo peor rendimiento.
 
 // ============================================
 // PRELOADER ENHANCEMENT
@@ -2223,67 +2207,10 @@ if (window.location.pathname.includes('historia.html')) {
     console.log('✅ Scroll to top inicializado');
 })();
 
-// ============================================
-// CUSTOM CURSOR (Desktop only)
-// ============================================
-(() => {
-    // Solo en dispositivos con cursor preciso
-    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-        return;
-    }
-    
-    const cursor = document.getElementById('customCursor');
-    const follower = document.getElementById('customCursorFollower');
-    
-    if (!cursor || !follower) return;
-    
-    let mouseX = 0;
-    let mouseY = 0;
-    let followerX = 0;
-    let followerY = 0;
-    
-    // Actualizar posición del cursor principal
-    document.addEventListener('mousemove', (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        
-        cursor.style.left = mouseX + 'px';
-        cursor.style.top = mouseY + 'px';
-    });
-    
-    // Animar el follower con delay
-    const animateFollower = () => {
-        const dx = mouseX - followerX;
-        const dy = mouseY - followerY;
-        
-        followerX += dx * 0.15;
-        followerY += dy * 0.15;
-        
-        follower.style.left = followerX + 'px';
-        follower.style.top = followerY + 'px';
-        
-        requestAnimationFrame(animateFollower);
-    };
-    
-    animateFollower();
-    
-    // Scale effect en elementos interactivos
-    const interactiveElements = document.querySelectorAll('a, button, .service-card, .testimonial-card, input, textarea, .video-card');
-    
-    interactiveElements.forEach(el => {
-        el.addEventListener('mouseenter', () => {
-            cursor.classList.add('scale');
-            follower.classList.add('scale');
-        });
-        
-        el.addEventListener('mouseleave', () => {
-            cursor.classList.remove('scale');
-            follower.classList.remove('scale');
-        });
-    });
-    
-    console.log('✅ Custom cursor inicializado');
-})();
+// Nota: el cursor personalizado real lo maneja custom-cursor-pro.js (efecto "llama" con
+// física de combustión). Antes había otra implementación simple acá mismo apuntando a los
+// mismos elementos estáticos (#customCursor/#customCursorFollower), compitiendo por
+// style.left/top en cada mousemove/rAF contra custom-cursor-pro.js sin aportar nada visible.
 
 // ============================================
 // FORM VALIDATION ENHANCEMENT
