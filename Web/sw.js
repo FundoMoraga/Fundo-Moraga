@@ -5,7 +5,13 @@ const CACHE_NAME = 'fundo-moraga-v1.1.0';
 const RUNTIME_CACHE = 'fundo-moraga-runtime';
 const IMAGE_CACHE = 'fundo-moraga-images';
 
-// Assets to cache on install
+// Assets to cache on install.
+// IMPORTANTE: solo assets del mismo origen. cache.addAll() es atómico: si UN solo recurso
+// falla (por ejemplo un recurso cross-origin sin header Access-Control-Allow-Origin, como
+// pasaba con el logo servido desde Azure Blob Storage y con Google Fonts), TODO el precache
+// falla y skipWaiting() nunca se llama, dejando el sitio sin cache para uso offline. Los
+// recursos cross-origin se cachean igual de forma oportunista vía networkFirstStrategy en
+// cada fetch normal, solo que no bloquean la instalación del service worker.
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -17,8 +23,6 @@ const STATIC_ASSETS = [
   '/offline.html',
   '/blog/',
   '/blog/index.html',
-  'https://fundomoragastorage.blob.core.windows.net/assets/images/Logo%20Fundo%20Moraga.png',
-  'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap'
 ];
 
 // Install event - cache static assets
@@ -144,9 +148,21 @@ async function cacheFirstStrategy(request, cacheName) {
     return response;
   } catch (error) {
     console.error('[SW] Image fetch failed:', error);
-    
-    // Return placeholder image if available
-    return caches.match('/assets/images/placeholder.png');
+
+    // No hay un archivo /assets/images/placeholder.png en el proyecto: caches.match() sobre
+    // un recurso que nunca se cacheó devuelve undefined, y un fetch handler que devuelve
+    // undefined en vez de una Response rompe la carga (error de red genérico en el navegador
+    // en vez de degradar a un placeholder). Se devuelve un SVG inline mínimo en su lugar.
+    const placeholderSvg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">' +
+      '<rect width="100%" height="100%" fill="#e5e7eb"/>' +
+      '<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" ' +
+      'font-family="sans-serif" font-size="14" fill="#6b7280">Imagen no disponible</text>' +
+      '</svg>';
+    return new Response(placeholderSvg, {
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-store' })
+    });
   }
 }
 

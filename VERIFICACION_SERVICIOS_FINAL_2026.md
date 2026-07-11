@@ -26,7 +26,7 @@
 ---
 
 #### 2. **Redis (Cache)**
-- **URL Interna**: `redis://default:gWVgRskUqCzynmeKKocQmluQJZYWAYTo@hernando.railway.internal:6379`
+- **URL Interna**: `redis://default:<REDIS_PASSWORD_ROTAR_EN_RAILWAY>@hernando.railway.internal:6379`
 - **Estado**: ✅ ACTIVO
 - **Módulos Cargados**:
   - ✅ redis-search (búsquedas indexadas)
@@ -127,8 +127,8 @@
 ```
 GOOGLE_ANALYTICS_ID = G-TDYVG8SXJP
 VISION_SERVICE_URL = http://vision-service.railway.internal:8080
-REDIS_URL = redis://default:gWVgRskUqCzynmeKKocQmluQJZYWAYTo@hernando.railway.internal:6379
-REDIS_PASSWORD = gWVgRskUqCzynmeKKocQmluQJZYWAYTo
+REDIS_URL = redis://default:<REDIS_PASSWORD_ROTAR_EN_RAILWAY>@hernando.railway.internal:6379
+REDIS_PASSWORD = <REDIS_PASSWORD_ROTAR_EN_RAILWAY>
 COSMOS_ENDPOINT = https://fundo-moraga.documents.azure.com:443/
 COSMOS_DATABASE = Entrenamiento (prompts)
 COSMOS_CONTAINER = Hernando (prompts)

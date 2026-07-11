@@ -13,7 +13,7 @@ Ya está instalada: **Redis for VS Code** (redis.redis-for-vscode)
    - **Host:** `hernando.railway.internal`
    - **Port:** `6379`
    - **Username:** `default`
-   - **Password:** `gWVgRskUqCzynmeKKocQmluQJZYWAYTo`
+   - **Password:** `<REDIS_PASSWORD_ROTAR_EN_RAILWAY>`
    - **Database:** `0`
    - **Name (opcional):** `Fundo Moraga`
 
@@ -30,9 +30,9 @@ En la barra lateral de VSCode, verás la conexión activa bajo "Redis Explorer"
 Host: hernando.railway.internal
 Port: 6379
 User: default
-Password: gWVgRskUqCzynmeKKocQmluQJZYWAYTo
+Password: <REDIS_PASSWORD_ROTAR_EN_RAILWAY>
 Database: 0
-Connection String: redis://default:gWVgRskUqCzynmeKKocQmluQJZYWAYTo@hernando.railway.internal:6379/0
+Connection String: redis://default:<REDIS_PASSWORD_ROTAR_EN_RAILWAY>@hernando.railway.internal:6379/0
 ```
 
 ---
@@ -52,7 +52,7 @@ Connection String: redis://default:gWVgRskUqCzynmeKKocQmluQJZYWAYTo@hernando.rai
     "label": "Fundo Moraga - Railway",
     "host": "hernando.railway.internal",
     "port": 6379,
-    "auth": "gWVgRskUqCzynmeKKocQmluQJZYWAYTo",
+    "auth": "<REDIS_PASSWORD_ROTAR_EN_RAILWAY>",
     "username": "default",
     "database": 0
   }
@@ -113,7 +113,7 @@ FLUSHALL
 | Error | Causa | Solución |
 |-------|-------|----------|
 | "Connection refused" | Redis no está corriendo | Verifica que Redis en Railway está activo |
-| "WRONGPASS" | Contraseña incorrecta | Copia exactamente: `gWVgRskUqCzynmeKKocQmluQJZYWAYTo` |
+| "WRONGPASS" | Contraseña incorrecta | Copia exactamente: `<REDIS_PASSWORD_ROTAR_EN_RAILWAY>` |
 | "Cannot resolve host" | Host incorrecto | Usa: `hernando.railway.internal` |
 | "Port X in use" | Puerto ya ocupado | Usa puerto diferente o mata el proceso anterior |
 

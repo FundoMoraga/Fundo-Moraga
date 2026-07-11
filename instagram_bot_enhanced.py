@@ -81,10 +81,17 @@ class InstagramBotEnhanced(HernandoBot):
         """
         
         # PASO 0: Verificar modo administrador
-        # Detectar clave de activación/desactivación
+        # Detectar clave de activación/desactivación. Requiere AMBAS cosas: conocer la clave
+        # Y que el user_id sea el número de WhatsApp verificado del dueño (private_knowledge.
+        # is_authorized_user). Antes bastaba con escribir la clave desde cualquier canal
+        # (incluido el chat web público) para obtener acceso completo de edición a Cosmos DB.
         if self.admin_mode.is_admin_key(message_text):
-            is_active, response = self.admin_mode.toggle_mode(user_id, platform)
-            return response
+            import private_knowledge
+            if not private_knowledge.is_authorized_user(user_id):
+                print(f"[SECURITY] ⚠️ Intento de activar modo admin desde user_id no autorizado: {user_id}")
+            else:
+                is_active, response = self.admin_mode.toggle_mode(user_id, platform)
+                return response
 
         is_admin_session = self.admin_mode.is_active(user_id)
 
@@ -106,10 +113,31 @@ class InstagramBotEnhanced(HernandoBot):
             )
         
         # PASO 1: Intentar obtener de cache
+        # IMPORTANTE: la respuesta cacheada pasa por validate_response_for_fecha_libre igual
+        # que el camino normal (antes NO pasaba, así que podía devolver menciones de "Fecha
+        # Libre" ya vencidas que quedaron cacheadas cuando sí estaba activa), y el turno se
+        # guarda en conversation_store igual que en el camino normal (antes un hit de cache
+        # ni siquiera dejaba registro del mensaje del usuario ni de la respuesta).
         if self.cache:
             cached = self._try_get_cached_response(user_id, message_text)
             if cached:
                 print(f"💾 Respuesta cacheada reutilizada (ahorró ~500ms)")
+                cached = validate_response_for_fecha_libre(cached)
+                try:
+                    conversation_id = self.conversation_store.get_latest_conversation_id(user_id)
+                    saved_user_msg = self.conversation_store.save_message(
+                        user_id=user_id, role="user", message=message_text,
+                        conversation_id=conversation_id, metadata={"platform": platform, "source": source},
+                    )
+                    # Si no había conversation_id previo, save_message generó uno nuevo:
+                    # reutilizarlo para que la respuesta quede en el mismo hilo.
+                    conversation_id = saved_user_msg.get("conversationId", conversation_id)
+                    self.conversation_store.save_message(
+                        user_id=user_id, role="assistant", message=cached,
+                        conversation_id=conversation_id, metadata={"platform": platform, "source": "cache_hit"},
+                    )
+                except Exception as e:
+                    print(f"⚠️ Error guardando turno cacheado en conversation_store: {e}")
                 return cached
         
         # PASO 2: Análisis de sentimiento
@@ -230,7 +258,8 @@ class InstagramBotEnhanced(HernandoBot):
                     message=message_text,
                     intent=intent,
                     response=response,
-                    ttl_hours=config.REDIS_CACHE_TTL_PROMPTS_HOURS
+                    ttl_hours=config.REDIS_CACHE_TTL_PROMPTS_HOURS,
+                    user_id=user_id,
                 )
             except Exception as e:
                 print(f"⚠️ Error cacheando respuesta: {e}")
@@ -289,8 +318,8 @@ class InstagramBotEnhanced(HernandoBot):
                     if cached_answer:
                         return cached_answer
             
-            # Buscar por respuesta previa similar
-            cached_response = self.cache.get_prompt_response(message, "general")
+            # Buscar por respuesta previa similar (scoped por usuario: ver get_prompt_response)
+            cached_response = self.cache.get_prompt_response(message, "general", user_id=user_id)
             if cached_response:
                 return cached_response
             

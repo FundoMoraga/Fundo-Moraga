@@ -53,21 +53,24 @@ def _normalize_phone(phone: str) -> str:
 def is_authorized_user(user_id: Optional[str]) -> bool:
     """
     Verifica si el usuario está autorizado para acceder a documentos privados.
-    
-    Soporta múltiples formatos de identificador WhatsApp:
-    - user_id con número: "+56941242609@s.whatsapp.net"
-    - user_id con prefijo: "wa_+56941242609@s.whatsapp.net"
-    - Solo número: "+56941242609" o "56941242609"
-    
+
+    IMPORTANTE: solo confía en identificadores con prefijo "wa_", que es el formato que
+    server.py arma a partir de datos verificados por WAHA/WhatsApp
+    (`user_id = f"wa_{sender_id or chat_id}"`). Los identificadores del canal web
+    ("web_...") NUNCA se consideran, aunque contengan dígitos que coincidan con un número
+    autorizado: en el chat web el user_id lo entrega el propio cliente en el body JSON, así
+    que cualquiera podría escribir el número público de contacto y hacerse pasar por el dueño
+    si esta función confiara en esos dígitos.
+
     Args:
-        user_id: Identificador del usuario (puede ser chat_id de WAHA, número, etc.)
-    
+        user_id: Identificador del usuario (formato "wa_..." para WhatsApp verificado)
+
     Returns:
         True si el usuario está en SPECIAL_PERSONA_WHATSAPP_NUMBERS
     """
-    if not user_id:
+    if not user_id or not user_id.startswith("wa_"):
         return False
-    
+
     # Extraer número de teléfono del user_id
     user_phone = _extract_phone_number(user_id)
     if not user_phone:

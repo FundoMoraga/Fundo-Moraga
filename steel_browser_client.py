@@ -4,11 +4,51 @@ Permite a Hernando navegar, extraer información y realizar investigaciones web
 """
 import requests
 import os
+import ipaddress
+import socket
+from urllib.parse import urlparse
 from typing import Dict, Any, Optional, List
 import json
 
 STEEL_BROWSER_URL = os.getenv("STEEL_BROWSER_URL", "https://steel-browser-hernando.up.railway.app")
 STEEL_API_KEY = os.getenv("STEEL_API_KEY")  # Si requiere autenticación
+
+
+class UnsafeUrlError(ValueError):
+    """URL rechazada por apuntar a un host privado/interno (protección SSRF)."""
+
+
+def _validate_public_url(url: str) -> None:
+    """
+    Bloquea URLs que no sean http(s) o que resuelvan a direcciones privadas/loopback/
+    link-local (incl. 169.254.169.254, el endpoint de metadata de nubes como Azure/AWS/GCP).
+
+    Estas URLs las decide en última instancia el modelo (guiado por texto del usuario), y se
+    reenvían tal cual al servicio remoto de Steel Browser. Sin esta validación, alguien podía
+    pedirle al bot que "navegue" a una IP interna de la red de Railway o al endpoint de
+    metadata de la nube, usando el servicio de browsing como proxy SSRF.
+    """
+    parsed = urlparse((url or "").strip())
+    if parsed.scheme not in ("http", "https"):
+        raise UnsafeUrlError(f"Esquema no permitido: {parsed.scheme!r}")
+    host = parsed.hostname
+    if not host:
+        raise UnsafeUrlError("URL sin host")
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        raise UnsafeUrlError(f"No se pudo resolver el host: {host}")
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise UnsafeUrlError(f"URL apunta a una dirección no pública: {host} -> {ip}")
 
 
 class SteelBrowserClient:
@@ -33,6 +73,7 @@ class SteelBrowserClient:
             Dict con contenido extraído
         """
         try:
+            _validate_public_url(url)
             endpoint = f"{self.base_url}/api/navigate"
             payload = {"url": url}
             if wait_for:
@@ -56,6 +97,7 @@ class SteelBrowserClient:
             Dict con contenido extraído
         """
         try:
+            _validate_public_url(url)
             endpoint = f"{self.base_url}/api/extract"
             payload = {"url": url}
             if selector:
@@ -102,6 +144,8 @@ class SteelBrowserClient:
             Dict con resultados de cada URL
         """
         try:
+            for u in urls:
+                _validate_public_url(u)
             endpoint = f"{self.base_url}/api/scrape-batch"
             payload = {"urls": urls}
             
@@ -123,6 +167,7 @@ class SteelBrowserClient:
             Dict con resultado de la ejecución
         """
         try:
+            _validate_public_url(url)
             endpoint = f"{self.base_url}/api/execute"
             payload = {
                 "url": url,
@@ -147,6 +192,7 @@ class SteelBrowserClient:
             Dict con URL o base64 del screenshot
         """
         try:
+            _validate_public_url(url)
             endpoint = f"{self.base_url}/api/screenshot"
             payload = {
                 "url": url,

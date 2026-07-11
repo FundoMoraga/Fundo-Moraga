@@ -1472,47 +1472,24 @@ Respuesta:"""
         message_text: str,
         user_id: Optional[str],
     ) -> Optional[str]:
+        # ÚNICA fuente confiable: el user_id debe venir de un canal donde el número está
+        # verificado por la plataforma (WhatsApp vía WAHA, prefijo "wa_"), ver
+        # private_knowledge.is_authorized_user(). Antes también se activaba esta persona
+        # privada (con acceso a documentos/memoria del dueño) si el nombre conocido del lead
+        # o el propio texto del mensaje contenían "efrain"+"moraga" — cualquiera podía
+        # escribir "quiero hablar con Efrain Moraga" y obtenerla sin verificación alguna.
         if self._is_special_persona_by_user_id(user_id):
-            return "efrain_moraga"
-        if self._is_special_persona_name(lead_context.get("known_name", "")):
-            return "efrain_moraga"
-        normalized_message = self._normalize_person_name(message_text or "")
-        if "efrain" in normalized_message and "moraga" in normalized_message:
             return "efrain_moraga"
         return None
 
     def _is_special_persona_by_user_id(self, user_id: Optional[str]) -> bool:
         """
-        Determina si el user_id corresponde a un usuario especial (asistente personal).
-        Extrae el número de teléfono del user_id y lo compara con la lista autorizada.
+        Determina si el user_id corresponde al usuario especial (asistente personal del dueño).
+        Delega en private_knowledge.is_authorized_user, que exige un identificador de
+        WhatsApp verificado (prefijo "wa_") antes de comparar el número.
         """
-        if not user_id:
-            return False
-        
-        # Extrae números del user_id (e.g., "wa_+56941242609@s.whatsapp.net" → "56941242609")
-        import re
-        numbers = re.findall(r'\d+', user_id)
-        if not numbers:
-            return False
-        
-        # Usa el número más largo (es el número de teléfono)
-        user_phone = max(numbers, key=len)
-        if not user_phone:
-            return False
-        
-        # Compara contra la lista autorizada
-        for known in getattr(config, "SPECIAL_PERSONA_WHATSAPP_NUMBERS", []):
-            if not known:
-                continue
-            # Extrae dígitos del número conocido
-            known_digits = re.sub(r'\D', '', known)
-            if not known_digits:
-                continue
-            # Comparación exacta
-            if user_phone == known_digits:
-                return True
-        
-        return False
+        import private_knowledge
+        return private_knowledge.is_authorized_user(user_id)
 
     def _build_lead_context(self, conversation_history: list, conversation_id: str) -> Dict[str, str]:
         """
@@ -3047,6 +3024,14 @@ Respuesta:"""
         return None
 
     def _calculate_price(self, visit_day: str, visit_date: Optional[date], cars_count: int, motos_count: int) -> int:
+        # Fecha Libre puede anunciarse para sábado o domingo (ver
+        # fecha_libre_validator.format_pricing_info: "Se abre sábado o domingo con tarifa de
+        # semana"), y en ese caso corresponde tarifa por vehículo, no el precio grupal de fin
+        # de semana normal. Antes esta función solo miraba visit_day=="sábado" e ignoraba por
+        # completo si la fecha era la Fecha Libre activa, cobrando $200.000 incluso cuando se
+        # había anunciado tarifa de $15.000/$10.000 por vehículo para ese sábado.
+        if self._is_special_open_sunday(visit_date):
+            return int(cars_count) * 15000 + int(motos_count) * 10000
         if visit_day == "sábado":
             return 200000
         return int(cars_count) * 15000 + int(motos_count) * 10000
@@ -3245,7 +3230,7 @@ Respuesta:"""
         date_txt = visit_date.isoformat() if visit_date else "por confirmar"
         price_txt = f"${price_clp:,}".replace(",", ".")
         extra = ""
-        if visit_day == "sábado":
+        if visit_day == "sábado" and not self._is_special_open_sunday(visit_date):
             extra = " (sábado es tarifa por grupo)"
         arrival_time = (details or {}).get("arrival_time") or "por confirmar"
         start_h, end_h = self._visit_hours_for_date(visit_date)

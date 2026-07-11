@@ -76,19 +76,44 @@ class RedisCache:
         """Genera clave de cache única"""
         combined = f"{category}:{key}"
         return hashlib.md5(combined.encode()).hexdigest()
-    
-    def get_prompt_response(self, message: str, intent: str) -> Optional[str]:
+
+    def _local_get(self, key: str) -> Optional[Any]:
+        """Lee del cache local en memoria respetando expiración (TTL)."""
+        entry = self.local_cache.get(key)
+        if entry is None:
+            return None
+        expires_at, data = entry
+        if expires_at is not None and datetime.now() >= expires_at:
+            self.local_cache.pop(key, None)
+            return None
+        return data
+
+    def _local_set(self, key: str, data: Any, ttl_seconds: Optional[float] = None) -> None:
+        """Guarda en el cache local en memoria con expiración opcional (fallback sin Redis)."""
+        expires_at = datetime.now() + timedelta(seconds=ttl_seconds) if ttl_seconds else None
+        self.local_cache[key] = (expires_at, data)
+
+    def get_prompt_response(self, message: str, intent: str, user_id: Optional[str] = None) -> Optional[str]:
         """
-        Obtiene respuesta cacheada para un mensaje/intención
-        
+        Obtiene respuesta cacheada para un mensaje/intención.
+
+        user_id es OBLIGATORIO en la práctica para respuestas que puedan contener datos
+        personalizados (nombre, fecha ofrecida, disponibilidad de Fecha Libre): sin él, la
+        respuesta cacheada para un usuario podía devolverse tal cual a un usuario distinto que
+        hiciera una pregunta parecida, incluyendo menciones de Fecha Libre ya vencidas (esta
+        ruta no pasa por validate_response_for_fecha_libre). Se mantiene opcional por
+        compatibilidad, pero el llamador debe pasarlo siempre que la respuesta pueda variar
+        por usuario.
+
         Casos comunes:
         - "¿Cuánto cuesta ir?" → Respuesta de precios
         - "¿Tienen baño?" → Respuesta de amenidades
         - "¿Qué es una fecha libre?" → Respuesta educativa
         """
         try:
-            key = self._get_cache_key("prompt", f"{intent}:{message[:50]}")
-            
+            scope = user_id or "shared"
+            key = self._get_cache_key("prompt", f"{intent}:{scope}:{message[:50]}")
+
             if self.enabled:
                 cached = self.client.get(key)
                 if cached:
@@ -96,41 +121,45 @@ class RedisCache:
                     print(f"💾 Respuesta cacheada reutilizada (ahorra ~500ms)")
                     return data.get("response")
             else:
-                if key in self.local_cache:
+                data = self._local_get(key)
+                if data:
                     print(f"💾 Respuesta en cache local")
-                    return self.local_cache[key].get("response")
-            
+                    return data.get("response")
+
             return None
         except Exception as e:
             print(f"⚠️ Error accediendo cache: {e}")
             return None
-    
+
     def cache_prompt_response(
-        self, 
-        message: str, 
-        intent: str, 
+        self,
+        message: str,
+        intent: str,
         response: str,
-        ttl_hours: int = 24
+        ttl_hours: int = 24,
+        user_id: Optional[str] = None,
     ) -> bool:
         """
         Cachea una respuesta de prompt
-        
+
         Args:
             message: Mensaje del usuario
             intent: Intención clasificada
             response: Respuesta generada
             ttl_hours: Horas de validez (default 24)
+            user_id: Si se pasa, la respuesta queda scoped a ese usuario (ver get_prompt_response)
         """
         try:
-            key = self._get_cache_key("prompt", f"{intent}:{message[:50]}")
-            
+            scope = user_id or "shared"
+            key = self._get_cache_key("prompt", f"{intent}:{scope}:{message[:50]}")
+
             data = {
                 "response": response,
                 "intent": intent,
                 "timestamp": datetime.now().isoformat(),
                 "hits": 0
             }
-            
+
             if self.enabled:
                 # Guardar en Redis con TTL
                 self.client.setex(
@@ -140,10 +169,10 @@ class RedisCache:
                 )
                 print(f"💾 Respuesta cacheada en Redis ({ttl_hours}h)")
             else:
-                # Guardar en memoria local
-                self.local_cache[key] = data
+                # Guardar en memoria local (con TTL, ver _local_set)
+                self._local_set(key, data, ttl_seconds=ttl_hours * 3600)
                 print(f"💾 Respuesta guardada en cache local")
-            
+
             return True
         except Exception as e:
             print(f"⚠️ Error cacheando respuesta: {e}")
@@ -166,19 +195,20 @@ class RedisCache:
                     print(f"💾 Precios para {activity} obtenidos de cache")
                     return json.loads(cached)
             else:
-                if key in self.local_cache:
-                    return self.local_cache[key]
-            
+                cached_local = self._local_get(key)
+                if cached_local is not None:
+                    return cached_local
+
             return None
         except Exception as e:
             print(f"⚠️ Error accediendo cache de precios: {e}")
             return None
-    
+
     def cache_price_info(self, activity: str, price_info: Dict) -> bool:
         """Cachea información de precios por 7 días"""
         try:
             key = self._get_cache_key("prices", activity)
-            
+
             if self.enabled:
                 self.client.setex(
                     key,
@@ -186,8 +216,8 @@ class RedisCache:
                     json.dumps(price_info)
                 )
             else:
-                self.local_cache[key] = price_info
-            
+                self._local_set(key, price_info, ttl_seconds=7 * 86400)
+
             return True
         except Exception as e:
             print(f"⚠️ Error cacheando precios: {e}")
@@ -211,25 +241,26 @@ class RedisCache:
                     print(f"💾 FAQ para '{question_category}' obtenida de cache")
                     return json.loads(cached).get("answer")
             else:
-                if key in self.local_cache:
-                    return self.local_cache[key].get("answer")
-            
+                cached_local = self._local_get(key)
+                if cached_local:
+                    return cached_local.get("answer")
+
             return None
         except Exception as e:
             print(f"⚠️ Error accediendo FAQ cache: {e}")
             return None
-    
+
     def cache_faq(self, category: str, answer: str, ttl_days: int = 30) -> bool:
         """Cachea respuesta FAQ por 30 días"""
         try:
             key = self._get_cache_key("faq", category)
-            
+
             data = {
                 "category": category,
                 "answer": answer,
                 "cached_at": datetime.now().isoformat()
             }
-            
+
             if self.enabled:
                 self.client.setex(
                     key,
@@ -237,8 +268,8 @@ class RedisCache:
                     json.dumps(data)
                 )
             else:
-                self.local_cache[key] = data
-            
+                self._local_set(key, data, ttl_seconds=ttl_days * 86400)
+
             return True
         except Exception as e:
             print(f"⚠️ Error cacheando FAQ: {e}")
@@ -258,19 +289,20 @@ class RedisCache:
                     print(f"💾 Contexto de usuario cacheado")
                     return json.loads(cached)
             else:
-                if key in self.local_cache:
-                    return self.local_cache[key]
-            
+                cached_local = self._local_get(key)
+                if cached_local is not None:
+                    return cached_local
+
             return None
         except Exception as e:
             print(f"⚠️ Error accediendo context cache: {e}")
             return None
-    
+
     def cache_user_context(self, user_id: str, context: Dict, ttl_minutes: int = 60) -> bool:
         """Cachea contexto del usuario"""
         try:
             key = self._get_cache_key("user_context", user_id)
-            
+
             if self.enabled:
                 self.client.setex(
                     key,
@@ -278,8 +310,8 @@ class RedisCache:
                     json.dumps(context)
                 )
             else:
-                self.local_cache[key] = context
-            
+                self._local_set(key, context, ttl_seconds=ttl_minutes * 60)
+
             return True
         except Exception as e:
             print(f"⚠️ Error cacheando contexto: {e}")

@@ -261,7 +261,6 @@
             customCursorAmbient.style.setProperty('--cursor-intensity', currentIntensity.toFixed(3));
             customCursorAmbient.style.setProperty('--cursor-stretch', currentStretch.toFixed(3));
         }
-        }
 
         requestAnimationFrame(animateFollower);
     };

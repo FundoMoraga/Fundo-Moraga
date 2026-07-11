@@ -9,6 +9,7 @@ import os
 import config
 import requests
 import re
+import hmac
 from instagram_bot_enhanced import InstagramBotEnhanced as HernandoBot
 from reminder_scheduler import start_reminder_scheduler
 from news_scheduler import start_news_scheduler
@@ -96,7 +97,23 @@ def _save_uploaded_file(file_storage, base_dir: Path, relative_path: Path) -> di
     }
 
 app = Flask(__name__, static_folder='Web', static_url_path='')
-CORS(app)  # Permitir peticiones desde fundomoraga.com
+
+# CORS restringido a los orígenes propios (antes era CORS(app), que aceptaba cualquier
+# origen y anulaba en la práctica la protección de rutas como /api/chat/history).
+_DEFAULT_CORS_ORIGINS = [
+    "https://fundomoraga.com",
+    "https://www.fundomoraga.com",
+    "https://maicillomoraga.com",
+    "https://www.maicillomoraga.com",
+]
+_configured_cors_origins = [
+    origin.strip() for origin in (config.CORS_ORIGINS or "").split(",") if origin.strip()
+]
+CORS(
+    app,
+    resources={r"/api/*": {"origins": _configured_cors_origins or _DEFAULT_CORS_ORIGINS}},
+    supports_credentials=False,
+)
 
 # Configurar middleware de optimización (compresión, seguridad, cache)
 try:
@@ -181,6 +198,30 @@ def get_bot() -> HernandoBot:
         raise RuntimeError(_bot_init_error)
     
     raise RuntimeError("Bot no inicializado")
+
+
+def _web_user_id(data: dict) -> str:
+    """
+    Deriva el user_id para el canal web, garantizando que SIEMPRE quede namespaced con
+    "web_" server-side, sin importar lo que envíe el cliente en el body JSON.
+
+    Esto es una defensa de seguridad, no solo cosmética: private_knowledge.is_authorized_user()
+    y hernando_bot._is_special_persona_by_user_id() otorgan acceso a la persona privada del
+    dueño (documentos privados, memoria personal) cuando el user_id es un identificador de
+    WhatsApp verificado (prefijo "wa_"). Si aquí se dejara pasar tal cual el user_id que
+    manda el cliente, cualquiera podría enviar {"user_id": "wa_+56941242609", ...} a /api/chat
+    y hacerse pasar por el dueño sin haber probado nada por WhatsApp real.
+    """
+    raw = (data.get('user_id') or '').strip()
+    base = raw or request.remote_addr or "anon"
+    return base if base.startswith("web_") else f"web_{base}"
+
+
+def _token_matches(provided: Optional[str], expected: Optional[str]) -> bool:
+    """Compara tokens en tiempo constante para evitar timing attacks."""
+    if not expected or not provided:
+        return False
+    return hmac.compare_digest(provided, expected)
 
 
 def _azure_direct_chat_enabled() -> bool:
@@ -559,17 +600,11 @@ def oembed():
     })
 
 
-@app.after_request
-def add_security_headers(response):
-    # Permitir que el widget sea embebido (iframe) solo desde dominios autorizados (Canva + Fundo Moraga).
-    # Esto evita el error de Canva "Este contenido está bloqueado".
-    response.headers.pop("X-Frame-Options", None)
-    response.headers["Content-Security-Policy"] = (
-        "frame-ancestors 'self' "
-        "https://fundomoraga.com https://www.fundomoraga.com "
-        "https://canva.com https://www.canva.com https://*.canva.com;"
-    )
-    return response
+# Nota: los headers de seguridad (incl. CSP con frame-ancestors para permitir el embed
+# de Canva) se configuran en un único lugar: middleware.py -> setup_middleware().
+# Antes existía un segundo @app.after_request aquí que intentaba lo mismo, pero por el
+# orden de ejecución de los hooks de Flask (LIFO) el de middleware.py se ejecutaba después
+# y sobreescribía silenciosamente esta configuración.
 
 
 @app.route('/')
@@ -645,9 +680,19 @@ def health():
 
 @app.route('/debug')
 def debug():
-    """Endpoint de debug para diagnosticar problemas (no usar en producción)"""
+    """Endpoint de debug para diagnosticar problemas. Requiere token admin:
+    header X-Admin-Token o ?token=... (mismo token que /admin/private-upload)."""
     configured_ok, missing_required, warnings = _config_status()
-    
+
+    provided_token = request.headers.get("X-Admin-Token") or request.args.get("token")
+    is_authorized = _token_matches(provided_token, config.ADMIN_UPLOAD_TOKEN)
+
+    if not is_authorized:
+        # Sin token válido: solo exponer si está "ok"/"degraded", sin detalle interno.
+        return jsonify({
+            "status": "ok" if configured_ok else "degraded",
+        }), 200
+
     # Información sobre el bot
     bot_status = "inicializado"
     bot_error = None
@@ -713,7 +758,7 @@ def web_chat():
         
         # Extraer datos
         user_message = data.get('message', '').strip()
-        user_id = data.get('user_id', f"web_{request.remote_addr}")
+        user_id = _web_user_id(data)
         
         print(f"👤 User: {user_id}, Message: {user_message[:50]}...")
         
@@ -789,7 +834,7 @@ def web_chat_init():
     """
     try:
         data = request.get_json() or {}
-        user_id = data.get('user_id', f"web_{request.remote_addr}")
+        user_id = _web_user_id(data)
 
         if _azure_direct_chat_enabled():
             return jsonify({
@@ -836,7 +881,7 @@ def web_chat_end():
                 data = json.loads(raw) if raw else {}
             except Exception:
                 data = {}
-        user_id = data.get("user_id", f"web_{request.remote_addr}")
+        user_id = _web_user_id(data)
         reason = data.get("reason") or "client_end"
 
         try:
@@ -866,10 +911,18 @@ def chat_history():
         data = request.get_json()
         user_id = data.get('user_id')
         limit = data.get('limit', 10)
-        
+
         if not user_id:
             return jsonify({"error": "Se requiere user_id"}), 400
-        
+
+        # Este endpoint es público (sin sesión/login). Solo se permite consultar
+        # historiales de sesiones web anónimas (prefijo "web_", generado client-side con
+        # componente aleatorio), NUNCA identificadores de WhatsApp/Instagram derivados de
+        # números de teléfono reales: esos serían enumerables y expondrían conversaciones
+        # privadas de cualquier usuario a cualquiera que adivinara su número.
+        if not str(user_id).startswith("web_"):
+            return jsonify({"error": "user_id no válido para este endpoint"}), 403
+
         try:
             bot = get_bot()
         except Exception as e:
@@ -901,6 +954,58 @@ def chat_history():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/reservas', methods=['POST'])
+def api_reservas():
+    """
+    Recibe el formulario de reserva de Web/reservas.html y notifica al equipo de
+    ventas por email. Endpoint público (el formulario no requiere login).
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+
+        nombre = (data.get('nombre') or '').strip()
+        email = (data.get('email') or '').strip()
+        telefono = (data.get('telefono') or '').strip()
+        fecha = (data.get('fecha') or '').strip()
+        paquete = (data.get('paquete') or '').strip()
+        personas = str(data.get('personas') or '').strip()
+        mensaje = (data.get('mensaje') or '').strip()
+
+        if not (nombre and email and telefono and fecha and paquete):
+            return jsonify({"error": "Faltan campos requeridos (nombre, email, telefono, fecha, paquete)"}), 400
+
+        from resend_client import get_resend_client
+        resend_client_instance = get_resend_client()
+
+        if not resend_client_instance.is_configured():
+            print("[RESERVAS] ⚠️ Email no configurado (SMTP/Resend); no se puede notificar la solicitud.")
+            return jsonify({"error": "Servicio de notificaciones no disponible, contáctanos por WhatsApp"}), 503
+
+        notes_lines = [f"Fecha preferida: {fecha}", f"Número de personas: {personas or 'N/A'}"]
+        if mensaje:
+            notes_lines.append(f"Mensaje adicional: {mensaje}")
+
+        conversation_id = f"reservas_web_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        result = resend_client_instance.send_contact_sheet(
+            user_name=nombre,
+            user_contact=f"{telefono} / {email}",
+            user_interest=paquete,
+            conversation_id=conversation_id,
+            platform="Web - Formulario de Reservas",
+            notes="\n".join(notes_lines),
+        )
+
+        if not result.get("success"):
+            print(f"[RESERVAS] Error enviando notificación: {result.get('error')}")
+            return jsonify({"error": "No se pudo procesar la solicitud, contáctanos por WhatsApp"}), 502
+
+        return jsonify({"ok": True}), 200
+
+    except Exception as e:
+        print(f"[ERROR] Error en /api/reservas: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+
 # ============= WHATSAPP (WAHA) WEBHOOK =============
 
 @app.route('/webhook/whatsapp', methods=['POST'])
@@ -909,7 +1014,11 @@ def whatsapp_webhook():
     Webhook para WAHA (WhatsApp HTTP API).
     Espera eventos con payload de mensaje y responde vía WAHA /api/sendText.
     """
-    # Validación de secreto (opcional, solo si está configurado)
+    # Validación de secreto. WAHA_WEBHOOK_SECRET debe configurarse en producción: si no está
+    # seteado, cualquiera puede enviar payloads falsos a este webhook (y el bot respondería a
+    # chatId arbitrarios como un relay abierto). Se deja pasar sin validar solo si el secret
+    # no está configurado (para no romper despliegues existentes de golpe), pero se advierte
+    # fuerte en el log en cada request.
     webhook_secret = getattr(config, 'WAHA_WEBHOOK_SECRET', None) or os.getenv('WAHA_WEBHOOK_SECRET')
     if webhook_secret:
         provided = (
@@ -917,8 +1026,10 @@ def whatsapp_webhook():
             or request.headers.get("X-Webhook-Secret")
             or request.args.get("token")
         )
-        if provided != webhook_secret:
+        if not _token_matches(provided, webhook_secret):
             return jsonify({"error": "unauthorized"}), 401
+    else:
+        print("[SECURITY] ⚠️ WAHA_WEBHOOK_SECRET no configurado: /webhook/whatsapp acepta peticiones sin autenticar.")
     
     # Log para diagnosticar problemas de webhook
     print(f"[WEBHOOK] POST /webhook/whatsapp recibido a {datetime.now().isoformat()}")
@@ -998,34 +1109,25 @@ def whatsapp_webhook():
         sender_id = _extract_waha_user_id(payload, chat_id)
         user_id = f"wa_{sender_id or chat_id}"
         user_name = _extract_waha_user_name(payload)
-        
-        # Detectar si es Efraín Moraga por nombre (cuando @lid no tiene número)
-        import unicodedata
-        def normalize_name(text):
-            if not text:
-                return ""
-            normalized = unicodedata.normalize("NFD", text)
-            without_accents = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
-            return without_accents.lower().strip()
-        
-        is_efrain = False
-        if user_name:
-            normalized = normalize_name(user_name)
-            if "efrain" in normalized and "moraga" in normalized:
-                is_efrain = True
-                print(f"[WAHA] ✅ Usuario especial detectado por nombre: {user_name}")
-        
-        # Verificar autorización por número
+
+        # Autorización SOLO por número verificado (config.SPECIAL_PERSONA_WHATSAPP_NUMBERS).
+        # Antes también se otorgaba acceso admin si el pushName/notifyName (100% controlado
+        # por el remitente en su perfil de WhatsApp) contenía "efrain"+"moraga" — cualquiera
+        # podía ponerse ese nombre de perfil y obtener acceso a la persona privada del dueño.
+        # Si el número real queda oculto por WhatsApp como "@lid", la solución correcta es
+        # agregar ese identificador @lid específico a SPECIAL_PERSONA_WHATSAPP_NUMBERS una vez
+        # confirmado en los logs, no confiar en un nombre de perfil arbitrario.
         import private_knowledge as pk
         is_auth_by_number = pk.is_authorized_user(user_id)
-        is_auth = is_auth_by_number or is_efrain
-        
+        is_efrain = is_auth_by_number
+        is_auth = is_auth_by_number
+
         if is_auth:
             print(f"[WAHA] Usuario autorizado:")
             print(f"  Nombre: {user_name}")
             print(f"  Chat ID: {chat_id}")
             print(f"  User ID: {user_id}")
-            print(f"  Modo: {'Por nombre' if is_efrain else 'Por número'}")
+            print(f"  Modo: Por número verificado")
 
 
         # Manejar archivos adjuntos para usuarios autorizados
@@ -1164,7 +1266,7 @@ def whatsapp_webhook():
 def admin_private_upload():
     """Endpoint admin para subir archivos al volumen privado."""
     token = request.headers.get("X-Admin-Token") or request.args.get("token")
-    if not config.ADMIN_UPLOAD_TOKEN or token != config.ADMIN_UPLOAD_TOKEN:
+    if not _token_matches(token, config.ADMIN_UPLOAD_TOKEN):
         return jsonify({"error": "unauthorized"}), 401
 
     base_dir = Path("/app/private_knowledge") / "imports" / datetime.now().strftime("%Y-%m-%d")
@@ -1217,13 +1319,22 @@ def api_docs():
                     "limit": "number (opcional, default: 10)"
                 }
             },
-            "/webhook/instagram": {
-                "method": "GET/POST",
-                "description": "Webhook para Instagram Messaging API"
-            },
             "/webhook/whatsapp": {
                 "method": "POST",
                 "description": "Webhook para WAHA (WhatsApp HTTP API)"
+            },
+            "/api/reservas": {
+                "method": "POST",
+                "description": "Formulario de reserva (Web/reservas.html)",
+                "body": {
+                    "nombre": "string (requerido)",
+                    "email": "string (requerido)",
+                    "telefono": "string (requerido)",
+                    "fecha": "string YYYY-MM-DD (requerido)",
+                    "paquete": "string (requerido)",
+                    "personas": "number (opcional)",
+                    "mensaje": "string (opcional)"
+                }
             }
         },
         "example_web_integration": """
@@ -1293,7 +1404,7 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     
     print(f"\n[STARTUP] Servidor iniciando en puerto {port}")
-    print(f"[API] Instagram webhook: /webhook/instagram")
+    print(f"[API] WhatsApp webhook: /webhook/whatsapp")
     print(f"[API] Web chat API: /api/chat")
     print(f"[DOCS] Documentacion: /api/docs\n")
     

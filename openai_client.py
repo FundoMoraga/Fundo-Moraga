@@ -1027,14 +1027,19 @@ Usa esta información para proporcionar respuestas altamente personalizadas.
         if any(word in msg_lower for word in ['imagen', 'foto', 'picture', 'analyze', 'analiza']):
             return None
         
-        # Generar key seguro
+        # Generar key seguro. Incluye `persona`: antes no se usaba pese a recibirse como
+        # argumento, así que una respuesta genérica cacheada con la personalidad normal de
+        # Hernando podía devolverse tal cual para el mismo texto bajo persona_override
+        # (ej. "efrain_moraga", la personalidad privada tipo ChatGPT del dueño), mezclando
+        # el tono/contenido de dos personalidades distintas.
         key_parts = [
             "openai:response",
             message_type,
+            (persona or "default"),
             user_message[:50]
         ]
         key_hash = hashlib.md5(":".join(key_parts).encode()).hexdigest()
-        return f"{':'.join(key_parts[:2])}:{key_hash[:16]}"
+        return f"{':'.join(key_parts[:3])}:{key_hash[:16]}"
     
     def _check_response_cache(self, cache_key: Optional[str]) -> Optional[str]:
         """

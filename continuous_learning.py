@@ -91,13 +91,15 @@ class ContinuousLearning:
             }
         """
         try:
-            query = f"""
+            query = """
             SELECT * FROM c
-            WHERE c.Categoria = 'InteractionLog' AND c.user_id = '{user_id}'
+            WHERE c.Categoria = 'InteractionLog' AND c.user_id = @user_id
             ORDER BY c.timestamp DESC
             """
-            
-            items = list(self.memory_store.query_items(query, limit=100))
+
+            items = list(self.memory_store.query_items(
+                query, limit=100, parameters=[{"name": "@user_id", "value": user_id}]
+            ))
             
             if not items:
                 return {

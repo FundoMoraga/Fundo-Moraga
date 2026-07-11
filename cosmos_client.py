@@ -480,17 +480,32 @@ class MemoryStore:
             print(f"⚠️ Error en upsert_item: {e}")
             raise
 
-    def query_items(self, query: str, limit: int = 100) -> List[Dict]:
-        """Ejecuta una consulta genérica contra el contenedor"""
+    def query_items(self, query: str, limit: int = 100, parameters: Optional[List[Dict]] = None) -> List[Dict]:
+        """
+        Ejecuta una consulta genérica contra el contenedor.
+        Usa `parameters` (lista de {"name": "@x", "value": ...}) para valores que vengan
+        de entrada externa/usuario en vez de interpolarlos en el string `query`, para evitar
+        inyección NoSQL.
+        """
         try:
             items = list(self.container.query_items(
                 query=query,
+                parameters=parameters,
                 enable_cross_partition_query=True,
             ))
             return items[:limit] if limit else items
         except Exception as e:
             print(f"⚠️ Error en query_items: {e}")
             return []
+
+    def delete_item(self, item_id: str, partition_key_value: str) -> bool:
+        """Elimina un documento por id + valor de la partition key (campo self._pk_field)."""
+        try:
+            self.container.delete_item(item_id, partition_key=partition_key_value)
+            return True
+        except Exception as e:
+            print(f"⚠️ Error en delete_item: {e}")
+            raise
 
     def _with_pk(self, doc: Dict, pk_value: str) -> Dict:
         doc[self._pk_field] = pk_value

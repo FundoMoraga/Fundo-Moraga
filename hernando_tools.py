@@ -1194,6 +1194,8 @@ USO TÍPICO: Usuario quiere entender un tema complejo de forma profunda""",
             "investigar_tema",
             "scrape_multiples_urls",
             "capturar_screenshot",
+            "buscar_en_conversaciones",
+            "exportar_datos",
         ]
         if tool_name in private_tools:
             if not private_knowledge.is_authorized_user(self.user_id):

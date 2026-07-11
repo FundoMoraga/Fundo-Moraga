@@ -250,14 +250,25 @@ def extract_text_from_image(image_url: str) -> Optional[Dict[str, Any]]:
         return None
     
     try:
+        import time
+
         results = client.read_in_stream_async(image_url)
         operation_id = results.headers["Operation-Location"].split("/")[-1]
-        
-        while True:
+
+        # Antes este polling no tenia sleep() ni limite de intentos ni timeout: si la Read
+        # API se quedaba en "running" indefinidamente, el hilo del bot quedaba bloqueado para
+        # siempre y ademas bombardeaba la API sin backoff. Ahora hace como maximo 20 intentos
+        # (~20s) con una pausa de 1s entre cada uno.
+        max_attempts = 20
+        for _ in range(max_attempts):
             result = client.get_read_result(operation_id)
             if result.status.lower() not in ["not started", "running"]:
                 break
-        
+            time.sleep(1)
+        else:
+            print("⚠️ OCR: tiempo de espera agotado esperando el resultado")
+            return None
+
         text = ""
         if result.status.lower() == "succeeded":
             for page in result.analyze_result.read_results:

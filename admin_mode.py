@@ -6,11 +6,15 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 import json
 import re
+import config
 from cosmos_client import get_memory_store, get_conversation_store
 from prompts_loader import get_prompts_loader
 
-# Clave secreta para activar/desactivar
-ADMIN_KEY = "Ve88967788@"
+# Clave secreta para activar/desactivar el modo desarrollador.
+# IMPORTANTE: se configura vía la variable de entorno ADMIN_MODE_KEY (Railway), no se
+# hardcodea en el código fuente. La clave anterior hardcodeada quedó expuesta en el
+# historial de git y debe considerarse comprometida: hay que rotarla en Railway.
+ADMIN_KEY = config.ADMIN_MODE_KEY
 
 class AdminMode:
     """Gestiona el modo desarrollador de Hernando"""
@@ -210,11 +214,14 @@ class AdminMode:
             )
         
         _, item_id, field, new_value = parts
-        
+
         try:
-            # Buscar el item
-            query = f"SELECT * FROM c WHERE c.id = '{item_id}'"
-            items = self.memory_store.query_items(query)
+            # Buscar el item (query parametrizada: item_id viene de un comando de chat,
+            # nunca se interpola directamente en el texto de la query)
+            query = "SELECT * FROM c WHERE c.id = @item_id"
+            items = self.memory_store.query_items(
+                query, parameters=[{"name": "@item_id", "value": item_id}]
+            )
             
             if not items:
                 return f"❌ No se encontró registro con ID: `{item_id}`"
@@ -252,31 +259,31 @@ class AdminMode:
             return "**Uso:** `/delete [id]`\n\nEjemplo: `/delete registro-antiguo`"
         
         item_id = parts[1]
-        
+
         try:
-            # Buscar el item para confirmación
-            query = f"SELECT * FROM c WHERE c.id = '{item_id}'"
-            items = self.memory_store.query_items(query)
-            
+            # Buscar el item para confirmación (query parametrizada)
+            query = "SELECT * FROM c WHERE c.id = @item_id"
+            items = self.memory_store.query_items(
+                query, parameters=[{"name": "@item_id", "value": item_id}]
+            )
+
             if not items:
                 return f"❌ No se encontró registro con ID: `{item_id}`"
-            
+
             item = items[0]
-            categoria = item.get("Categoria", "N/A")
-            
-            # Eliminar (necesitas implementar delete_item en cosmos_client.py)
-            # self.memory_store.delete_item(item_id, partition_key_value)
-            
+            categoria = item.get(self.memory_store._pk_field, item.get("Categoria", "N/A"))
+
+            self.memory_store.delete_item(item_id, categoria)
+
             self.increment_changes(user_id)
             self.add_context(user_id, "delete", {"item_id": item_id, "categoria": categoria})
-            
+
             return (
-                f"⚠️ **Eliminación programada**\n\n"
+                f"🗑️ **Registro eliminado**\n\n"
                 f"ID: `{item_id}`\n"
-                f"Categoría: `{categoria}`\n\n"
-                f"Nota: Implementa `delete_item()` en cosmos_client.py para completar esta función."
+                f"Categoría: `{categoria}`"
             )
-        
+
         except Exception as e:
             return f"❌ **Error al eliminar:**\n{str(e)}"
     

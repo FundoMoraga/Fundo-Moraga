@@ -3,6 +3,7 @@ Validador de Fechas Libres para Batuco Off Road
 Solo permite offering Fecha Libre si ha sido anunciada en Instagram
 """
 from datetime import datetime
+import re
 import config
 
 class FechaLibreValidator:
@@ -92,8 +93,11 @@ def validate_response_for_fecha_libre(response: str) -> str:
         ]
         
         for phrase in problematic_phrases:
-            if phrase.lower() in response.lower():
-                # Reemplazar con mensaje genérico
-                response = response.replace(phrase, "cuando anunciemos Fecha Libre por Instagram")
+            # Antes se detectaba en minúsculas (phrase.lower() in response.lower()) pero se
+            # reemplazaba con el texto original (case-sensitive): si la frase real aparecía
+            # con mayúsculas distintas a `phrase`, la detección positiva no eliminaba nada y
+            # la mención de Fecha Libre quedaba en la respuesta igual. re.sub con IGNORECASE
+            # reemplaza sin importar mayúsculas/minúsculas.
+            response = re.sub(re.escape(phrase), "cuando anunciemos Fecha Libre por Instagram", response, flags=re.IGNORECASE)
     
     return response

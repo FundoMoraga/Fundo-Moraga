@@ -94,6 +94,13 @@ WAHA_ALLOW_GROUPS = os.getenv("WAHA_ALLOW_GROUPS", "false").lower() in (
 # Admin upload (volumen privado)
 ADMIN_UPLOAD_TOKEN = _clean_env(os.getenv("ADMIN_UPLOAD_TOKEN"))
 
+# Modo desarrollador (Cosmos DB / prompts vía chat). Debe rotarse y configurarse por env var;
+# ya no se hardcodea en el código fuente (ver admin_mode.py).
+ADMIN_MODE_KEY = _clean_env(os.getenv("ADMIN_MODE_KEY"))
+
+# Orígenes permitidos para CORS en las rutas /api/* (lista separada por comas)
+CORS_ORIGINS = _clean_env(os.getenv("CORS_ORIGINS"))
+
 # Bot Configuration
 BOT_NAME = os.getenv("BOT_NAME", "Fundo Moraga Bot")
 MAX_CONVERSATION_HISTORY = int(os.getenv("MAX_CONVERSATION_HISTORY", "30"))

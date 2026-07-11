@@ -152,14 +152,25 @@ class PaymentInboxClient:
                     subject_match = (
                         any(k in subject_l for k in self.subject_keywords) if self.subject_keywords else False
                     )
-                    from_match = False
-                    if expected_from_l:
-                        from_match = expected_from_l in from_l
-                    if not from_match and self.from_keywords:
-                        from_match = any(k in from_l for k in self.from_keywords)
+                    # IMPORTANTE: from_match SOLO se basa en self.from_keywords (patrones de
+                    # remitente configurados por el negocio, ej. "Banco" -> notificaciones
+                    # reales del banco). NUNCA en expected_from (el email que el propio
+                    # cliente escribió durante la conversación): antes bastaba con que el
+                    # remitente coincidiera con ese email autodeclarado para dar el pago por
+                    # verificado, así que cualquiera podía declarar cualquier email y luego
+                    # mandarse un correo a sí mismo simulando una transferencia que nunca
+                    # ocurrió, sin haber transferido un peso. Se requieren AMBAS señales
+                    # (asunto Y remitente configurados por el negocio), no basta con una sola.
+                    from_match = (
+                        any(k in from_l for k in self.from_keywords) if self.from_keywords else False
+                    )
 
-                    if not (subject_match or from_match):
+                    if not (subject_match and from_match):
                         continue
+
+                    # expected_from ya no decide la verificación; se deja disponible para
+                    # logging/depuración si se quiere correlacionar con el cliente.
+                    _ = expected_from_l
 
                     received_iso = None
                     try:

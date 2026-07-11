@@ -6,7 +6,7 @@
 **Host (Externo - si es necesario):** Requiere Port Forwarding
 **Puerto:** `6379`
 **Usuario:** `default`
-**Contraseña:** `gWVgRskUqCzynmeKKocQmluQJZYWAYTo`
+**Contraseña:** `<REDIS_PASSWORD_ROTAR_EN_RAILWAY>`
 **Base de Datos:** `0` (por defecto)
 
 ## Opción 1: Conexión a través de Railway CLI (Recomendado)
@@ -20,7 +20,7 @@ $env:REDIS_PORT = "6379"
 
 # Opcional: Crear un alias para usar fácilmente
 function Connect-RedisLocal {
-    & "M:\Railway\railway.exe" run redis-cli -h hernando.railway.internal -p 6379 -a gWVgRskUqCzynmeKKocQmluQJZYWAYTo
+    & "M:\Railway\railway.exe" run redis-cli -h hernando.railway.internal -p 6379 -a <REDIS_PASSWORD_ROTAR_EN_RAILWAY>
 }
 ```
 
@@ -34,7 +34,7 @@ function Connect-RedisLocal {
    - **Host:** `127.0.0.1`
    - **Port:** `6379`
    - **Username:** `default`
-   - **Password:** `gWVgRskUqCzynmeKKocQmluQJZYWAYTo`
+   - **Password:** `<REDIS_PASSWORD_ROTAR_EN_RAILWAY>`
    - **Database:** `0`
    - **Connection Name:** `Fundo Moraga - Railroad`
 
@@ -53,7 +53,7 @@ Edita o crea el archivo de configuración de la extensión Redis:
       "label": "Fundo Moraga - Railway",
       "host": "127.0.0.1",
       "port": 6379,
-      "auth": "gWVgRskUqCzynmeKKocQmluQJZYWAYTo",
+      "auth": "<REDIS_PASSWORD_ROTAR_EN_RAILWAY>",
       "name": "default"
     }
   ]
@@ -66,18 +66,18 @@ Si eliges Opción 1, primero levanta el proxy:
 
 ```powershell
 # En una terminal PowerShell separada, ejecuta:
-& "M:\Railway\railway.exe" run redis-cli -h hernando.railway.internal -p 6379 -a gWVgRskUqCzynmeKKocQmluQJZYWAYTo
+& "M:\Railway\railway.exe" run redis-cli -h hernando.railway.internal -p 6379 -a <REDIS_PASSWORD_ROTAR_EN_RAILWAY>
 
 # Esto abrirá una conexión interactiva a Redis
 # Luego en otra terminal, usa redis-cli localmente
-redis-cli -h 127.0.0.1 -p 6379 -a gWVgRskUqCzynmeKKocQmluQJZYWAYTo
+redis-cli -h 127.0.0.1 -p 6379 -a <REDIS_PASSWORD_ROTAR_EN_RAILWAY>
 ```
 
 ## Verificar Conexión
 
 ```bash
 # Usar redis-cli para probar
-redis-cli -h 127.0.0.1 -p 6379 -a gWVgRskUqCzynmeKKocQmluQJZYWAYTo ping
+redis-cli -h 127.0.0.1 -p 6379 -a <REDIS_PASSWORD_ROTAR_EN_RAILWAY> ping
 
 # Debería retornar: "PONG"
 ```
@@ -111,7 +111,7 @@ GET nombre_clave
 - Confirma credenciales
 
 ### Error: "WRONGPASS invalid username-password pair"
-- Verifica que la contraseña es exacta: `gWVgRskUqCzynmeKKocQmluQJZYWAYTo`
+- Verifica que la contraseña es exacta: `<REDIS_PASSWORD_ROTAR_EN_RAILWAY>`
 - Recopia desde Railway si es necesario
 
 ### Error: "Cannot connect to hostname"

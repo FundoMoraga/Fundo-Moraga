@@ -14,11 +14,13 @@ def add_security_headers(app: Flask):
     def set_security_headers(response):
         # Security headers
         response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        
+
         # Content Security Policy (CSP)
+        # Nota: frame-ancestors reemplaza a X-Frame-Options en navegadores modernos y permite
+        # listar múltiples orígenes autorizados a embeber esta app (widget de chat en Canva/Fundo Moraga).
+        # No se fija X-Frame-Options aparte para no bloquear esos embeds en navegadores que sí lo respetan.
         csp = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com; "
@@ -27,7 +29,9 @@ def add_security_headers(app: Flask):
             "img-src 'self' data: https: blob:; "
             "connect-src 'self' https://www.google-analytics.com https://*.blob.core.windows.net; "
             "frame-src 'self' https://www.youtube.com; "
-            "media-src 'self' https://*.blob.core.windows.net;"
+            "media-src 'self' https://*.blob.core.windows.net; "
+            "frame-ancestors 'self' https://fundomoraga.com https://www.fundomoraga.com "
+            "https://canva.com https://www.canva.com https://*.canva.com;"
         )
         response.headers['Content-Security-Policy'] = csp
         

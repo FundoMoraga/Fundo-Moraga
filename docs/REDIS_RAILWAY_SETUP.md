@@ -9,11 +9,11 @@
 
 ### ✅ Variables Configuradas Correctamente
 - `REDIS_ENABLED=true`
-- `REDIS_URL=redis://default:gWVgRskUqCzynmeKKocQmluQJZYWAYTo@hernando.railway.internal:6379`
+- `REDIS_URL=redis://default:<REDIS_PASSWORD_ROTAR_EN_RAILWAY>@hernando.railway.internal:6379`
 - `REDISHOST=hernando.railway.internal`
 - `REDISPORT=6379`
 - `REDISUSER=default`
-- `REDISPASSWORD=gWVgRskUqCzynmeKKocQmluQJZYWAYTo`
+- `REDISPASSWORD=<REDIS_PASSWORD_ROTAR_EN_RAILWAY>`
 
 ## 🎯 Solución: Agregar Servicio Redis
 

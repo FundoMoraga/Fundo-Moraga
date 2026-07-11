@@ -649,16 +649,17 @@
             }
             
             try {
-                // TODO: Replace with actual API endpoint
-                // const response = await fetch('/api/reservas', {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify(formData)
-                // });
-                
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
+                const response = await fetch(`${RAILWAY_API_URL}/reservas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Error en el envío');
+                }
+
                 // Success message
                 messageDiv.className = 'form-message success';
                 messageDiv.style.display = 'block';
